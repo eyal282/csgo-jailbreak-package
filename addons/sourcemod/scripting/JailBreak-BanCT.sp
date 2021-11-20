@@ -19,7 +19,7 @@
 int g_iBanCTUnix[MAXPLAYERS + 1];
 bool g_bBanCTBool[MAXPLAYERS + 1];
 
-Database db;
+Database dbCTBan;
 
 EngineVersion g_Game;
 
@@ -44,9 +44,19 @@ public void OnPluginStart()
 	LoadTranslations("common.phrases");
 	
 	/* SQL */
-	if (db == INVALID_HANDLE)
+	if (dbCTBan == INVALID_HANDLE)
 	{
-		SQL_TConnect(SQLCB_OnConnected, "");
+		char error[256];
+		Database hndl;
+		if((hndl = SQLite_UseDatabase("JailBreak-BanCT", error, sizeof(error))) == INVALID_HANDLE)
+			SetFailState(error);
+
+		else
+		{
+			dbCTBan = hndl;
+			
+			SQL_TQuery(dbCTBan, SQL_NoAction, "CREATE TABLE IF NOT EXISTS `jb_banct` ( `auth` varchar(32) NOT NULL UNIQUE, `banctunix` int(15) NOT NULL, `reason` varchar(256) NOT NULL, `name` varchar(64) NOT NULL, `admin` varchar(64) NOT NULL )");
+		}
 	}
 	
 	
@@ -59,13 +69,6 @@ public void OnPluginStart()
 	RegAdminCmd("sm_ctbanlist", Command_CTBanList, ADMFLAG_BAN, "List of CT Bans");
 }
 
-public SQLCB_OnConnected(Handle owner, Handle hndl, const char[] error, any data)
-{
-	
-	db = view_as<Database>(hndl);
-	
-	SQL_TQuery(db, SQL_NoAction, "CREATE TABLE IF NOT EXISTS `jb_banct` ( `auth` varchar(32) NOT NULL UNIQUE, `banctunix` int(15) NOT NULL, `reason` varchar(256) NOT NULL, `name` varchar(64) NOT NULL, `admin` varchar(64) NOT NULL )");
-}
 /* Hooks, etc.. */
 
 public void OnClientPostAdminCheck(int client)
@@ -77,8 +80,8 @@ public void OnClientPostAdminCheck(int client)
 	GetClientAuthId(client, AuthId_Engine, SteamID, sizeof(SteamID));
 	
 	char aQuery[255];
-	SQL_FormatQuery(db, aQuery, sizeof(aQuery), "SELECT banctunix from jb_banct where auth='%s'", SteamID);
-	SQL_TQuery(db, SQL_LoadPlayer, aQuery, GetClientSerial(client));
+	SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "SELECT banctunix from jb_banct where auth='%s'", SteamID);
+	SQL_TQuery(dbCTBan, SQL_LoadPlayer, aQuery, GetClientSerial(client));
 }
 
 /* */
@@ -117,8 +120,8 @@ public int Native_IsPlayerBanned(Handle plugin, int numParams) {
 		GetClientAuthId(client, AuthId_Engine, SteamID, sizeof(SteamID));
 	
 		char aQuery[255];
-		SQL_FormatQuery(db, aQuery, sizeof(aQuery), "DELETE from jb_banct where auth='%s'", SteamID);
-		SQL_TQuery(db, SQL_NoAction, aQuery);
+		SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "DELETE from jb_banct where auth='%s'", SteamID);
+		SQL_TQuery(dbCTBan, SQL_NoAction, aQuery);
 	}
 	
 	return g_bBanCTBool[client] ? 1:0;
@@ -180,8 +183,8 @@ public void SQL_LoadPlayer(Handle owner, Handle hndl, const char[] error, any da
 				GetClientAuthId(client, AuthId_Engine, SteamID, sizeof(SteamID));
 			
 				char aQuery[255];
-				SQL_FormatQuery(db, aQuery, sizeof(aQuery), "DELETE from jb_banct where auth='%s'", SteamID);
-				SQL_TQuery(db, SQL_NoAction, aQuery);
+				SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "DELETE from jb_banct where auth='%s'", SteamID);
+				SQL_TQuery(dbCTBan, SQL_NoAction, aQuery);
 			}
 		}
 	}
@@ -269,8 +272,8 @@ public Action Command_BanCT(int client, int args)
 	GetClientAuthId(target, AuthId_Engine, SteamID, sizeof(SteamID));
 	
 	char aQuery[255];
-	SQL_FormatQuery(db, aQuery, sizeof(aQuery), "INSERT IGNORE INTO jb_banct (auth,banctunix,reason,name,admin) VALUES ('%s','%i','%s','%N','%N')", SteamID, g_iBanCTUnix[target], Reason, target, client);
-	SQL_TQuery(db, SQL_NoAction, aQuery);
+	SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "INSERT IGNORE INTO jb_banct (auth,banctunix,reason,name,admin) VALUES ('%s','%i','%s','%N','%N')", SteamID, g_iBanCTUnix[target], Reason, target, client);
+	SQL_TQuery(dbCTBan, SQL_NoAction, aQuery);
 	
 	return Plugin_Handled;
 }
@@ -308,8 +311,8 @@ public Action Command_UnbanCT(int client, int args)
 	GetClientAuthId(client, AuthId_Engine, SteamID, sizeof(SteamID));
 	
 	char aQuery[255];
-	SQL_FormatQuery(db, aQuery, sizeof(aQuery), "DELETE from jb_banct where auth='%s'", SteamID);
-	SQL_TQuery(db, SQL_NoAction, aQuery);
+	SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "DELETE from jb_banct where auth='%s'", SteamID);
+	SQL_TQuery(dbCTBan, SQL_NoAction, aQuery);
 		
 	return Plugin_Handled;
 }
@@ -318,8 +321,8 @@ public Action Command_UnbanCT(int client, int args)
 public Action Command_CTBanList(int client, int args)
 {
 	char aQuery[255];
-	SQL_FormatQuery(db, aQuery, sizeof(aQuery), "SELECT * from jb_banct ORDER BY banctunix DESC");
-	SQL_TQuery(db, SQL_ShowCTBanList, aQuery, GetClientUserId(client));
+	SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "SELECT * from jb_banct ORDER BY banctunix DESC");
+	SQL_TQuery(dbCTBan, SQL_ShowCTBanList, aQuery, GetClientUserId(client));
 		
 	return Plugin_Handled;
 }
@@ -366,9 +369,9 @@ public int MenuHandler_BanInfo(Handle hMenu, MenuAction action, int client, int 
 		GetMenuItem(hMenu, item, AuthId, sizeof(AuthId));
 		
 		char aQuery[255];
-		SQL_FormatQuery(db, aQuery, sizeof(aQuery), "SELECT * from jb_banct where auth='%s'", AuthId);
+		SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "SELECT * from jb_banct where auth='%s'", AuthId);
 		
-		SQL_TQuery(db, SQL_ShowBanInfo, aQuery, GetClientUserId(client));
+		SQL_TQuery(dbCTBan, SQL_ShowBanInfo, aQuery, GetClientUserId(client));
 	}
 }
 
@@ -421,8 +424,8 @@ public int MenuHandler_DeleteBan(Handle hMenu, MenuAction action, int client, in
 		PrintToChat(client, "%s \x02Unbanned Auth Id %s", PREFIX, AuthId);
 		
 		char aQuery[255];
-		SQL_FormatQuery(db, aQuery, sizeof(aQuery), "DELETE from jb_banct where auth='%s'", AuthId);
-		SQL_TQuery(db, SQL_NoAction, aQuery);
+		SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "DELETE from jb_banct where auth='%s'", AuthId);
+		SQL_TQuery(dbCTBan, SQL_NoAction, aQuery);
 		
 		new target = FindClientByAuthId(AuthId);
 		
