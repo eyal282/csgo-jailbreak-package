@@ -1,12 +1,8 @@
 /*
-
 Despite the fact that I wrote down most of the code, I copied a few small things from different sources. Combo Contest taken from Random Button Game.
-
 ////////////////////////////////
 /////JailBreak Last Request/////
 ////////////////////////////////
-
-
 */
 
 #include <sourcemod>
@@ -1289,7 +1285,6 @@ public Action:Command_LRManage(client, args)
 		menu_display(id, LRManageMenu);
 	}
 }	
-
 public HandleShowLRManageMenu(id, LRManageMenu, item)
 {
 	if(item == MENU_EXIT) return;
@@ -1300,7 +1295,6 @@ public HandleShowLRManageMenu(id, LRManageMenu, item)
 		case 2: ShowRemoveTeleportMenu(id);
 	}
 }
-
 public ShowAddTeleportMenu(id)
 {
 	new Format[64];
@@ -1321,7 +1315,6 @@ public ShowAddTeleportMenu(id)
 	
 	return 1;
 }
-
 public HandleCmdAddTeleport(id, AddTeleport, item)
 {	
 	if(item == MENU_EXIT) return;
@@ -1355,7 +1348,6 @@ public HandleCmdAddTeleport(id, AddTeleport, item)
 		{
 			break;
 		}
-
 		if(ReadFile[0] == ';' || strcmp(ReadFile, "") == 0) continue;
 		
 		strtok(ReadFile, TOrigin, 199, Token[0], 199, '=');
@@ -1373,7 +1365,6 @@ public HandleCmdAddTeleport(id, AddTeleport, item)
 		DuelN[id] = "";
 	}
 }
-
 public ShowRemoveTeleportMenu(id)
 {	
 	if(get_user_flags(id) & ADMIN_RCON)
@@ -1403,7 +1394,6 @@ public ShowRemoveTeleportMenu(id)
 		}
 	}
 }
-
 public HandleShowRemoveTeleportMenu(id, RemoveTeleport, item)
 {
 	if(item == MENU_EXIT) return;
@@ -1438,7 +1428,6 @@ public HandleCmdRemoveTeleport(id, ConfirmMenu, item)
 	client_print(id, print_chat, "Teleport was removed successfully!");
 	menu_destroy(ConfirmMenu);
 }	
-
 public SetTOrigin(id)
 {
 	new Origin[3];
@@ -1449,7 +1438,6 @@ public SetTOrigin(id)
 	OriginT[2][id] = Origin[2];
 	ShowAddTeleportMenu(id);
 }
-
 public SetCTOrigin(id)
 {
 	new Origin[3];
@@ -1460,9 +1448,7 @@ public SetCTOrigin(id)
 	OriginCT[2][id] = Origin[2];
 	ShowAddTeleportMenu(id);
 }
-
 public SetDuelName(id)	ShowDuelNames(id);
-
 public ShowDuelNames(id)
 {
 	new DuelNamesMenu = menu_create("\y[Last Request]\wChoose duel to teleport:", "HandleShowDuelNames");
@@ -1474,7 +1460,6 @@ public ShowDuelNames(id)
 	
 	menu_display(id, DuelNamesMenu);
 }	
-
 public HandleShowDuelNames(id, DuelNamesMenu, item)
 {
 	if(item == MENU_EXIT) return;
@@ -1493,7 +1478,6 @@ public ShowWeaponDuelNames(id) // This is to set teleportation.
 	
 	formatex(Format, sizeof(Format), "\y[Last Request]\w Choose teleportations for\y %s", TypeDuel[id] == 0 ? "Shot4Shot" : "Custom Duel");
 	new WeaponMenu = menu_create(Format, "HandleShowWeaponDuelNames");
-
 	menu_additem(WeaponMenu, "Deagle");
 	menu_additem(WeaponMenu, "AWP");
 	menu_additem(WeaponMenu, "SSG 08");
@@ -1511,11 +1495,9 @@ public ShowWeaponDuelNames(id) // This is to set teleportation.
 	
 	menu_display(id, WeaponMenu);
 }
-
 public HandleShowWeaponDuelNames(id, WeaponMenu, item)
 {
 	if(item == MENU_EXIT) ShowLRManageMenu(id);
-
 	if(TypeDuel[id] == 0)
 	{
 		DuelN[id] = "S4S";
@@ -1549,7 +1531,6 @@ public HandleShowWeaponDuelNames(id, WeaponMenu, item)
 	
 	return 0;
 }	
-
 public ShowFunDuelNames(id)
 {
 	new FunDuels = menu_create("\y[Last Request]\w Choose teleportations for\y Fun Duels", "HandleShowFunDuelNames");
@@ -1572,7 +1553,6 @@ public ShowFunDuelNames(id)
 	 
 	menu_display(id, FunDuels);
 }
-
 public HandleShowFunDuelNames(id, FunDuels, item)
 {
 	if(item == MENU_EXIT) return;
@@ -1598,7 +1578,6 @@ public HandleShowFunDuelNames(id, FunDuels, item)
 	
 	ShowAddTeleportMenu(id);
 }
-
 public ShowAutoDuelNames(id)
 {
 	new AutoDuels = menu_create("\y[Last Request]\w Choose teleportations for\y Auto Duels", "HandleShowAutoDuelNames");
@@ -1608,7 +1587,6 @@ public ShowAutoDuelNames(id)
 	 
 	menu_display(id, AutoDuels);
 }
-
 public HandleShowAutoDuelNames(id, AutoDuels, item)
 {
 	if(item == MENU_EXIT) return;
@@ -1996,7 +1974,6 @@ public _Ham_TraceAttack(victim, attacker, Float:damage, Float:direction[3], trac
 	
 	return HAM_SUPERCEDE;	
 }
-
 public _Ham_Touch(victim, attacker)
 {
 	if(!LRStarted)
@@ -2078,7 +2055,6 @@ public Action:Event_WeaponPickUp(client, weapon)
 	/*
 	if(StrEqual(WeaponName, "weapon_hkp2000", true))
 		WeaponName = "weapon_usp_silencer";
-
 	if(StrEqual(WeaponName, "weapon_m4a1_silencer", true))
 		WeaponName = "weapon_m4a1";
 	*/
@@ -2369,7 +2345,7 @@ public Action:Command_LR(client, args)
 		AddMenuItem(hMenu, "", "Random");
 		AddMenuItem(hMenu, "", "Random no Rambo Rebel");
 		
-		SetMenuTitle(hMenu, "[GlowX-LR] Select your favorite duel!");
+		SetMenuTitle(hMenu, "%s Select your favorite duel!", MENU_PREFIX);
 		
 		SetMenuPagination(hMenu, MENU_NO_PAGINATION);
 		SetMenuExitButton(hMenu, true);
@@ -2649,7 +2625,7 @@ public ShowCustomMenu(client)
 	
 	AddMenuItem(hMenu, "", "Begin duel!");
 	
-	SetMenuTitle(hMenu, "[GlowX-LR] Custom Duel:");
+	SetMenuTitle(hMenu, "%s Custom Duel:", MENU_PREFIX);
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 	CanSetHealth[client] = true;
 }
@@ -2749,7 +2725,7 @@ public ChooseRules(client)
 	
 	AddMenuItem(hMenu, "", "Select Opponent");
 	
-	SetMenuTitle(hMenu, "[GlowX-LR] Select battle rules:");
+	SetMenuTitle(hMenu, "%s Select battle rules:", MENU_PREFIX);
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
@@ -2861,7 +2837,7 @@ public ShowFunMenu(client)
 	
 	AddMenuItem(hMenu, "", "Random");
 	
-	SetMenuTitle(hMenu, "[GlowX-LR] Fun Duels:");
+	SetMenuTitle(hMenu, "%s Fun Duels:", MENU_PREFIX);
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
@@ -2997,7 +2973,7 @@ public ChooseSeeker(client)
 	
 	AddMenuItem(hMenu, "", "Random");
 	
-	SetMenuTitle(hMenu, "[GlowX-LR] Choose who will seek:");
+	SetMenuTitle(hMenu, "%s Choose who will seek:", MENU_PREFIX);
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
@@ -3041,7 +3017,7 @@ public ShowAutoMenu(client)
 	//AddMenuItem(hMenu, "", "Spray");
 	AddMenuItem(hMenu, "", "Random");
 	
-	SetMenuTitle(hMenu, "[GlowX-LR] Automatic Contests:");
+	SetMenuTitle(hMenu, "%s Automatic Contests:", MENU_PREFIX);
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
@@ -3120,7 +3096,7 @@ public ChooseOpponent(client)
 		AddMenuItem(hMenu, UID, Name);
 	}
 	
-	SetMenuTitle(hMenu, "[GlowX-LR] Select a Guard to battle against.");
+	SetMenuTitle(hMenu, "%s Select a Guard to battle against.", MENU_PREFIX);
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
@@ -3477,11 +3453,9 @@ public ContinueStartDuel()
 		Ring = true;
 		
 		GetClientAbsOrigin(Prisoner, RingOrigin);
-
 		new Float:GuardOrigin[3];
 		
 		GuardOrigin = RingOrigin;
-
 		//GuardOrigin[2] += 85.0;
 		
 		RingOrigin[2] += 30.0;
@@ -3491,7 +3465,6 @@ public ContinueStartDuel()
 		PrintToChatAll("%s \x01Use right click to push your \x07opponent!", PREFIX);
 		PrintToChatAll("%s \x01Use right click to push your \x07opponent!", PREFIX);
 		PrintToChatAll("%s \x01Use right click to push your \x07opponent!", PREFIX);
-
 		new Float:Sensitivity = 1.0;
 		
 		new bool:NoRing = false;
@@ -3843,19 +3816,16 @@ public Teleport()
 	new ReadFile[100], Token[3][200], TOrigin[200], CTOrigin[200], Duel[200], Line, Length;
 	
 	new DuelNameNeeded[50];
-
 	formatex(DuelNameNeeded, sizeof(DuelNameNeeded), DuelName);
 	
 	if(equali(DuelName, "S4S", 3))
 		formatex(DuelNameNeeded, sizeof(DuelNameNeeded), "S4S");
-
 	while(read_file(TPDir, Line++, ReadFile, sizeof(ReadFile), Length))
 	{
 		if(!read_file(TPDir, Line, ReadFile, sizeof(ReadFile), Length))
 		{
 			break;
 		}
-
 		if(ReadFile[0] == ';' || strcmp(ReadFile, "") == 0) continue;
 		
 		strtok(ReadFile, TOrigin, 199, Token[0], 199, '=');
@@ -3878,7 +3848,6 @@ public Teleport()
 		set_user_origin(Prisoner, Origin);
 		
 		Origin[2] += 100;
-
 		parse(CTOrigin, Token[0], 199, Token[1], 199, Token[2], 199);
 		
 		for(new i;i < 3;i++)
@@ -4331,7 +4300,6 @@ public Beacon() // I won't even pretend that I understand in message_begin funct
 		write_byte(0);			// speed
 		message_end();
 	}
-
 	new bool:NC;
 	
 	NC = StrContains(DuelName, "Night Crawler") != -1 ? true : false;
@@ -4616,7 +4584,6 @@ public Action:Event_HEGrenadeDetonate(Handle:event, const String:name[], bool:do
 	if(PrimNum == CSWeapon_HEGRENADE || SecNum == CSWeapon_HEGRENADE)
 		GivePlayerItem(client, "weapon_hegrenade");
 }
-
 public Action:Event_SmokeGrenadeDetonate(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	if(!LRStarted)
@@ -4838,7 +4805,6 @@ stock GetWeaponBoxWeaponType(ent)
 	
 	return 0; 
 }  
-
 stock bool:is_user_surfing(id) // Who dafaq invented that stock?
 {
     if( is_user_alive(id) )
@@ -4848,14 +4814,12 @@ stock bool:is_user_surfing(id) // Who dafaq invented that stock?
         {
             return false;
         }
-
         new Float:origin[3], Float:dest[3];
         entity_get_vector(id, EV_VEC_origin, origin);
         
         dest[0] = origin[0];
         dest[1] = origin[1];
         dest[2] = origin[2] - 1.0;
-
         new ptr = create_tr2();
         engfunc(EngFunc_TraceHull, origin, dest, 0, flags & FL_DUCKING ? HULL_HEAD : HULL_HUMAN, id, ptr);
         new Float:flFraction;
@@ -4868,7 +4832,6 @@ stock bool:is_user_surfing(id) // Who dafaq invented that stock?
         
         get_tr2(ptr, TR_vecPlaneNormal, dest);
         free_tr2(ptr);
-
         // which one ?
         // static Float:flValue = 0.0;
         // if( !flValue )
@@ -4879,7 +4842,6 @@ stock bool:is_user_surfing(id) // Who dafaq invented that stock?
         // return dest[2] < flValue;
         return dest[2] <= 0.7 ? true : false;
         // return dest[2] < 0.7;
-
     }
     
     return false;
@@ -5490,7 +5452,7 @@ public SQL_QueryGetTopPlayers(Database db, DBResultSet hResults, const char[] sE
 		{
 			case CM_ShowTopPlayers:
 			{
-				SetMenuTitle(hMenu, "[GlowX-LR] Top players");
+				SetMenuTitle(hMenu, "%s Top players", MENU_PREFIX);
 				DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 				PrintToChat(client, "%s You are \x05#%i \x01in the \x07top!", PREFIX, Rank);
 			}
