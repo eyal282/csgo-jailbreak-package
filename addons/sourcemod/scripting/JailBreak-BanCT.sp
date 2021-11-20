@@ -10,9 +10,7 @@
 #include <cstrike>
 #include <multicolors>
 //#include <sdkhooks>
-
-
-#define PREFIX " \x0B[WePlay]\x01 "
+#include <eyal-jailbreak>
 
 #define SECONDS_IN_MINUTE 60
 
