@@ -11,16 +11,19 @@
 //#include <hl_gangs>
 #include <eyal-jailbreak>
 
-native LR_isActive();
+#define semicolon 1
+#define newdecls required
+
+native int LR_isActive();
 
 bool isbox = false;
 bool nospam[MAXPLAYERS + 1] = false;
 ConVar g_SetTimeMute;
 ConVar g_SetTimeCooldown;
 
-new Handle:hcv_DeadTalk = INVALID_HANDLE;
+Handle hcv_DeadTalk = INVALID_HANDLE;
 
-new Handle:hTimer_ExpireMute = INVALID_HANDLE;
+Handle hTimer_ExpireMute = INVALID_HANDLE;
 
 public Plugin myinfo = 
 {
@@ -31,7 +34,7 @@ public Plugin myinfo =
 	url = "https://forums.alliedmods.net/member.php?u=283190"
 };
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	g_SetTimeMute = CreateConVar("sm_setmutetime", "30.0", "Set the mute timer on round start");
 	AutoExecConfig(true, "WePlay-jail", "sourcemod");
@@ -51,17 +54,17 @@ public OnPluginStart()
 	hcv_DeadTalk = FindConVar("sv_deadtalk");
 }
 
-public OnMapStart()
+public void OnMapStart()
 {
 	hTimer_ExpireMute = INVALID_HANDLE;
 }
 
 
-public Action cmd_medic(int client, args)
+public Action cmd_medic(int client, int args)
 {
-	int hp;
+	//int hp;
 	char name[512];
-	hp = GetClientHealth(client);
+	//hp = GetClientHealth(client);
 	GetClientName(client, name, sizeof(name));
 	if (IsPlayerAlive(client) && GetClientTeam(client) == CS_TEAM_T)
 	{
@@ -121,6 +124,7 @@ public Action cmd_deagle(int client, args)
 	}
 	return Plugin_Continue;
 }
+
 public Action Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 {
 	ServerCommand("mp_forcecamera 1");
@@ -207,9 +211,9 @@ public Action Event_PlayerTeam(Event event, char[] name, bool dontBroadcast)
 	CreateTimer(0.1, CheckDeathOnJoin, UserId, TIMER_FLAG_NO_MAPCHANGE);
 }
 
-public Action:CheckDeathOnJoin(Handle:hTimer, UserId)
+public Action CheckDeathOnJoin(Handle hTimer, int UserId)
 {
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	if(client == 0)
 		return;
@@ -221,7 +225,7 @@ public Action:CheckDeathOnJoin(Handle:hTimer, UserId)
 		SetClientListeningFlags(client, VOICE_MUTED);
 }
 
-public Action cmd_box(int client, args)
+public Action cmd_box(int client, int args)
 {
 	if (GetClientTeam(client) == CS_TEAM_CT || CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
@@ -264,7 +268,7 @@ public int BoxMenuHandler(Menu menu, MenuAction action, int client, int item)
 		isbox = !isbox;
 	}
 }
-public Action cmd_givelr(int client, args)
+public Action cmd_givelr(int client, int args)
 {
 	if(args == 0)
 	{
@@ -312,7 +316,7 @@ public Action cmd_givelr(int client, args)
 	return Plugin_Handled;
 }
 
-stock RemoveAllWeapons(int client)
+stock void RemoveAllWeapons(int client)
 {
 	int iWeapon;
 	for (int k = 0; k <= 6; k++)
@@ -364,10 +368,10 @@ stock int FindTerroristTarget(int client, const char[] target, bool nobots = fal
 			sizeof(target_name),
 			tn_is_ml)) > 0)
 	{
-		new TrueCount = 0, TrueTarget = -1;
-		for(new i=0;i < target_count;i++)
+		int TrueCount = 0, TrueTarget = -1;
+		for(int i=0;i < target_count;i++)
 		{
-			new trgt = target_list[i];
+			int trgt = target_list[i];
 			if(GetClientTeam(trgt) == CS_TEAM_T)
 			{
 				TrueCount++;
@@ -389,10 +393,10 @@ stock int FindTerroristTarget(int client, const char[] target, bool nobots = fal
 	}
 }
 
-stock GetPlayerCount()
+stock int GetPlayerCount()
 {
-	new count;
-	for(new i=1;i <= MaxClients;i++)
+	int count;
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -426,5 +430,4 @@ stock int GetTeamAliveCount(int Team)
 	}
 	
 	return count;
-}	
-
+}
