@@ -4,6 +4,9 @@
 #include <cstrike>
 #include <eyal-jailbreak>
 
+#define semicolon 1
+#define newdecls required
+
 native int JailBreakShop_GetClientCash(int client);
 
 native int JailBreakShop_GiveClientCash(int client, int amount, bool includeMultipliers);

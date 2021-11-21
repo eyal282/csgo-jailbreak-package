@@ -8,6 +8,9 @@
 #include <cstrike>
 #include <eyal-jailbreak>
 
+#define semicolon 1
+#define newdecls required
+
 native bool IsPlayerBannedFromGuardsTeam(int client);
 native void LR_FinishTimers(Handle hTimer_Ignore = INVALID_HANDLE);
 
@@ -153,20 +156,20 @@ public Plugin myinfo =
 	url = ""
 }
 
-native bool:SmartOpen_AreCellsOpen();
+native bool SmartOpen_AreCellsOpen();
 
 // returns false if couldn't open cells. Forced may fail if not assigned.
-native bool:SmartOpen_OpenCells(bool:forced, bool:isolation);
+native bool SmartOpen_OpenCells(bool forced, bool isolation);
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-	 CreateNative("Eyal282_VoteCT_IsChosen", Native_IsChosen);
-	 CreateNative("Eyal282_VoteCT_GetChosenUserId", Native_GetChosenUserId);
-	 CreateNative("Eyal282_VoteCT_IsGodRound", Native_IsGodRound);
+	CreateNative("Eyal282_VoteCT_IsChosen", Native_IsChosen);
+	CreateNative("Eyal282_VoteCT_GetChosenUserId", Native_GetChosenUserId);
+	CreateNative("Eyal282_VoteCT_IsGodRound", Native_IsGodRound);
 	 
-	 CreateNative("Eyal282_VoteCT_SetChosen", Native_SetChosen);
+	CreateNative("Eyal282_VoteCT_SetChosen", Native_SetChosen);
 	 
-	 return APLRes_Success;
+	return APLRes_Success;
 }
 
 public int Native_IsChosen(Handle plugin, int numParams)

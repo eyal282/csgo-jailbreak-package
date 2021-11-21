@@ -1,11 +1,13 @@
 #include <sourcemod>
 #include <sdktools>
+#include <store>
 #include <eyal-jailbreak>
 
 #define PLUGIN_AUTHOR "NoyB"
 #define PLUGIN_VERSION "1.0"
 
-#pragma newdecls required
+#define semicolon 1
+#define newdecls required
 
 enum Prize
 {

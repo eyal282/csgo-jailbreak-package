@@ -2,30 +2,33 @@
 #include <cstrike>
 #include <sdktools>
 
-new Handle: Team
+#define semicolon 1
+#define newdecls required
 
-public Plugin:myinfo = {
+Handle Team
+
+public Plugin myinfo = {
 	name = "Auto Join On Connect",
 	author = "xoxo^^",
 	description = "Auto Join On Connect",
 	version = "1.0",
 	url = ""
-}
+};
 
-public OnPluginStart( ) {
+public void OnPluginStart( ) {
 	Team = CreateConVar( "sm_join_team", "2", "Do not edit this" )
 	HookEvent( "player_connect_full", Event_OnFullConnect, EventHookMode_Post )
 }
 
-public Event_OnFullConnect( Handle:event, const String:name[ ], bool:dontBroadcast ) {
-	new client = GetClientOfUserId( GetEventInt( event, "userid" ) )
+public Action Event_OnFullConnect( Handle event, const char[] name, bool dontBroadcast ) {
+	int client = GetClientOfUserId( GetEventInt( event, "userid" ) )
 	
 	if( client != 0 && IsClientInGame( client ) && !IsFakeClient( client ) ) {
 		CreateTimer( 0.5, AssignTeam, client )
 	}
 }
 
-public Action: AssignTeam( Handle: timer, any: client ) {
+public Action AssignTeam( Handle timer, any client ) {
 	if( IsClientInGame( client ) ) {
 		int iCvar = GetConVarInt( Team )
 		
@@ -34,13 +37,13 @@ public Action: AssignTeam( Handle: timer, any: client ) {
 				return Plugin_Handled
 			}
 			case 1 : {
-				new iRed, iBlue;
-				for(new i = 1; i <= MaxClients; i++)
+				int iRed, iBlue;
+				for(int i = 1; i <= MaxClients; i++)
 				{
 					if(!IsClientInGame(i))
 						continue;
 
-					new iTeam = GetClientTeam(i);
+					int iTeam = GetClientTeam(i);
 					if(iTeam == CS_TEAM_T)
 						iRed++;
 					else if(iTeam == CS_TEAM_CT)

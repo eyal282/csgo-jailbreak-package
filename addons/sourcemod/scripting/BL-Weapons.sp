@@ -3,13 +3,16 @@
 #include <cstrike>
 #include <clientprefs>
 
-new Handle:cpLastRifle = INVALID_HANDLE;
-new Handle:cpLastPistol = INVALID_HANDLE;
-new Handle:cpNeverShow = INVALID_HANDLE;
+#define semicolon 1
+#define newdecls required
+
+Handle cpLastRifle = INVALID_HANDLE;
+Handle cpLastPistol = INVALID_HANDLE;
+Handle cpNeverShow = INVALID_HANDLE;
 //new Handle:hcv_CK = INVALID_HANDLE;
 
-new bool:SaveLastGuns[MAXPLAYERS+1];
-new bool:DontShow[MAXPLAYERS+1];
+bool SaveLastGuns[MAXPLAYERS+1];
+bool DontShow[MAXPLAYERS+1];
 
 enum struct enWeapons
 {
@@ -43,18 +46,18 @@ enWeapons PistolList[] =
 	{ "Dual Berettas", "weapon_elite" }
 };
 
-public Plugin:myinfo = 
+public Plugin myinfo = 
 {
 	name = "[CSGO] JailBreak Weapons Menu",
 	author = "Eyal282",
 	description = "Gives the Guards a menu to pick their favourite weapon",
 	version = "1.0",
 	url = "None."
-}
+};
 
-new Handle:hcv_Enabled = INVALID_HANDLE;
+Handle hcv_Enabled = INVALID_HANDLE;
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	// The cvar to enable the plugin. 0 = Disabled. Other values = Enabled.
 	hcv_Enabled = CreateConVar("jb_weapons_enabled", "1");
@@ -67,7 +70,7 @@ public OnPluginStart()
 	cpLastPistol = RegClientCookie("WeaponsMenu_LastPistol", "Player's Last Chosen Pistol", CookieAccess_Private);
 	cpNeverShow = RegClientCookie("WeaponsMenu_NeverShow", "Should the player see the weapon menu at all?", CookieAccess_Private);
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -78,18 +81,18 @@ public OnPluginStart()
 	
 }
 
-public OnClientConnected(client)
+public void OnClientConnected(int client)
 {
 	DontShow[client] = false;
 	SaveLastGuns[client] = false;
 }
 
-public OnConfigsExecuted()
+public void OnConfigsExecuted()
 {
 	//hcv_CK = FindConVar("adp_ck_enabled");
 }
 
-public Action:Command_Guns(client, args)
+public Action Command_Guns(int client, int args)
 {
 	if(SaveLastGuns[client])
 	{
@@ -101,12 +104,12 @@ public Action:Command_Guns(client, args)
 	DontShow[client] = false;
 	return Plugin_Handled;
 }
-public Action:Event_PlayerSpawn(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if(GetConVarInt(hcv_Enabled) == 0)
 		return Plugin_Continue;
 	
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));			
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));			
 	
 	if(!IsClientInGame(client))
 		return Plugin_Continue;
@@ -131,8 +134,8 @@ public Action:Event_PlayerSpawn(Handle:hEvent, const String:Name[], bool:dontBro
 		return Plugin_Continue;
 	}
 	
-	new String:TempFormat[150];
-	new Handle:hMenu = CreateMenu(Choice_MenuHandler);
+	char TempFormat[150];
+	Handle hMenu = CreateMenu(Choice_MenuHandler);
 	
 	AddMenuItem(hMenu, "", "Choose your guns");
 	AddMenuItem(hMenu, "", "Last Guns");
@@ -148,7 +151,7 @@ public Action:Event_PlayerSpawn(Handle:hEvent, const String:Name[], bool:dontBro
 	return Plugin_Continue;
 }
 
-public Choice_MenuHandler(Handle:hMenu, MenuAction:action, client, item) // client and item are only valid in MenuAction_Select and something else.
+public int Choice_MenuHandler(Handle hMenu, MenuAction action, int client, int item) // client and item are only valid in MenuAction_Select and something else.
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -199,11 +202,11 @@ public Choice_MenuHandler(Handle:hMenu, MenuAction:action, client, item) // clie
 	hMenu = INVALID_HANDLE;
 }
 
-public ShowWeaponsMenu(client)
+public void ShowWeaponsMenu(int client)
 {
-	new Handle:hMenu = CreateMenu(Weapons_MenuHandler);
+	Handle hMenu = CreateMenu(Weapons_MenuHandler);
 	
-	for(new i=0;i < sizeof(RifleList);i++)
+	for(int i=0;i < sizeof(RifleList);i++)
 	{
 		AddMenuItem(hMenu, "", RifleList[i].enWeaponName);
 	}
@@ -214,7 +217,7 @@ public ShowWeaponsMenu(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public Weapons_MenuHandler(Handle:hMenu, MenuAction:action, client, item) // client and item are only valid in MenuAction_Select and something else.
+public int Weapons_MenuHandler(Handle hMenu, MenuAction action, int client, int item) // client and item are only valid in MenuAction_Select and something else.
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -239,7 +242,7 @@ public Weapons_MenuHandler(Handle:hMenu, MenuAction:action, client, item) // cli
 	hMenu = INVALID_HANDLE;
 }
 
-ShowPistolMenu(client)
+void ShowPistolMenu(int client)
 {
 	if(GetConVarInt(hcv_Enabled) == 0)
 		return;
@@ -250,9 +253,9 @@ ShowPistolMenu(client)
 	else if(GetClientTeam(client) != CS_TEAM_CT)
 		return;
 	
-	new Handle:hMenu = CreateMenu(Pistols_MenuHandler);
+	Handle hMenu = CreateMenu(Pistols_MenuHandler);
 	
-	for(new i=0;i < sizeof(PistolList);i++)
+	for(int i=0;i < sizeof(PistolList);i++)
 	{
 		AddMenuItem(hMenu, "", PistolList[i].enWeaponName);
 	}
@@ -263,7 +266,7 @@ ShowPistolMenu(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public Pistols_MenuHandler(Handle:hMenu, MenuAction:action, client, item) // client and item are only valid in MenuAction_Select and something else.
+public int Pistols_MenuHandler(Handle hMenu, MenuAction action, int client, int item) // client and item are only valid in MenuAction_Select and something else.
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -286,16 +289,16 @@ public Pistols_MenuHandler(Handle:hMenu, MenuAction:action, client, item) // cli
 	hMenu = INVALID_HANDLE;
 }
 
-public GivePistol(UserId)
+public void GivePistol(int UserId)
 {
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	if(client == 0)
 		return;
 	
 	else if(GetClientTeam(client) != CS_TEAM_CT)
 		return;
-	new weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY);
+	int weapon = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY);
 							
 	if(weapon != -1)
 		CS_DropWeapon(client, weapon, false, true);
@@ -303,9 +306,9 @@ public GivePistol(UserId)
 	GivePlayerItem(client, PistolList[GetClientLastPistol(client)].enWeaponClassname);
 }
 
-public GiveRifle(UserId)
+public void GiveRifle(int UserId)
 {
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	if(client == 0)
 		return;
@@ -313,18 +316,18 @@ public GiveRifle(UserId)
 	else if(GetClientTeam(client) != CS_TEAM_CT)
 		return;
 		
-	new weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY);
+	int weapon = GetPlayerWeaponSlot(client, CS_SLOT_PRIMARY);
 							
 	if(weapon != -1)
 		CS_DropWeapon(client, weapon, false, true);
 		
 	GivePlayerItem(client, RifleList[GetClientLastRifle(client)].enWeaponClassname);
 }
-stock StripPlayerWeapons(client)
+stock void StripPlayerWeapons(int client)
 {
-	for(new i=0;i <= 5;i++)
+	for(int i=0;i <= 5;i++)
 	{
-		new weapon = GetPlayerWeaponSlot(client, i);
+		int weapon = GetPlayerWeaponSlot(client, i);
 		
 		if(weapon != -1)
 		{
@@ -334,7 +337,7 @@ stock StripPlayerWeapons(client)
 	}
 }
 
-stock SetClientArmor(client, amount, helmet=-1) // helmet: -1 = unchanged, 0 = no helmet, 1 = yes helmet
+stock void SetClientArmor(int client, int amount, int helmet=-1) // helmet: -1 = unchanged, 0 = no helmet, 1 = yes helmet
 {
 	if(helmet != -1)
 		SetEntProp(client, Prop_Send, "m_bHasHelmet", helmet);
@@ -343,9 +346,9 @@ stock SetClientArmor(client, amount, helmet=-1) // helmet: -1 = unchanged, 0 = n
 }
 
 
-stock SetClientLastPistol(client, amount)
+stock void SetClientLastPistol(int client, int amount)
 {
-	new String:strAmount[30];
+	char strAmount[30];
 	
 	IntToString(amount, strAmount, sizeof(strAmount));
 	
@@ -353,21 +356,21 @@ stock SetClientLastPistol(client, amount)
 	
 }
 
-stock GetClientLastPistol(client)
+stock int GetClientLastPistol(int client)
 {
-	new String:strAmount[30];
+	char strAmount[30];
 	
 	GetClientCookie(client, cpLastPistol, strAmount, sizeof(strAmount));
 	
-	new amount = StringToInt(strAmount);
+	int amount = StringToInt(strAmount);
 	
 	return amount;
 }
 
 
-stock SetClientLastRifle(client, amount)
+stock void SetClientLastRifle(int client, int amount)
 {
-	new String:strAmount[30];
+	char strAmount[30];
 	
 	IntToString(amount, strAmount, sizeof(strAmount));
 	
@@ -375,21 +378,21 @@ stock SetClientLastRifle(client, amount)
 	
 }
 
-stock GetClientLastRifle(client)
+stock int GetClientLastRifle(int client)
 {
-	new String:strAmount[30];
+	char strAmount[30];
 	
 	GetClientCookie(client, cpLastRifle, strAmount, sizeof(strAmount));
 	
-	new amount = StringToInt(strAmount);
+	int amount = StringToInt(strAmount);
 	
 	return amount;
 }
 
 
-stock bool:GetClientDontShow(client)
+stock bool GetClientDontShow(int client)
 {
-	new String:strNeverShow[50];
+	char strNeverShow[50];
 	GetClientCookie(client, cpNeverShow, strNeverShow, sizeof(strNeverShow));
 	
 	if(strNeverShow[0] == EOS)
@@ -401,9 +404,9 @@ stock bool:GetClientDontShow(client)
 	return view_as<bool>(StringToInt(strNeverShow));
 }
 
-stock bool:SetClientDontShow(client, bool:value)
+stock bool SetClientDontShow(int client, bool value)
 {
-	new String:strNeverShow[50];
+	char strNeverShow[50];
 	
 	IntToString(view_as<int>(value), strNeverShow, sizeof(strNeverShow));
 	SetClientCookie(client, cpNeverShow, strNeverShow);
@@ -412,11 +415,11 @@ stock bool:SetClientDontShow(client, bool:value)
 }
 
 
-stock PrintToChatEyal(const String:format[], any:...)
+stock void PrintToChatEyal(const char[] format, any ...)
 {
-	new String:buffer[291];
+	char buffer[291];
 	VFormat(buffer, sizeof(buffer), format, 2);
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -425,7 +428,7 @@ stock PrintToChatEyal(const String:format[], any:...)
 			continue;
 			
 
-		new String:steamid[64];
+		char steamid[64];
 		GetClientAuthId(i, AuthId_Steam2, steamid, sizeof(steamid));
 		
 		if(StrEqual(steamid, "STEAM_1:0:49508144"))
