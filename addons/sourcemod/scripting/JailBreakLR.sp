@@ -152,9 +152,7 @@ bool ShowMessage[MAXPLAYERS + 1];
 
 bool isGangLoaded = false;
 
-int beacon_sprite;
-
-bool Hooked[MAXPLAYERS+1], BypassBlockers;
+bool BypassBlockers;
 
 int LRWins[MAXPLAYERS+1];
 
@@ -162,10 +160,11 @@ int firstcountdown;
 bool firstwrites, firstwritesmoveable;
 char firstchars[32];
 
-int g_combo[12], combocountdown, combomoveable, g_count[MAXPLAYERS + 1], g_buttons[12], maxbuttons, g_synchud;
+int g_combo[12], combocountdown, combomoveable, g_count[MAXPLAYERS + 1], g_buttons[12], maxbuttons;
 bool combo_started;
 
 bool mathcontest, mathcontestmoveable
+bool mathplus
 int mathcontestcountdown, mathnum[2];
 char mathresult[64];
 
@@ -174,6 +173,7 @@ int oppositecountdown, oppositewords;
 
 bool typestages, typestagesmoveable;
 int typestagescountdown, typestagescount[MAXPLAYERS+1], typestagesmaxstages;
+char typeStagesChars[16];
 
 bool MostJumps, mostjumpsmovable;
 int mostjumpscountdown, GuardJumps, PrisonerJumps;
@@ -184,7 +184,6 @@ float LastOrigin[2048][3], JumpOrigin[MAXPLAYERS + 1][3], LastDistance[MAXPLAYER
 bool Bleed;
 int BleedTarget
 
-char TPDir[200], DuelN[100][MAXPLAYERS+1];// Type determines whether duel name is Custom or S4S
 bool bDropBlock, PrisonerThrown, GuardThrown;
 
 
@@ -264,18 +263,6 @@ char FWwords[][] =
 {
 	"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
 	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
-};
-
-char S4SGuns[][] =
-{
-	"weapon_glock",
-	"weapon_usp_silencer",
-	"weapon_p250",
-	"weapon_elite",
-	"weapon_fiveseven",
-	"weapon_tec9",
-	"weapon_deagle",
-	"weapon_revolver"
 };
 
 bool g_bLRSound;
@@ -4178,7 +4165,7 @@ public Action ShowToAll(Handle hTimer)
 		if(HNS)
 		{
 			SetHudMessage(-1.0, -1.0, 1.0, 0, 50, 255);
-			ShowHudMessage(i, HUD_TIMER, "Time Left: %i", Timer);
+			ShowHudMessage(i, HUD_TIMER, "Time Left: %i", GeneralTimer);
 		}
 		if(ShowMessage[i] || isAuto)
 			ShowInfoMessage(i);
@@ -4488,7 +4475,7 @@ public Action ShowTimer(Handle hTimer)
 		return Plugin_Stop;
 	}
 	
-	Timer--;
+	GeneralTimer--;
 	
 	return Plugin_Continue;
 }
@@ -4859,7 +4846,7 @@ stock void SetWeaponClip(int weapon, int clip)
 	SetEntProp(weapon, Prop_Data, "m_iClip1", clip);
 }
 
-stock void StrEquali(char[] str1, char[] str2)
+stock bool StrEquali(char[] str1, char[] str2)
 {
 	return StrEqual(str1, str2, false);
 }
@@ -5109,7 +5096,7 @@ stock void SQL_GetClientLRWins(int client = 0, Handle DP = INVALID_HANDLE) // Fi
 	dbLRWins.Query(SQL_QueryGetLRWins, sQuery, DP); 
 }
 
-public void SQL_QueryGetLRWins(Database db, DBResultSet hResults, const char[][] sError, Handle DP)
+public void SQL_QueryGetLRWins(Database db, DBResultSet hResults, const char[] sError, Handle DP)
 {
 	if (hResults == null)
 		ThrowError(sError);
@@ -5218,7 +5205,7 @@ stock void SQL_GetTopPlayers(int client = 0, Handle DP = INVALID_HANDLE) // Firs
 }
 
 
-public void SQL_QueryGetTopPlayers(Database db, DBResultSet hResults, const char[][] sError, Handle DP)
+public void SQL_QueryGetTopPlayers(Database db, DBResultSet hResults, const char[] sError, Handle DP)
 {
 	if (hResults == null)
 		ThrowError(sError);
@@ -5379,13 +5366,13 @@ stock int GetPlayerCount()
 	return Count;
 }	
 
-stock int GetGroundHeight(int client)
+stock float GetGroundHeight(int client)
 {
 	float pos[3];
 	GetClientAbsOrigin(client, pos);
 	
 	// execute Trace straight down
-	Handle trace = TR_TraceRayFilterEx(pos, float {90.0, 0.0, 0.0}, MASK_SHOT, RayType_Infinite, _TraceFilter); //{ 90.0 , 0.0 , 0.0 }; = ANGLE_STRAIGHT_DOWN
+	Handle trace = TR_TraceRayFilterEx(pos, view_as<float>({90.0, 0.0, 0.0}), MASK_SHOT, RayType_Infinite, _TraceFilter); //{ 90.0 , 0.0 , 0.0 }; = ANGLE_STRAIGHT_DOWN
 	
 	if (!TR_DidHit(trace))
 	{
@@ -5453,7 +5440,7 @@ stock PlaySoundToAll(const char[] sound)
 	}
 }
 
-stock bool IsKnifeClass(const char classname[])
+stock bool IsKnifeClass(const char[] classname)
 {
 	if(StrContains(classname, "knife") != -1 || StrContains(classname, "bayonet") > -1)
 		return true;
@@ -5461,7 +5448,7 @@ stock bool IsKnifeClass(const char classname[])
 	return false;
 }
 
-stock Handle FindPluginByName(const char PluginName[], bool Sensitivity=true, bool Contains=false)
+stock Handle FindPluginByName(const char[] PluginName, bool Sensitivity=true, bool Contains=false)
 {
 	Handle iterator = GetPluginIterator();
 	
