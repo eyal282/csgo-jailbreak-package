@@ -126,7 +126,7 @@ const int HUD_WIN = 3847384
 const int HUD_INFOMSG = 4;
 const int HUD_TIMER = 2394744;
 
-const char DodgeballModel[] = "models/chicken/chicken.mdl";
+char DodgeballModel[] = "models/chicken/chicken.mdl";
 //new const Float:DodgeballMins[3] = {-14.84, -11.21, 0.00};
 //new const Float:DodgeballMaxs[3] = {11.11, 10.55, 25.74};
 
@@ -144,6 +144,7 @@ int HPamount, BPAmmo, Vest;
 bool Zoom, HeadShot, Jump, Duck, TSeeker, Dodgeball, Ring, NoRecoil;
 char DuelName[100];
 bool LRStarted, LRAnnounced;
+bool ShowMessage[MAXPLAYERS + 1];
 
 bool isGangLoaded = false;
 
@@ -154,7 +155,8 @@ bool Hooked[MAXPLAYERS+1], BypassBlockers;
 int LRWins[MAXPLAYERS+1];
 
 int firstcountdown;
-int g_combo[ 12 ], combocountdown, combomoveable, g_count[ MAXPLAYERS+1 ], g_buttons[ 12 ], maxbuttons, g_synchud, bool combo_started; 
+int g_combo[12], combocountdown, combomoveable, g_count[MAXPLAYERS + 1], g_buttons[12], maxbuttons, g_synchud;
+bool combo_started;
 int firstlistencountdown, firstlistennum;
 int mathcontestcountdown, mathnum[2];
 int oppositecountdown, oppositewords;
@@ -166,15 +168,15 @@ char TPDir[200], DuelN[100][MAXPLAYERS+1];// Type determines whether duel name i
 bool bDropBlock, PrisonerThrown, GuardThrown;
 
 
-const int float BeamRadius = 350.0;
-const int float BeamWidth = 10.0;
+const float BeamRadius = 350.0;
+const float BeamWidth = 10.0;
 bool AllowGunTossPickup;
 
 bool CanSetHealth[MAXPLAYERS+1];
 
 //new Float:GuardSprayHeight, Float:PrisonerSprayHeight;
 
-const int char names[][] = 
+char names[][] = 
 { 
 	"Attack", 	
 	"Jump", 
@@ -200,7 +202,7 @@ const int char names[][] =
 	"-- Score --"
 };
 
-const int char css[][] =
+char css[][] =
 {
 	"",
 	"",
@@ -214,50 +216,7 @@ const int char css[][] =
 	"%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 	"%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n"
 };
-/*
-new String:TypeStagesWords[][] =
-{
-	"World",
-	"Play",
-	"Game",
-	"Yellow",
-	"Cash",
-	"Country",
-	"Brown",
-	"Back",
-	"Carpenter",
-	"Killer",
-	"Color",
-	"Computer",
-	"Clock",
-	"Remote",
-	"Keyboard",
-	"Screen",
-	"Server",
-	"Console",
-	"Jailbreak",
-	"System",
-	"School",
-	"Homework",
-	"Boring",
-	"Mouse",
-	"Numbers",
-	"Skype",
-	"Knife",
-	"Gun",
-	"Rifle",
-	"Headphones",
-	"Voice",
-	"Microphone",
-	"Animals",
-	"Humans",
-	"People",
-	"Freekiller",
-	"Universe",
-	"Place",
-	"Galaxy"
-};
-*/
+
 char OppositeWords1[][] =
 {
 	"Fun",
@@ -319,7 +278,6 @@ public void OnPluginStart()
 	//RegConsoleCmd("sm_ebic", Command_Ebic);
 	RegConsoleCmd("sm_lastrequest", Command_LR);
 	RegConsoleCmd("sm_infomsg", Command_InfoMsg);
-	RegAdminCmd("sm_cheat", Command_Cheat, ADMFLAG_BAN, "Cheats in a command lol");
 	
 	RegAdminCmd("sm_stoplr", Command_StopLR, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_abortlr", Command_StopLR, ADMFLAG_GENERIC);
@@ -416,7 +374,7 @@ public Action ConnectDatabase(Handle hTimer)
 		return Plugin_Stop;
 		
 	char Error[256];
-	if((dbLRWins = SQLite_UseDatabase("sourcemod-local", Error, sizeof(Error))) == INVALID_HANDLE)
+	if((dbLRWins = SQLite_UseDatabase("JailBreak-LR", Error, sizeof(Error))) == INVALID_HANDLE)
 	{
 		LogError(Error);
 		return Plugin_Continue;
@@ -1054,29 +1012,6 @@ public Action Command_LOL(int client, int args)
 {
 	SetEntProp(client, Prop_Send, "m_bDrawViewmodel", 0);
 	SetEntPropEnt(client, Prop_Send, "m_hActiveWeapon", -1);
-	
-	return Plugin_Handled;
-}
-
-public Action Command_Cheat(int client, int args)
-{
-	if(args == 0)
-	{
-		ReplyToCommand(client, "[SM] Usage: sm_cheat <command>");
-		return Plugin_Handled;
-	}
-	
-	char Command[150];
-	GetCmdArgString(Command, sizeof(Command));
-	
-	int flags = GetConVarFlags(hcv_svCheats);
-	SetConVarFlags(hcv_svCheats, flags^(FCVAR_NOTIFY|FCVAR_REPLICATED));
-	SetConVarBool(hcv_svCheats, true);
-	
-	FakeClientCommand(client, Command);
-	
-	SetConVarBool(hcv_svCheats, false);
-	SetConVarFlags(hcv_svCheats, flags);
 	
 	return Plugin_Handled;
 }
@@ -1797,7 +1732,7 @@ public void BitchSlapBackwards(int victim, int weapon, float strength) // Stole 
 	TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, velocity);
 }
 
-public Action Event_TakeDamageAlive(int victim, int &attacker, int &inflictor, &float damage, int &damagetype)
+public Action Event_TakeDamageAlive(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
 	if(!LRStarted)
 		return Plugin_Continue;
@@ -1911,7 +1846,7 @@ public Action LostDodgeball(Handle hTimer, int victim)
 	return Plugin_Continue;
 }
 
-public Action Event_TraceAttack(int victim, int &attacker, int &inflictor, &float damage, int &damagetype, int &ammotype, int hitbox, int hitgroup)
+public Action Event_TraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &ammotype, int hitbox, int hitgroup)
 {
 	if(!LRStarted)
 		return Plugin_Continue;
@@ -4553,7 +4488,7 @@ public Action Event_PlayerJump(Handle hEvent, const char[] Name, bool dontBroadc
 	else if(Prisoner == client)
 		PrisonerJumps++;
 }
-public Action Event_Sound(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, &float volume, int &level, int &pitch, int &flags)
+public Action Event_Sound(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags)
 {
 
 	if(entity == 0 || !IsValidEntity(entity))
