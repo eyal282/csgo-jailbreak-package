@@ -6,32 +6,35 @@
 
 #define PLUGIN_VERSION "1.0"
 
-native bool:Eyal282_VoteCT_IsChosen(client);
-native bool:Eyal282_VoteCT_IsGodRound();
-native bool:JailBreakDays_IsDayActive();
+#define semicolon 1
+#define newdecls required
 
-public Plugin:myinfo = 
+native bool Eyal282_VoteCT_IsChosen(client);
+native bool Eyal282_VoteCT_IsGodRound();
+native bool JailBreakDays_IsDayActive();
+
+public Plugin myinfo = 
 {
 	name = "CT Commands",
 	author = "Eyal282",
 	description = "The most important and basic commands for CT.",
 	version = PLUGIN_VERSION,
 	url = ""
-}
+};
 
-new bool:IsVIP[MAXPLAYERS+1];
+bool IsVIP[MAXPLAYERS+1];
 
-new BeamIndex, HaloIdx; // HaloIndex is stolen by an include.
+int BeamIndex, HaloIdx; // HaloIndex is stolen by an include.
 
-new Handle:hcv_TeammatesAreEnemies = INVALID_HANDLE;
-new Handle:hcv_CKHealthPerT = INVALID_HANDLE;
+Handle hcv_TeammatesAreEnemies = INVALID_HANDLE;
+Handle hcv_CKHealthPerT = INVALID_HANDLE;
 
-new Handle:hTimer_Beacon = INVALID_HANDLE;
+Handle hTimer_Beacon = INVALID_HANDLE;
 
-new bool:CKEnabled = false;
+bool CKEnabled = false;
 
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	RegConsoleCmd("sm_box", Command_Box, "Enables friendlyfire for the terrorists");
 	RegConsoleCmd("sm_vip", Command_VIP, "Turns on glow on a player");
@@ -47,7 +50,7 @@ public OnPluginStart()
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_PostNoCopy);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -56,7 +59,7 @@ public OnPluginStart()
 	}
 }
 
-public OnMapStart()
+public void OnMapStart()
 {
 	BeamIndex = PrecacheModel("materials/sprites/laserbeam.vmt", true);
 	HaloIdx = PrecacheModel("materials/sprites/glow01.vmt", true);
@@ -67,14 +70,14 @@ public OnMapStart()
 	
 }
 
-public OnClientPutInServer(client)
+public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_OnTakeDamage, Hook_OnTakeDamage);
 	SDKHook(client, SDKHook_WeaponCanUse, Hook_WeaponCanUse);
 }
 
 
-public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon, Float:damageForce[3], Float:damagePosition[3], damagecustom)
+public Action Hook_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
 	if(!IsEntityPlayer(attacker))
 		return Plugin_Continue;
@@ -89,12 +92,12 @@ public Action:Hook_OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &d
 }
 
 
-public Action:Hook_WeaponCanUse(client, weapon)
+public Action Hook_WeaponCanUse(int client, int weapon)
 {
 	if(!CKEnabled || GetTeamPlayerCount(CS_TEAM_T, true) == 1)
 		return Plugin_Continue;
 	
-	new String:Classname[15];
+	char Classname[15];
 	GetEdictClassname(weapon, Classname, sizeof(Classname));
 	
 	
@@ -106,19 +109,19 @@ public Action:Hook_WeaponCanUse(client, weapon)
 }
 
 
-public Action:Event_RoundStart(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	SetConVarBool(hcv_TeammatesAreEnemies, false);
 	
 	if(CKEnabled)
 	{
-		new Count = GetEntityCount();
-		for(new i=MaxClients;i < Count;i++)
+		int Count = GetEntityCount();
+		for(int i=MaxClients;i < Count;i++)
 		{
 			if(!IsValidEntity(i))
 				continue;
 				
-			new String:Classname[15];
+			char Classname[15];
 			GetEntityClassname(i, Classname, sizeof(Classname));
 			
 			if(strncmp(Classname, "weapon_", 7) != 0)
@@ -134,9 +137,9 @@ public Action:Event_RoundStart(Handle:hEvent, const String:Name[], bool:dontBroa
 
 // Note to self: This has EventHookMode_PostNoCopy, meaning I can't use GetEventInt until I change to EventHookMode_Post.
 
-public Action:Event_PlayerSpawn(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
 	IsVIP[client] = false;
 	SetEntityRenderMode(client, RENDER_NORMAL);
@@ -148,9 +151,9 @@ public Action:Event_PlayerSpawn(Handle:hEvent, const String:Name[], bool:dontBro
 		CreateTimer(0.2, AddHealthCT, GetEventInt(hEvent, "userid"));
 }
 
-public Action:AddHealthCT(Handle:hTimer, UserId)
+public Action AddHealthCT(Handle hTimer, int UserId)
 {
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	if(client == 0)
 		return;
@@ -161,27 +164,27 @@ public Action:AddHealthCT(Handle:hTimer, UserId)
 	else if(!IsPlayerAlive(client))
 		return;
 		
-	new health = GetEntProp(client, Prop_Send, "m_iHealth");
+	int health = GetEntProp(client, Prop_Send, "m_iHealth");
 	
 	// Cannot divide by zero here, because the current client must be a living ct.
 	health += ( (GetConVarInt(hcv_CKHealthPerT) * GetTeamPlayerCount(CS_TEAM_T)) / GetTeamPlayerCount(CS_TEAM_CT) )
 	
 	SetEntityHealth(client, health);
 }
-public OnClientDisconnect_Post(client)
+public void OnClientDisconnect_Post(int client)
 {
 	if(GetTeamPlayerCount(CS_TEAM_T, true) < 2 || ( GetTeamPlayerCount(CS_TEAM_CT, true) == 0 && !JailBreakDays_IsDayActive() ))
 		SetConVarBool(hcv_TeammatesAreEnemies, false);
 }
 
-public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if(GetTeamPlayerCount(CS_TEAM_T, true) < 2 || ( GetTeamPlayerCount(CS_TEAM_CT, true) == 0 && !JailBreakDays_IsDayActive() ))
 		SetConVarBool(hcv_TeammatesAreEnemies, false);
 
 }
 
-public Action:Command_VIP(client, args)
+public Action Command_VIP(int client, int args)
 {
 	if((GetClientTeam(client) != CS_TEAM_CT || !IsPlayerAlive(client)) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
@@ -195,10 +198,10 @@ public Action:Command_VIP(client, args)
 		ReplyToCommand(client, "Usage: sm_vip <target>");
 		return Plugin_Handled;
 	}
-	new String:Arg[64];
+	char Arg[64];
 	GetCmdArgString(Arg, sizeof(Arg));
 	
-	new target = FindTerroristTarget(client, Arg, false, false);
+	int target = FindTerroristTarget(client, Arg, false, false);
 	
 	if(target == -1)
 		return Plugin_Handled;
@@ -228,11 +231,11 @@ public Action:Command_VIP(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Timer_BeaconVIP(Handle:hTimer)
+public Action Timer_BeaconVIP(Handle hTimer)
 {
-	new bool:AnyVIP = false;
+	bool AnyVIP = false;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -241,8 +244,8 @@ public Action:Timer_BeaconVIP(Handle:hTimer)
 			continue;
 		
 		// Stolen from eylonap vote ct since I refuse to waste my time checking these stuff lol.
-		new Float:pos[3];
-		new rgba[4];
+		float pos[3];
+		int rgba[4];
 		GetClientAbsOrigin(i, pos);
 		pos[2] += 9;
 		rgba[0] = GetRandomInt(10, 250);
@@ -264,7 +267,7 @@ public Action:Timer_BeaconVIP(Handle:hTimer)
 	return Plugin_Continue;
 }
 
-public Action:Command_Box(client, args)
+public Action Command_Box(int client, args)
 {
 	if((GetClientTeam(client) != CS_TEAM_CT || !IsPlayerAlive(client)) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
@@ -273,7 +276,7 @@ public Action:Command_Box(client, args)
 		return Plugin_Handled;
 	}
 	
-	new Handle:hMenu = CreateMenu(Box_MenuHandler);
+	Handle hMenu = CreateMenu(Box_MenuHandler);
 	
 	SetMenuTitle(hMenu, "Box status: %s", GetConVarBool(hcv_TeammatesAreEnemies) ? "Enabled" : "Disabled");
 	
@@ -285,7 +288,7 @@ public Action:Command_Box(client, args)
 	return Plugin_Handled;
 }
 
-public Box_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Box_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -295,7 +298,7 @@ public Box_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 		if(GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 			return;
 
-		new bool:Enable = (item == 0)
+		bool Enable = (item == 0)
 		SetConVarBool(hcv_TeammatesAreEnemies, Enable);
 				
 		PrintToChatAll(" %s \x05%N \x01%s \x02box! ", PREFIX, client, Enable ? "enabled" : "disabled");
@@ -303,7 +306,7 @@ public Box_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 }
 
 
-public Action:Command_CK(client, args)
+public Action Command_CK(int client, int args)
 {
 	if((GetClientTeam(client) != CS_TEAM_CT || !Eyal282_VoteCT_IsChosen(client)) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
@@ -326,7 +329,7 @@ public Action:Command_CK(client, args)
 		return Plugin_Handled;
 	}
 	
-	new Handle:hMenu = CreateMenu(CK_MenuHandler);
+	Handle hMenu = CreateMenu(CK_MenuHandler);
 	
 	AddMenuItem(hMenu, "", "Start CK", CKEnabled ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 	AddMenuItem(hMenu, "", "Stop CK", !CKEnabled ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
@@ -339,7 +342,7 @@ public Action:Command_CK(client, args)
 }
 
 
-public CK_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int CK_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -366,23 +369,23 @@ public CK_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	}
 }
 
-public Action:Command_SilentStopCK(client, args)
+public Action Command_SilentStopCK(int client, int args)
 {
 	CKEnabled = false;
 	
 	return Plugin_Handled;
 }
 
-public Eyal282_VoteCT_OnVoteCTStart(ChosenUserId)
+public void Eyal282_VoteCT_OnVoteCTStart(int ChosenUserId)
 {
 	CKEnabled = false;
 }
 
-stock GetTeamPlayerCount(Team, bool:onlyAlive = false)
+stock int GetTeamPlayerCount(int Team, bool onlyAlive = false)
 {
-	new count = 0;
+	int count = 0;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -432,10 +435,10 @@ stock int FindTerroristTarget(int client, const char[] target, bool nobots = fal
 			sizeof(target_name),
 			tn_is_ml)) > 0)
 	{
-		new TrueCount = 0, TrueTarget = -1;
-		for(new i=0;i < target_count;i++)
+		int TrueCount = 0, TrueTarget = -1;
+		for(int i=0;i < target_count;i++)
 		{
-			new trgt = target_list[i];
+			int trgt = target_list[i];
 			if(GetClientTeam(trgt) == CS_TEAM_T)
 			{
 				TrueCount++;
@@ -457,7 +460,7 @@ stock int FindTerroristTarget(int client, const char[] target, bool nobots = fal
 	}
 }
 
-stock bool:IsEntityPlayer(entity)
+stock bool IsEntityPlayer(int entity)
 {
 	if(entity <= 0)
 		return false;
