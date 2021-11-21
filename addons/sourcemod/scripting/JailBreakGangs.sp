@@ -1,6 +1,4 @@
-/* put the line below after all of the includes!
-#pragma newdecls required
-*/
+
 
 #include <sourcemod>
 #include <cstrike>
@@ -19,6 +17,8 @@
 #define EF_NOSHADOW                 (1 << 4)
 #define EF_NORECEIVESHADOW          (1 << 6)
 #define EF_PARENT_ANIMATES          (1 << 9)
+
+#pragma newdecls required
 
 char NET_WORTH_ORDER_BY_FORMULA[512];
 
