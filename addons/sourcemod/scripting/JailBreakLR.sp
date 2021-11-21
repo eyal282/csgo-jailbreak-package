@@ -1,7 +1,3 @@
-/* put the line below after all of the includes!
-#pragma newdecls required
-*/
-
 /*
 Despite the fact that I wrote down most of the code, I copied a few small things from different sources. Combo Contest taken from Random Button Game.
 ////////////////////////////////
@@ -16,10 +12,12 @@ Despite the fact that I wrote down most of the code, I copied a few small things
 #include <clientprefs>
 #include <eyal-jailbreak>
 
+#pragma newdecls required
+
 native bool Gangs_HasGang(int client);
 native void Gangs_GetClientGangName(int client, char[] GangName, int len);
 native void Gangs_PrintToChatGang(char[] GangName, char[] format, any ...);
-native void Gangs_AddClientDonations(client, int amount);
+native void Gangs_AddClientDonations(int client, int amount);
 native void Gangs_GiveGangCredits(const char[] GangName, int amount);
 
 
@@ -5386,7 +5384,7 @@ stock float GetGroundHeight(int client)
 	return vEnd[2];
 }
 
-public bool _TraceFilter(int entity, contentsMask)
+public bool _TraceFilter(int entity, int contentsMask)
 {
 	if (!entity || !IsValidEntity(entity)) // dont let WORLD, or invalid entities be hit
 	{
@@ -5404,7 +5402,7 @@ stock float GetEntitySpeed(int entity)
 	return GetVectorLength(Velocity);
 }
 
-stock GetRandomAlivePlayer(Team = -1)
+stock int GetRandomAlivePlayer(int Team = -1)
 {
 	int clients[MAXPLAYERS+1], num;
 	for(int i=1;i <= MaxClients;i++)
@@ -5427,7 +5425,7 @@ stock GetRandomAlivePlayer(Team = -1)
 	
 	return clients[GetRandomInt(0, num-1)];
 }
-stock PlaySoundToAll(const char[] sound)
+stock void PlaySoundToAll(const char[] sound)
 {
 	char buffer[250];
 	Format(buffer, sizeof(buffer), "play %s", sound);
@@ -5472,7 +5470,7 @@ stock Handle FindPluginByName(const char[] PluginName, bool Sensitivity=true, bo
 	return INVALID_HANDLE;
 }
 
-stock SetEntityMaxHealth(int entity, int amount)
+stock void SetEntityMaxHealth(int entity, int amount)
 {
 	SetEntProp(entity, Prop_Data, "m_iMaxHealth", amount);
 }

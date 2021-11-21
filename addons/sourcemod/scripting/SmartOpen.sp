@@ -5,29 +5,31 @@
 
 #define PREFIX " \x04[WePlay #JB]\x01 "
 
-new const String:PLUGIN_VERSION[] = "1.1";
+#define PLUGIN_VERSION "1.1"
 
-new Handle:hcv_Mode = INVALID_HANDLE;
-new Handle:hcv_Auto = INVALID_HANDLE;
-new Handle:hcv_GraceBeforeOpen = INVALID_HANDLE;
-new Handle:hcv_EmptyRebel = INVALID_HANDLE;
-new Handle:hcv_LRChainsaw = INVALID_HANDLE;
+#pragma newdecls required
 
-new Handle:dbLocal;
+Handle hcv_Mode = INVALID_HANDLE;
+Handle hcv_Auto = INVALID_HANDLE;
+Handle hcv_GraceBeforeOpen = INVALID_HANDLE;
+Handle hcv_EmptyRebel = INVALID_HANDLE;
+Handle hcv_LRChainsaw = INVALID_HANDLE;
 
-new Handle:Trie_Retriers = INVALID_HANDLE;
+Handle dbLocal;
 
-new Handle:hTimer_AutoOpen = INVALID_HANDLE;
+Handle Trie_Retriers = INVALID_HANDLE;
 
-new bool:OpenedThisRound = false;
+Handle hTimer_AutoOpen = INVALID_HANDLE;
 
-new String:MapName[64];
+bool OpenedThisRound = false;
 
-new ButtonHID = -1, IsolationHID = -1;
+char MapName[64];
 
-new bool:CanBeGraced[MAXPLAYERS+1];
+int ButtonHID = -1, IsolationHID = -1;
 
-public Plugin:myinfo = 
+bool CanBeGraced[MAXPLAYERS+1];
+
+public Plugin myinfo = 
 {
 	name = "Smart Open",
 	author = "Eyal282",
