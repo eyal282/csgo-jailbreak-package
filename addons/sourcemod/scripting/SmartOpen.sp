@@ -1,3 +1,7 @@
+/* put the line below after all of the includes!
+#pragma newdecls required
+*/
+
 #include <sourcemod>
 #include <sdkhooks>
 #include <sdktools>
@@ -38,31 +42,31 @@ public Plugin myinfo =
 	url = ""
 }
 
-native bool:SmartOpen_AreCellsOpen();
+native bool SmartOpen_AreCellsOpen();
 
 // returns false if couldn't open cells. Forced may fail if not assigned.
-native bool:SmartOpen_OpenCells(bool:forced, bool:isolation);
+native bool SmartOpen_OpenCells(bool forced, bool isolation);
 
-public APLRes:AskPluginLoad2(Handle:myself, bool:bLate, String:Error[], errorLength)
+public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] Error, int errorLength)
 {
 	CreateNative("SmartOpen_AreCellsOpen", Native_AreCellsOpen);
 	CreateNative("SmartOpen_OpenCells", Native_OpenCells);
 }
 
-public any Native_AreCellsOpen(Handle:plugin, numParams)
+public any Native_AreCellsOpen(Handle plugin, int numParams)
 {
 	return OpenedThisRound;
 }
 
-public any Native_OpenCells(Handle:plugin, numParams)
+public any Native_OpenCells(Handle plugin, int numParams)
 {
-	new bool:forced = GetNativeCell(1);
-	new bool:isolation = GetNativeCell(2);
+	bool forced = GetNativeCell(1);
+	bool isolation = GetNativeCell(2);
 	
 	if(OpenedThisRound && !forced)
 		return false;
 		
-	new bool:openedCells = OpenCells();
+	bool openedCells = OpenCells();
 	
 	if(isolation)
 		isolation = OpenIsolation();
@@ -72,7 +76,7 @@ public any Native_OpenCells(Handle:plugin, numParams)
 		
 	return true;
 }
-public OnPluginStart()
+public void OnPluginStart()
 {	
 	
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
@@ -96,7 +100,7 @@ public OnPluginStart()
 	Trie_Retriers = CreateTrie();
 }
 
-public OnMapStart()
+public void OnMapStart()
 {
 	ButtonHID = -1;
 	OpenedThisRound = false;
@@ -105,27 +109,27 @@ public OnMapStart()
 	hTimer_AutoOpen = INVALID_HANDLE;
 }
 
-public OnClientAuthorized(client)
+public void OnClientAuthorized(int client)
 {
-	new String:AuthId[35];
+	char AuthId[35];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
-	new dummy_value;
+	int dummy_value;
 	if(!GetTrieValue(Trie_Retriers, AuthId, dummy_value))
 		CanBeGraced[client] = true;
 }
 
-public OnClientDisconnect(client)
+public void OnClientDisconnect(int client)
 {
-	new String:AuthId[35];
+	char AuthId[35];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
 	SetTrieValue(Trie_Retriers, AuthId, 1, true);
 }
 
-public ConnectToDatabase()
+public void ConnectToDatabase()
 {		
-	new String:Error[256];
+	char Error[256];
 	if((dbLocal = SQLite_UseDatabase("SmartOpen", Error, sizeof(Error))) == INVALID_HANDLE)
 		LogError(Error);
 	
@@ -133,7 +137,7 @@ public ConnectToDatabase()
 	{ 
 		SQL_TQuery(dbLocal, SQLCB_Error, "CREATE TABLE IF NOT EXISTS SmartOpen_Maps (MapName VARCHAR(64) NOT NULL UNIQUE, ButtonHammerID INT(15) NOT NULL, IsolationHammerID INT(15) NOT NULL)", _, DBPrio_High);		
 		
-		new String:sQuery[256];
+		char sQuery[256];
 		GetCurrentMap(MapName, sizeof(MapName));
 		SQL_FormatQuery(dbLocal, sQuery, sizeof(sQuery), "SELECT * FROM SmartOpen_Maps WHERE MapName = '%s'", MapName);
 		
@@ -141,14 +145,14 @@ public ConnectToDatabase()
 	}
 }
 
-public SQLCB_GetButtonHammerID(Handle:db, Handle:hndl, const String:sError[], dummy_value)
+public void SQLCB_GetButtonHammerID(Handle db, Handle hndl, const char[] sError, int dummy_value)
 {
 	if(hndl == null)
 		ThrowError(sError);
 	
 	else if(SQL_GetRowCount(hndl) == 0)
 	{
-		new String:sQuery[256];
+		char sQuery[256];
 		SQL_FormatQuery(dbLocal, sQuery, sizeof(sQuery), "INSERT OR IGNORE INTO SmartOpen_Maps (MapName, ButtonHammerID, IsolationHammerID) VALUES ('%s', -1, -1)", MapName);	
 	
 		SQL_TQuery(dbLocal, SQLCB_Error, sQuery, _, DBPrio_High);
@@ -160,7 +164,7 @@ public SQLCB_GetButtonHammerID(Handle:db, Handle:hndl, const String:sError[], du
 
 	if(!SQL_FetchRow(hndl))
 	{
-		new String:sQuery[256];
+		char sQuery[256];
 		SQL_FormatQuery(dbLocal, sQuery, sizeof(sQuery), "INSERT OR IGNORE INTO SmartOpen_Maps (MapName, ButtonHammerID, IsolationHammerID) VALUES ('%s', -1, -1)", MapName);	
 	
 		SQL_TQuery(dbLocal, SQLCB_Error, sQuery, _, DBPrio_High);
@@ -175,13 +179,13 @@ public SQLCB_GetButtonHammerID(Handle:db, Handle:hndl, const String:sError[], du
 	IsolationHID = SQL_FetchInt(hndl, 2);
 }
 
-public SQLCB_Error(Handle:db, Handle:hndl, const String:sError[], data)
+public void SQLCB_Error(Handle db, Handle hndl, const char[] sError, int data)
 {
 	if(hndl == null)
 		ThrowError(sError);
 }
 
-public Action:Event_PlayerTeam(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_PlayerTeam(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if(!GetConVarBool(hcv_GraceBeforeOpen))
 		return;
@@ -189,12 +193,12 @@ public Action:Event_PlayerTeam(Handle:hEvent, const String:Name[], bool:dontBroa
 	if(ButtonHID == -1)
 		return;
 		
-	new NewTeam = GetEventInt(hEvent, "team");
+	int NewTeam = GetEventInt(hEvent, "team");
 	
 	if(NewTeam <= CS_TEAM_SPECTATOR)
 		return;
 		
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
 	if(client == 0)
 		return;
@@ -208,9 +212,9 @@ public Action:Event_PlayerTeam(Handle:hEvent, const String:Name[], bool:dontBroa
 	RequestFrame(Frame_GraceSpawn, GetClientUserId(client));
 }
 
-public Frame_GraceSpawn(UserId)
+public void Frame_GraceSpawn(int UserId)
 {
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	if(client == 0)
 		return;
@@ -232,9 +236,9 @@ public Frame_GraceSpawn(UserId)
 	CanBeGraced[client] = false;
 }
 
-public Action:Event_PlayerSpawnOrDeath(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_PlayerSpawnOrDeath(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
 	if(client == 0)
 		return;
@@ -245,13 +249,13 @@ public Action:Event_PlayerSpawnOrDeath(Handle:hEvent, const String:Name[], bool:
 	CanBeGraced[client] = false;
 }
 
-public Action:Event_RoundStart(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	UnhookEntityOutput("func_button", "OnPressed", OnButtonPressed);
 	
 	if(ButtonHID != -1)
 	{
-		new ent = -1;
+		int ent = -1;
 		while((ent = FindEntityByClassname(ent, "func_button")) != -1)
 		{
 			if(GetEntProp(ent, Prop_Data, "m_iHammerID") == ButtonHID)
@@ -268,7 +272,7 @@ public Action:Event_RoundStart(Handle:hEvent, const String:Name[], bool:dontBroa
 	if(GetConVarFloat(hcv_Auto) != -1)
 		hTimer_AutoOpen = CreateTimer(GetConVarFloat(hcv_Auto), AutoOpenCells, _, TIMER_FLAG_NO_MAPCHANGE);
 		
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		CanBeGraced[i] = true;
 	}
@@ -276,7 +280,7 @@ public Action:Event_RoundStart(Handle:hEvent, const String:Name[], bool:dontBroa
 	ClearTrie(Trie_Retriers);
 }
 
-public OnButtonPressed(const String:output[], caller, activator, Float:delay)
+public void OnButtonPressed(const char[] output, int caller, int activator, float delay)
 {
 	if(GetEntProp(caller, Prop_Data, "m_iHammerID") != ButtonHID)
 	{
@@ -293,7 +297,7 @@ public OnButtonPressed(const String:output[], caller, activator, Float:delay)
 	OpenedThisRound = true;
 	UnhookSingleEntityOutput(caller, "PressIn", OnButtonPressed);
 }
-public Action:AutoOpenCells(Handle:hTimer)
+public Action AutoOpenCells(Handle hTimer)
 {
 	if(ButtonHID != -1)
 		OpenCells();
@@ -301,9 +305,9 @@ public Action:AutoOpenCells(Handle:hTimer)
 	hTimer_AutoOpen = INVALID_HANDLE;
 }
 
-public Action:Command_AssignOpen(client, args)
+public Action Command_AssignOpen(int client, int args)
 {
-	new ent = FindEntityByAim(client, "func_button");
+	int ent = FindEntityByAim(client, "func_button");
 	
 	if(ent < 0)
 	{
@@ -311,7 +315,7 @@ public Action:Command_AssignOpen(client, args)
 		return Plugin_Handled;
 	}
 	
-	new String:Classname[64];
+	char Classname[64];
 	GetEdictClassname(ent, Classname, sizeof(Classname));
 	
 	if(!StrEqual(Classname, "func_button", true))
@@ -322,7 +326,7 @@ public Action:Command_AssignOpen(client, args)
 	
 	ButtonHID = GetEntProp(ent, Prop_Data, "m_iHammerID");
 	
-	new String:sQuery[256];
+	char sQuery[256];
 
 	SQL_FormatQuery(dbLocal, sQuery, sizeof(sQuery), "UPDATE SmartOpen_Maps SET ButtonHammerID = %i WHERE MapName = '%s'", ButtonHID, MapName);
 	
@@ -333,9 +337,9 @@ public Action:Command_AssignOpen(client, args)
 }
 
 
-public Action:Command_AssignIsolation(client, args)
+public Action Command_AssignIsolation(int client, int args)
 {
-	new ent = FindEntityByAim(client, "func_door");
+	int ent = FindEntityByAim(client, "func_door");
 	
 	if(ent < 0)
 	{
@@ -343,7 +347,7 @@ public Action:Command_AssignIsolation(client, args)
 		return Plugin_Handled;
 	}
 	
-	new String:Classname[64];
+	char Classname[64];
 	GetEdictClassname(ent, Classname, sizeof(Classname));
 	
 	if(!StrEqual(Classname, "func_door", true))
@@ -354,7 +358,7 @@ public Action:Command_AssignIsolation(client, args)
 	
 	IsolationHID = GetEntProp(ent, Prop_Data, "m_iHammerID");
 	
-	new String:sQuery[256];
+	char sQuery[256];
 	
 	SQL_FormatQuery(dbLocal, sQuery, sizeof(sQuery), "UPDATE SmartOpen_Maps SET IsolationHammerID = %i WHERE MapName = '%s'", IsolationHID, MapName);
 	
@@ -364,11 +368,11 @@ public Action:Command_AssignIsolation(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_OpenOverride(client, args)
+public Action Command_OpenOverride(int client, int args)
 {
 	return Plugin_Handled;
 }
-public Action:Command_Open(client, args)
+public Action Command_Open(int client, int args)
 {
 	if(client != 0 && GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false) && !CanEmptyRebel() && !CanLRChainsaw())
 	{
@@ -396,7 +400,7 @@ public Action:Command_Open(client, args)
 		return Plugin_Handled;
 	}
 	
-	new String:Title[64];
+	char Title[64];
 	
 	Title = "Rebel";
 	
@@ -420,7 +424,7 @@ public Action:Command_Open(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_HardOpen(client, args)
+public Action Command_HardOpen(int client, int args)
 {
 	if(client != 0 && GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false) && !CanEmptyRebel())
 	{
@@ -447,7 +451,7 @@ public Action:Command_HardOpen(client, args)
 		return Plugin_Handled;
 	}
 	
-	new String:Title[64];
+	char Title[64];
 	
 	Title = "Rebel";
 	if(client != 0)
@@ -468,14 +472,14 @@ public Action:Command_HardOpen(client, args)
 	return Plugin_Handled;
 }
 
-stock bool:OpenCells()
+stock bool OpenCells()
 {
 	if(OpenedThisRound)
 		return false;
 	
-	new target;
+	int target;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -487,7 +491,7 @@ stock bool:OpenCells()
 	if(target == 0)
 		return false;
 		
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -498,7 +502,7 @@ stock bool:OpenCells()
 		target = i;
 		break;
 	}
-	new ent = -1;
+	int ent = -1;
 	if(ButtonHID == -1)
 	{
 		while((ent = FindEntityByClassname(ent, "func_button")) != -1)
@@ -507,7 +511,7 @@ stock bool:OpenCells()
 	
 	else
 	{
-		new bool:Found = false;
+		bool Found = false;
 		while((ent = FindEntityByClassname(ent, "func_button")) != -1)
 		{
 			if(GetEntProp(ent, Prop_Data, "m_iHammerID") == ButtonHID)
@@ -529,11 +533,11 @@ stock bool:OpenCells()
 }
 
 
-stock bool:OpenIsolation()
+stock bool OpenIsolation()
 {
-	new target;
+	int target;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -545,7 +549,7 @@ stock bool:OpenIsolation()
 	if(target == 0)
 		return false;
 		
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -556,9 +560,9 @@ stock bool:OpenIsolation()
 		target = i;
 		break;
 	}
-	new bool:Found = false;
+	bool Found = false;
 	
-	new ent = -1;
+	int ent = -1;
 	while((ent = FindEntityByClassname(ent, "func_door")) != -1)
 	{
 		if(GetEntProp(ent, Prop_Data, "m_iHammerID") == IsolationHID)
@@ -576,7 +580,7 @@ stock bool:OpenIsolation()
 	return true;
 }
 
-stock DestroyTimer(&Handle:timer)
+stock void DestroyTimer(Handle &timer)
 {
 	if(timer != INVALID_HANDLE)
 	{
@@ -585,14 +589,14 @@ stock DestroyTimer(&Handle:timer)
 	}
 }
 
-stock FindEntityByAim(client, const String:Classname[])
+stock int FindEntityByAim(int client, const char[] Classname)
 {
-	new Float:eyeOrigin[3], Float:eyeAngles[3];
+	float eyeOrigin[3], eyeAngles[3];
 	
 	GetClientEyePosition(client, eyeOrigin);
 	GetClientEyeAngles(client, eyeAngles);
 	
-	new Handle:DP = CreateDataPack();
+	Handle DP = CreateDataPack();
 	
 	WritePackString(DP, Classname);
 	TR_TraceRayFilter(eyeOrigin, eyeAngles, MASK_PLAYERSOLID, RayType_Infinite, TraceRay_HitClassname, DP);
@@ -606,9 +610,9 @@ stock FindEntityByAim(client, const String:Classname[])
 }
 
 
-public bool:TraceRay_HitClassname(entityhit, mask, Handle:DP) 
+public bool TraceRay_HitClassname(int entityhit, int mask, Handle DP) 
 {
-	new String:Classname[64], String:Classname2[64];
+	char Classname[64], Classname2[64];
 	
 	ResetPack(DP);
 	ReadPackString(DP, Classname, sizeof(Classname));
@@ -618,11 +622,11 @@ public bool:TraceRay_HitClassname(entityhit, mask, Handle:DP)
 	return StrEqual(Classname, Classname2, true);
 }
 
-stock GetTeamPlayerCount(Team)
+stock int GetTeamPlayerCount(int Team)
 {
-	new count = 0;
+	int count = 0;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -633,12 +637,12 @@ stock GetTeamPlayerCount(Team)
 	return count;
 }
 
-stock bool:CanEmptyRebel()
+stock bool CanEmptyRebel()
 {
 	return (GetConVarBool(hcv_EmptyRebel) && GetTeamPlayerCount(CS_TEAM_CT) == 0);
 }
 
-stock bool:CanLRChainsaw()
+stock bool CanLRChainsaw()
 {
 	return (GetConVarBool(hcv_LRChainsaw) && GetTeamPlayerCount(CS_TEAM_T) == 1);
 }
