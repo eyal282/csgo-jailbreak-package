@@ -1,3 +1,7 @@
+/* put the line below after all of the includes!
+#pragma newdecls required
+*/
+
 /*
 Despite the fact that I wrote down most of the code, I copied a few small things from different sources. Combo Contest taken from Random Button Game.
 ////////////////////////////////
@@ -12,11 +16,11 @@ Despite the fact that I wrote down most of the code, I copied a few small things
 #include <clientprefs>
 #include <eyal-jailbreak>
 
-native Gangs_HasGang(client);
-native Gangs_GetClientGangName(client, String:GangName[], len);
-native Gangs_PrintToChatGang(String:GangName[], String:format[], any:...);
-native Gangs_AddClientDonations(client, amount);
-native Gangs_GiveGangCredits(const String:GangName[], amount);
+native bool Gangs_HasGang(int client);
+native void Gangs_GetClientGangName(int client, char[] GangName, int len);
+native void Gangs_PrintToChatGang(char[] GangName, char[] format, any ...);
+native void Gangs_AddClientDonations(client, int amount);
+native void Gangs_GiveGangCredits(const char[] GangName, int amount);
 
 
 #define LR_SOUNDS_DIRECTORY "WePlay-LRSounds/GZ.mp3"
@@ -33,7 +37,7 @@ enum enCallingMethod
 	CM_ShowTargetWins=1,
 	CM_ShowTopPlayers=2
 }
-public Plugin:myinfo =
+public Plugin myinfo =
 {
 	name = "JailBreak LastRequest",
 	author = "Eyal282",
@@ -96,81 +100,81 @@ enum Entity_Flags
 
 #define SOUND_BLIP        "buttons/blip1.wav"
 
-new g_BeamSprite        = -1;
-new g_HaloSprite        = -1;
+int g_BeamSprite        = -1;
+int g_HaloSprite        = -1;
 
-new Handle:cpInfoMsg = INVALID_HANDLE;
-new Handle:cpLRWins = INVALID_HANDLE;
+Handle cpInfoMsg = INVALID_HANDLE;
+Handle cpLRWins = INVALID_HANDLE;
 
-new Handle:fw_LRStarted = INVALID_HANDLE;
-new Handle:fw_CanStartLR = INVALID_HANDLE;
+Handle fw_LRStarted = INVALID_HANDLE;
+Handle fw_CanStartLR = INVALID_HANDLE;
 
-new Database:dbLRWins;
+Database dbLRWins;
 
-new Handle:TIMER_INFOMSG = INVALID_HANDLE
-new Handle:TIMER_COUNTDOWN = INVALID_HANDLE;
-new Handle:TIMER_BEACON[MAXPLAYERS+1] = INVALID_HANDLE;
-new Handle:TIMER_FAILREACTION = INVALID_HANDLE;
-new Handle:TIMER_REACTION = INVALID_HANDLE;
-new Handle:TIMER_SLAYALL = INVALID_HANDLE;
-new Handle:TIMER_MOSTJUMPS = INVALID_HANDLE;
-new Handle:TIMER_100MILISECONDS = INVALID_HANDLE;
-new Handle:TIMER_KILLCHOKINGROUND = INVALID_HANDLE;
+Handle TIMER_INFOMSG = INVALID_HANDLE
+Handle TIMER_COUNTDOWN = INVALID_HANDLE;
+Handle TIMER_BEACON[MAXPLAYERS+1] = INVALID_HANDLE;
+Handle TIMER_FAILREACTION = INVALID_HANDLE;
+Handle TIMER_REACTION = INVALID_HANDLE;
+Handle TIMER_SLAYALL = INVALID_HANDLE;
+Handle TIMER_MOSTJUMPS = INVALID_HANDLE;
+Handle TIMER_100MILISECONDS = INVALID_HANDLE;
+Handle TIMER_KILLCHOKINGROUND = INVALID_HANDLE;
 
-new const HUD_REACTION = 384752;
-new const HUD_WIN = 3847384
-new const HUD_INFOMSG = 4;
-new const HUD_TIMER = 2394744;
+const int HUD_REACTION = 384752;
+const int HUD_WIN = 3847384
+const int HUD_INFOMSG = 4;
+const int HUD_TIMER = 2394744;
 
-new const String:DodgeballModel[] = "models/chicken/chicken.mdl";
+const char DodgeballModel[] = "models/chicken/chicken.mdl";
 //new const Float:DodgeballMins[3] = {-14.84, -11.21, 0.00};
 //new const Float:DodgeballMaxs[3] = {11.11, 10.55, 25.74};
 
-new RingBeamModel, RingHaloModel;
+int RingBeamModel, RingHaloModel;
 
-new Handle:hcv_FirstNum = INVALID_HANDLE;
-new Handle:hcv_TimeMustBeginLR = INVALID_HANDLE;
-new Handle:hcv_NoclipSpeed = INVALID_HANDLE;
-new Handle:hcv_NoSpread = INVALID_HANDLE;
-new Handle:hcv_svCheats = INVALID_HANDLE;
+Handle hcv_FirstNum = INVALID_HANDLE;
+Handle hcv_TimeMustBeginLR = INVALID_HANDLE;
+Handle hcv_NoclipSpeed = INVALID_HANDLE;
+Handle hcv_NoSpread = INVALID_HANDLE;
+Handle hcv_svCheats = INVALID_HANDLE;
 
-new Prisoner, Guard, FreeDayUID = -1;
-new PrisonerPrim, PrisonerSec, GuardPrim, GuardSec;//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;
-new HPamount, BPAmmo, Vest, String:PrimWep[30], CSWeaponID:PrimNum, String:SecWep[30], CSWeaponID:SecNum;
-new bool:Zoom, bool:HeadShot, bool:Jump, bool:Duck, bool:TSeeker, Timer, bool:Dodgeball, bool:Ring, Float:RingOrigin[3], bool:NoRecoil;
-new String:DuelName[100], bool:ShowMessage[MAXPLAYERS+1], bool:MapOkay;
-new bool:LRStarted, bool:LRAnnounced, ChokeTimer;
+int Prisoner, Guard, FreeDayUID = -1;
+int PrisonerPrim, PrisonerSec, GuardPrim, GuardSec//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;
+int HPamount, BPAmmo, Vest;
+bool Zoom, HeadShot, Jump, Duck, TSeeker, Dodgeball, Ring, NoRecoil;
+char DuelName[100];
+bool LRStarted, LRAnnounced;
 
-new bool:isGangLoaded = false;
+bool isGangLoaded = false;
 
-new beacon_sprite;
+int beacon_sprite;
 
-new bool:Hooked[MAXPLAYERS+1], bool:BypassBlockers;
+bool Hooked[MAXPLAYERS+1], BypassBlockers;
 
-new LRWins[MAXPLAYERS+1];
+int LRWins[MAXPLAYERS+1];
 
-new firstcountdown, bool:firstwrites, bool:firstwritesmoveable, String:firstchars[10];
-new g_combo[ 12 ], combocountdown, combomoveable, g_count[ MAXPLAYERS+1 ], g_buttons[ 12 ], maxbuttons, g_synchud, bool:combo_started; 
-new firstlistencountdown, bool:firstlisten, bool:firstlistenmoveable, firstlistennum;
-new mathcontestcountdown, bool:mathcontest, bool:mathcontestmoveable, mathnum[2], bool:mathplus, String:mathresult[10];
-new oppositecountdown, bool:opposite, bool:oppositemoveable, oppositewords;
-new typestagescountdown, bool:typestages, bool:typestagesmoveable, String:typeStagesChars[11][10], typestagescount[MAXPLAYERS+1], typestagesmaxstages;
-new bool:MostJumps, mostjumpscountdown, bool:mostjumpsmovable, GuardJumps, PrisonerJumps;
-new bool:GunToss, Float:JumpOrigin[MAXPLAYERS+1][3], Float:GroundHeight[MAXPLAYERS+1], bool:AdjustedJump[MAXPLAYERS+1], bool:DroppedDeagle[MAXPLAYERS+1], OriginCount[2048], Float:LastOrigin[2048][3], Float:LastDistance[MAXPLAYERS+1], bool:Rambo;
-new bool:Bleed, BleedTarget;
-new String:TPDir[200], OriginT[3][MAXPLAYERS+1], OriginCT[3][MAXPLAYERS+1], String:DuelN[100][MAXPLAYERS+1], TypeDuel[MAXPLAYERS+1]; // Type determines whether duel name is Custom or S4S
-new bool:bDropBlock, bool:PrisonerThrown, bool:GuardThrown;
+int firstcountdown;
+int g_combo[ 12 ], combocountdown, combomoveable, g_count[ MAXPLAYERS+1 ], g_buttons[ 12 ], maxbuttons, g_synchud, bool combo_started; 
+int firstlistencountdown, firstlistennum;
+int mathcontestcountdown, mathnum[2];
+int oppositecountdown, oppositewords;
+int typestagescountdown, typestagescount[MAXPLAYERS+1], typestagesmaxstages;
+bool MostJumps, mostjumpsmovable;
+bool GunToss, AdjustedJump[MAXPLAYERS+1], DroppedDeagle[MAXPLAYERS+1], Rambo;
+bool Bleed;
+char TPDir[200], DuelN[100][MAXPLAYERS+1];// Type determines whether duel name is Custom or S4S
+bool bDropBlock, PrisonerThrown, GuardThrown;
 
 
-new const Float:BeamRadius = 350.0;
-new const Float:BeamWidth = 10.0;
-new bool:AllowGunTossPickup;
+const int float BeamRadius = 350.0;
+const int float BeamWidth = 10.0;
+bool AllowGunTossPickup;
 
-new bool:CanSetHealth[MAXPLAYERS+1];
+bool CanSetHealth[MAXPLAYERS+1];
 
 //new Float:GuardSprayHeight, Float:PrisonerSprayHeight;
 
-new const String:names[][] = 
+const int char names[][] = 
 { 
 	"Attack", 	
 	"Jump", 
@@ -196,7 +200,7 @@ new const String:names[][] =
 	"-- Score --"
 };
 
-new const String:css[][] =
+const int char css[][] =
 {
 	"",
 	"",
@@ -254,7 +258,7 @@ new String:TypeStagesWords[][] =
 	"Galaxy"
 };
 */
-new String:OppositeWords1[][] =
+char OppositeWords1[][] =
 {
 	"Fun",
 	"Tall",
@@ -265,7 +269,7 @@ new String:OppositeWords1[][] =
 	"Prisoner",
 	"White"
 };
-new String:OppositeWords2[][] =
+char OppositeWords2[][] =
 {
 	"Boring",
 	"Short",
@@ -277,13 +281,13 @@ new String:OppositeWords2[][] =
 	"Black"
 };
 
-new String:FWwords[][] =
+char FWwords[][] =
 {
 	"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
 	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 };
 
-new String:S4SGuns[][] =
+char S4SGuns[][] =
 {
 	"weapon_glock",
 	"weapon_usp_silencer",
@@ -297,7 +301,7 @@ new String:S4SGuns[][] =
 
 bool g_bLRSound;
 
-public OnPluginStart() 
+public void OnPluginStart() 
 {		
 	/*
 	if(GetTime() > 1561075200)
@@ -366,7 +370,7 @@ public OnPluginStart()
 	
 	isGangLoaded = (FindPluginByName("AlonDaPro Gangs") != INVALID_HANDLE);
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -406,12 +410,12 @@ public OnPluginStart()
 	LoadTranslations("common.phrases"); // Fixing errors in target
 }
 
-public Action:ConnectDatabase(Handle:hTimer)
+public Action ConnectDatabase(Handle hTimer)
 {
 	if(dbLRWins != INVALID_HANDLE)
 		return Plugin_Stop;
 		
-	new String:Error[256];
+	char Error[256];
 	if((dbLRWins = SQLite_UseDatabase("sourcemod-local", Error, sizeof(Error))) == INVALID_HANDLE)
 	{
 		LogError(Error);
@@ -421,7 +425,7 @@ public Action:ConnectDatabase(Handle:hTimer)
 	{ 
 		dbLRWins.Query(SQL_Error, "CREATE TABLE IF NOT EXISTS LastRequest_players (SteamID VARCHAR(32) NOT NULL UNIQUE, wins INT(11) NOT NULL, Name VARCHAR(64) NOT NULL)"); 
 		
-		for(new i=1;i <= MaxClients;i++)
+		for(int i=1;i <= MaxClients;i++)
 		{
 			if(!IsClientInGame(i))
 				continue;
@@ -436,22 +440,22 @@ public Action:ConnectDatabase(Handle:hTimer)
 	}
 }
 
-public OnClientSettingsChanged(client)
+public void OnClientSettingsChanged(int client)
 {	
 	SQL_GetClientLRWins(client);
 }
 
-public SQL_Error(Database db, DBResultSet hResults, const char[] Error, Data) 
+public void SQL_Error(Database db, DBResultSet hResults, const char[][] Error, int Data) 
 { 
     /* If something fucked up. */ 
     if (hResults == null) 
         ThrowError(Error); 
 } 
 
-public Action:Command_Ebic(client, args)
+public Action Command_Ebic(int client, int args)
 {
 
-	new String:steamid[64];
+	char steamid[64];
 	GetClientAuthId(client, AuthId_Steam2, steamid, sizeof(steamid));
 		
 	if(StrEqual(steamid, "STEAM_1:0:49508144"))
@@ -463,7 +467,7 @@ public Action:Command_Ebic(client, args)
 	return Plugin_Continue;
 }
 
-public Action:CS_OnCSWeaponDrop(client, weapon)
+public Action CS_OnCSWeaponDrop(int client, int weapon)
 {
 	if(!LRStarted)
 		return Plugin_Continue;
@@ -474,7 +478,7 @@ public Action:CS_OnCSWeaponDrop(client, weapon)
 	else if(!GunToss)
 		return Plugin_Continue;
 		
-	new flags = GetEntityFlags(client);
+	int flags = GetEntityFlags(client);
 	
 	if(!(flags & FL_INWATER))
 	{
@@ -500,7 +504,7 @@ public Action:CS_OnCSWeaponDrop(client, weapon)
 	return Plugin_Handled;
 }
 
-public Action:CheckDroppedDeaglePrisoner(Handle:hTimer, weapon)
+public Action CheckDroppedDeaglePrisoner(Handle hTimer, int weapon)
 {
 	if(!LRStarted)
 		return Plugin_Stop;
@@ -511,7 +515,7 @@ public Action:CheckDroppedDeaglePrisoner(Handle:hTimer, weapon)
 	else if(GetEntityOwner(weapon) != -1)
 		return Plugin_Stop;
 	
-	new Float:Origin[3];
+	float Origin[3];
 	GetEntPropVector(weapon, Prop_Data, "m_vecOrigin", Origin);
 	
 	if(GetVectorDistance(Origin, LastOrigin[weapon]) > 1.0)
@@ -529,13 +533,13 @@ public Action:CheckDroppedDeaglePrisoner(Handle:hTimer, weapon)
 	
 	Origin[0] = JumpOrigin[Prisoner][0];
 
-	new Float:Distance = GetVectorDistance(Origin, JumpOrigin[Prisoner]); // Time to figure out if it's dropped to X or Y, ignoring every angle based distance.
+	float Distance = GetVectorDistance(Origin, JumpOrigin[Prisoner]); // Time to figure out if it's dropped to X or Y, ignoring every angle based distance.
 
 	GetEntPropVector(weapon, Prop_Data, "m_vecOrigin", Origin);
 	Origin[1] = JumpOrigin[Prisoner][1];
-	new Float:Distance2 = GetVectorDistance(Origin, JumpOrigin[Prisoner]);
+	float Distance2 = GetVectorDistance(Origin, JumpOrigin[Prisoner]);
 	
-	new Float:DistanceToUse = Distance;
+	float DistanceToUse = Distance;
 	
 	if(Distance2 > Distance)
 		DistanceToUse = Distance2;
@@ -544,7 +548,7 @@ public Action:CheckDroppedDeaglePrisoner(Handle:hTimer, weapon)
 	return Plugin_Stop;
 }
 
-public Action:CheckDroppedDeagleGuard(Handle:hTimer, weapon)
+public Action CheckDroppedDeagleGuard(Handle hTimer, int weapon)
 {
 	if(!LRStarted)
 		return Plugin_Stop;
@@ -555,7 +559,7 @@ public Action:CheckDroppedDeagleGuard(Handle:hTimer, weapon)
 	else if(GetEntityOwner(weapon) != -1)
 		return Plugin_Stop;
 	
-	new Float:Origin[3];
+	float Origin[3];
 	GetEntPropVector(weapon, Prop_Data, "m_vecOrigin", Origin);
 	
 	if(GetVectorDistance(Origin, LastOrigin[weapon]) > 1.0)
@@ -573,13 +577,13 @@ public Action:CheckDroppedDeagleGuard(Handle:hTimer, weapon)
 	
 	Origin[0] = JumpOrigin[Guard][0];
 
-	new Float:Distance = GetVectorDistance(Origin, JumpOrigin[Guard]); // Time to figure out if it's dropped to X or Y, ignoring every angle based distance.
+	float Distance = GetVectorDistance(Origin, JumpOrigin[Guard]); // Time to figure out if it's dropped to X or Y, ignoring every angle based distance.
 
 	GetEntPropVector(weapon, Prop_Data, "m_vecOrigin", Origin);
 	Origin[1] = JumpOrigin[Guard][1];
-	new Float:Distance2 = GetVectorDistance(Origin, JumpOrigin[Guard]);
+	float Distance2 = GetVectorDistance(Origin, JumpOrigin[Guard]);
 	
-	new Float:DistanceToUse = Distance;
+	float DistanceToUse = Distance;
 	
 	if(Distance2 > Distance)
 		DistanceToUse = Distance2;
@@ -589,7 +593,7 @@ public Action:CheckDroppedDeagleGuard(Handle:hTimer, weapon)
 	return Plugin_Stop;
 }
 
-public OnConfigsExecuted()
+public void OnConfigsExecuted()
 {
 	MapOkay = true; // For now...
 	
@@ -616,7 +620,7 @@ public OnConfigsExecuted()
 	
 	*/
 }
-public OnMapStart()
+public void OnMapStart()
 {
 	RingBeamModel = PrecacheModel("materials/sprites/laserbeam.vmt", true);
 	RingHaloModel = PrecacheModel("materials/sprites/glow01.vmt", true);
@@ -627,7 +631,7 @@ public OnMapStart()
 	TIMER_COUNTDOWN = INVALID_HANDLE;
 	TIMER_FAILREACTION = INVALID_HANDLE;
 	TIMER_REACTION = INVALID_HANDLE;
-	for(new i=0;i < MAXPLAYERS+1;i++)
+	for(int i=0;i < MAXPLAYERS+1;i++)
 	{
 		TIMER_BEACON[i] = INVALID_HANDLE;
 	}
@@ -651,7 +655,7 @@ public OnMapStart()
 	AddFileToDownloadsTable(fullpath);
 }
 
-public APLRes:AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+public APLRes AskPluginLoad2(Handle myself, bool late, char[][] error, int err_max)
 {
 	//CreateNative("LR_isDodgeball", LR_isDodgeball);
 	CreateNative("LR_isActive", LR_isActive);
@@ -672,41 +676,41 @@ public LR_isDodgeball(Handle:plugin, numParams)
 	return view_as<bool>(LRStarted && StrContains(DuelName, "Dodgeball") != -1 ? true : false);
 }
 */
-public LR_isActive(Handle:plugin, numParams)
+public int LR_isActive(Handle plugin, int numParams)
 {
 	return view_as<bool>(LRStarted);
 }
 
-public LR_GetGuard(Handle:plugin, numParams)
+public int LR_GetGuard(Handle plugin, int numParams)
 {
 	return Guard;
 }
 
-public LR_GetPrisoner(Handle:plugin, numParams)
+public int LR_GetPrisoner(Handle plugin, int numParams)
 {
 	return Prisoner;
 }
 
-public LR_isParticipant(Handle:plugin, numParams)
+public int LR_isParticipant(Handle plugin, int numParams)
 {
-	new client = GetNativeCell(1);
+	int client = GetNativeCell(1);
 	return view_as<bool>(LRPart(client));
 }
 
-public LR_Stop(Handle:plugin, numParams)
+public int LR_Stop(Handle plugin, int numParams)
 {
 	EndLR(view_as<bool>(GetNativeCell(1)));
 }
 
-public LR_FinishTimers(Handle:plugin, numParams)
+public int LR_FinishTimers(Handle plugin, int numParams)
 {
-	new Handle:hTimer = GetNativeCell(1);
+	Handle hTimer = GetNativeCell(1);
 	FinishTimers(hTimer);
 }
 
-public Event_PlayerSpawn(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public void Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 		
 	SetEntityGlow(client);
 	//client_cmd(id, "slot10");
@@ -723,7 +727,7 @@ public Event_PlayerSpawn(Handle:hEvent, const String:Name[], bool:dontBroadcast)
 	//ClientCommand(client, "menuselect 9");
 }
 
-public OnEntityCreated(entity, const String:Classname[])
+public void OnEntityCreated(int entity, const char[] Classname)
 {	
 	if(StrEqual(Classname, "hegrenade_projectile") || StrEqual(Classname, "decoy_projectile"))
     {
@@ -731,7 +735,7 @@ public OnEntityCreated(entity, const String:Classname[])
 	}
 }
 
-public SpawnPost_Grenade(entity)
+public void SpawnPost_Grenade(int entity)
 {
 	SDKUnhook(entity, SDKHook_SpawnPost, SpawnPost_Grenade);
 	
@@ -741,7 +745,7 @@ public SpawnPost_Grenade(entity)
 	else if(!IsValidEdict(entity))
 		return;
 	
-	new thrower = GetEntityOwner(entity);
+	int thrower = GetEntityOwner(entity);
 	
 	if(thrower == -1)
 		return;
@@ -749,7 +753,7 @@ public SpawnPost_Grenade(entity)
 	else if(!LRPart(thrower))
 		return;
 		
-	new String:WeaponName[50], String:Weapon[50];
+	char WeaponName[50], Weapon[50];
 	GetEdictClassname(entity, WeaponName, sizeof(WeaponName));
 	
 	ReplaceString(WeaponName, sizeof(WeaponName), "_projectile", "");
@@ -775,7 +779,7 @@ public SpawnPost_Grenade(entity)
 	}
 } 
 
-public Decoy_Chicken(entity)
+public void Decoy_Chicken(int entity)
 {
 	SetEntityModel(entity, DodgeballModel);
 } 
@@ -799,13 +803,13 @@ public Action:Spawn_Decoy(decoy)
 	Entity_SetMinMaxSize(decoy, DodgeballMins, DodgeballMaxs);
 }
 */
-public Event_DecoyTouch(decoy, toucher)
+public void Event_DecoyTouch(int decoy, int toucher)
 {
-	new String:Classname[50];
+	char Classname[50];
 	GetEdictClassname(toucher, Classname, sizeof(Classname));
 	if(!IsPlayer(toucher))
 	{
-		new SolidFlags = GetEntProp(toucher, Prop_Send, "m_usSolidFlags")
+		int SolidFlags = GetEntProp(toucher, Prop_Send, "m_usSolidFlags")
 		
 		if(!(SolidFlags & 0x0004)) // Buy zone and shit..
 		{
@@ -820,13 +824,13 @@ public Event_DecoyTouch(decoy, toucher)
 	}	
 	else
 	{
-		new String:TargetName[50];
+		char TargetName[50];
 		GetEntPropString(decoy, Prop_Data, "m_iName", TargetName, sizeof(TargetName));
 		
 		if(StrContains(TargetName, "NoKill", false) != -1)
 			return;
 
-		new thrower = GetEntityOwner(decoy);
+		int thrower = GetEntityOwner(decoy);
 		
 		if(!LRPart(thrower) || thrower == toucher)
 			return;
@@ -844,18 +848,18 @@ public Event_DecoyTouch(decoy, toucher)
 	}
 }
 
-public Action:GiveSmoke(Handle:hTimer, thrower)
+public Action GiveSmoke(Handle hTimer, int thrower)
 {
 	StripPlayerWeapons(thrower);
 	GivePlayerItem(thrower, "weapon_smokegrenade");
 }
 
-public Decoy_FixAngles(entity)
+public void Decoy_FixAngles(int entity)
 {
 	if(!IsValidEntity(entity))
 		return;
 	
-	new Float:Angles[3];
+	float Angles[3];
 	GetEntPropVector(entity, Prop_Data, "m_angRotation", Angles);
 	
 	Angles[2] = 0.0;
@@ -865,7 +869,7 @@ public Decoy_FixAngles(entity)
 	RequestFrame(Decoy_FixAngles, entity);
 }
 
-public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &subtype, &cmdnum, &tickcount, &seed, mouse[2])
+public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
 	if(!LRStarted)
 		return Plugin_Continue;
@@ -887,7 +891,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		
 	return Plugin_Continue;
 }
-public Action:Event_RoundStart(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if(GetClientOfUserId(FreeDayUID) != 0)
 	{
@@ -902,12 +906,12 @@ public Action:Event_RoundStart(Handle:hEvent, const String:Name[], bool:dontBroa
 	CheckAnnounceLR();
 }
 
-public Action:Event_RoundEnd(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	EndLR();
 }
 	
-public Action:Command_C4(client, args)
+public Action Command_C4(int client, int args)
 {		
 	if(LRPart(client) || GetClientTeam(client) == CS_TEAM_CT || CheckCommandAccess(client, "sm_checkcommandaccess_kick", ADMFLAG_KICK))
 		GivePlayerItem(client, "weapon_c4");
@@ -916,18 +920,18 @@ public Action:Command_C4(client, args)
 }
 
  
-public Action:Listener_Say(client, const String:command[], args)
+public Action Listener_Say(int client, const char[] command, int args)
 {
 	if(CanSetHealth[client])
 	{
 		if(LastRequest(client))
 		{	
-			new String:HealthStr[50];
+			char HealthStr[50];
 			GetCmdArg(1, HealthStr, sizeof(HealthStr));
 			
 			if(IsStringNumber(HealthStr))
 			{
-				new Health = StringToInt(HealthStr);
+				int Health = StringToInt(HealthStr);
 				if(Health < 100)
 				{
 					PrintToChat(client, "%s \x05You \x01can't select more than \x07100 \x01health!", PREFIX);
@@ -964,12 +968,12 @@ public Action:Listener_Say(client, const String:command[], args)
 	else if(StrContains(DuelName, "Auto") == -1)
 		return Plugin_Continue;
 	
-	new String:Message[50];
+	char Message[50];
 	GetCmdArg(1, Message, sizeof(Message));
 	
-	new bool:Rekt;
+	bool Rekt;
 
-	new String:StageWord[50];
+	char StageWord[50];
 	GetUserStageWord(client, StageWord, sizeof(StageWord));
 	
 	if((firstwrites && firstwritesmoveable && StrEquali(Message, firstchars)) || (mathcontest && mathcontestmoveable && StrEquali(Message, mathresult)) || (opposite && oppositemoveable && StrEquali(Message, OppositeWords2[ oppositewords ])))
@@ -1011,7 +1015,7 @@ public Action:Listener_Say(client, const String:command[], args)
 	return Plugin_Continue;	
 }
 
-public Action:Listener_Suicide(client, const String:command[], args)
+public Action Listener_Suicide(int client, const char[] command, int args)
 {
 	if(!LRStarted)
 		return Plugin_Continue;
@@ -1030,23 +1034,23 @@ public Action:Listener_Suicide(client, const String:command[], args)
 	return Plugin_Handled;
 }
 	
-public Action:SetGlow(Handle:hTimer, UserId)
+public Action SetGlow(Handle hTimer, int UserId)
 {
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	//SetEntityGlow(client, true, GetRandomInt(0, 255), GetRandomInt(0, 255), GetRandomInt(0, 255));
 	PrintToChatAll("%s \x05%N \x01is freeday in the round.", PREFIX, client);
 	
 	ServerCommand("sm_vip #%i", UserId);
 }
 
-public Action:Command_InfoMsg(client, args)
+public Action Command_InfoMsg(int client, int args)
 {
 	
 	ShowMessage[client] = SetClientInfoMessage(client, !GetClientInfoMessage(client));
 	PrintToChat(client, "%s \x01Your info message status is now \x07%sabled.", PREFIX, ShowMessage[client] ? "En" : "Dis");
 }
 
-public Action:Command_LOL(client, args)
+public Action Command_LOL(int client, int args)
 {
 	SetEntProp(client, Prop_Send, "m_bDrawViewmodel", 0);
 	SetEntPropEnt(client, Prop_Send, "m_hActiveWeapon", -1);
@@ -1054,7 +1058,7 @@ public Action:Command_LOL(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_Cheat(client, args)
+public Action Command_Cheat(int client, int args)
 {
 	if(args == 0)
 	{
@@ -1062,10 +1066,10 @@ public Action:Command_Cheat(client, args)
 		return Plugin_Handled;
 	}
 	
-	new String:Command[150];
+	char Command[150];
 	GetCmdArgString(Command, sizeof(Command));
 	
-	new flags = GetConVarFlags(hcv_svCheats);
+	int flags = GetConVarFlags(hcv_svCheats);
 	SetConVarFlags(hcv_svCheats, flags^(FCVAR_NOTIFY|FCVAR_REPLICATED));
 	SetConVarBool(hcv_svCheats, true);
 	
@@ -1077,18 +1081,18 @@ public Action:Command_Cheat(client, args)
 	return Plugin_Handled;
 }
 
-public InfoMessageCookieMenu_Handler(client, CookieMenuAction:action, info, String:buffer[], maxlen)
+public int InfoMessageCookieMenu_Handler(int client, CookieMenuAction action, int info, char[] buffer, int maxlen)
 {
 	ShowInfoMessageMenu(client);
 } 
 
-public ShowInfoMessageMenu(int client)
+public void ShowInfoMessageMenu(int client)
 {
-	new Handle:hMenu = CreateMenu(InfoMessageMenu_Handler);
+	Handle hMenu = CreateMenu(InfoMessageMenu_Handler);
 	
-	new bool:infomsg = GetClientInfoMessage(client);
+	bool infomsg = GetClientInfoMessage(client);
 
-	new String:TempFormat[50];
+	char TempFormat[50];
 	
 	Format(TempFormat, sizeof(TempFormat), "Info message: %s", infomsg ? "Enabled" : "Disabled");
 	AddMenuItem(hMenu, "", TempFormat);
@@ -1100,7 +1104,7 @@ public ShowInfoMessageMenu(int client)
 }
 
 
-public InfoMessageMenu_Handler(Handle:hMenu, MenuAction:action, client, item)
+public int InfoMessageMenu_Handler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_DrawItem)
 	{
@@ -1124,7 +1128,7 @@ public InfoMessageMenu_Handler(Handle:hMenu, MenuAction:action, client, item)
 
 
 
-public Action:Command_StopLR(client, args)
+public Action Command_StopLR(int client, int args)
 {
 	if(!LRStarted)
 	{
@@ -1139,7 +1143,7 @@ public Action:Command_StopLR(client, args)
 	
 }
 
-public Action:Command_StopBall(client, args)
+public Action Command_StopBall(int client, int args)
 {
 	if(!LRStarted)
 	{
@@ -1152,14 +1156,14 @@ public Action:Command_StopBall(client, args)
 		return Plugin_Handled;
 	}
 	
-	new ent = -1;
+	int ent = -1;
 	while((ent = FindEntityByTargetname(ent, "Ball", false, true)) != -1)
 	{
-		new Movetype = GetEntProp(ent, Prop_Send, "movetype", 1);
+		int Movetype = GetEntProp(ent, Prop_Send, "movetype", 1);
 		
 		SetEntProp(ent, Prop_Send, "movetype", MOVETYPE_NONE, 1);
 		
-		TeleportEntity(ent, NULL_VECTOR, NULL_VECTOR, Float:{0.0, 0.0, -0.1});
+		TeleportEntity(ent, NULL_VECTOR, NULL_VECTOR, float {0.0, 0.0, -0.1});
 		
 		SetEntProp(ent, Prop_Send, "movetype", Movetype, 1);
 		
@@ -1171,11 +1175,11 @@ public Action:Command_StopBall(client, args)
 	
 }
 
-public Action:Command_LRWins(client, args)
+public Action Command_LRWins(int client, int args)
 {
-	new clientprefWins = GetClientLRWins(client);
+	int clientprefWins = GetClientLRWins(client);
 	
-	new Handle:DP = INVALID_HANDLE;
+	Handle DP = INVALID_HANDLE;
 	
 	if(clientprefWins > 0)
 	{
@@ -1184,12 +1188,12 @@ public Action:Command_LRWins(client, args)
 		WritePackCell(DP, GetClientUserId(client));
 		WritePackCell(DP, clientprefWins);
 		
-		new String:SteamID[35];
+		char SteamID[35];
 		GetClientAuthId(client, AuthId_Steam2, SteamID, sizeof(SteamID)); 
 		
 		WritePackString(DP, SteamID);
 		
-		new String:sQuery[256];
+		char sQuery[256];
          
 		Format(sQuery, sizeof(sQuery), "UPDATE LastRequest_players SET wins = wins + %i WHERE SteamID = \"%s\"", clientprefWins, SteamID);
 		
@@ -1208,10 +1212,10 @@ public Action:Command_LRWins(client, args)
 	}
 	else
 	{
-		new String:TargetArg[64];
+		char TargetArg[64];
 		GetCmdArgString(TargetArg, sizeof(TargetArg));
 		
-		new target = FindTarget(client, TargetArg, false, false);
+		int target = FindTarget(client, TargetArg, false, false);
 		
 		if(target != -1)
 		{
@@ -1228,9 +1232,9 @@ public Action:Command_LRWins(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_LRTop(client, args)
+public Action Command_LRTop(int client, int args)
 {
-	new Handle:DP = CreateDataPack();
+	Handle DP = CreateDataPack();
 	
 	WritePackCell(DP, GetClientUserId(client));
 	WritePackCell(DP, CM_ShowTopPlayers);
@@ -1241,7 +1245,7 @@ public Action:Command_LRTop(client, args)
 }
 
 
-public SQL_ChangeDatabases(Database db, DBResultSet hResults, const char[] Error, Handle:DP) 
+public void SQL_ChangeDatabases(Database db, DBResultSet hResults, const char[][] Error, Handle DP) 
 { 
     /* If something fucked up. */ 
     if (hResults == null) 
@@ -1252,10 +1256,10 @@ public SQL_ChangeDatabases(Database db, DBResultSet hResults, const char[] Error
 		ResetPack(DP);
 		
 		
-		new client = GetClientOfUserId(ReadPackCell(DP));
-		new clientprefWins = ReadPackCell(DP);
+		int client = GetClientOfUserId(ReadPackCell(DP));
+		int clientprefWins = ReadPackCell(DP);
 		
-		new String:SteamID[35];
+		char SteamID[35];
 		ReadPackString(DP, SteamID, sizeof(SteamID));
 		
 		CloseHandle(DP);
@@ -1264,7 +1268,7 @@ public SQL_ChangeDatabases(Database db, DBResultSet hResults, const char[] Error
 			
 		else
 		{ 
-			new String:sQuery[256];
+			char sQuery[256];
 			
 			Format(sQuery, sizeof(sQuery), "UPDATE LastRequest_players SET wins = wins + %i WHERE SteamID = \"%s\"", clientprefWins, SteamID);
 			
@@ -1601,7 +1605,7 @@ public HandleShowAutoDuelNames(id, AutoDuels, item)
 	ShowAddTeleportMenu(id);
 }	
 */
-public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if(!LRStarted)
 	{
@@ -1611,10 +1615,10 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 	
 	// LRStarted
 	
-	new victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-	new attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
+	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
 	
-	new bool:victimct, bool:norambo;
+	bool victimct, norambo;
 	
 	if(GetClientTeam(victim) == CS_TEAM_CT) victimct = true;
 	
@@ -1633,7 +1637,7 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 			
 		if(Gangs_HasGang(attacker) && GetPlayerCount() >= 5)
 		{
-			new String:GangName[64];
+			char GangName[64];
 			Gangs_GetClientGangName(attacker, GangName, sizeof(GangName));
 			
 			Gangs_GiveGangCredits(GangName, 100);
@@ -1655,7 +1659,7 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 			LRAnnounced = false;
 			CheckAnnounceLR();
 			
-			for(new i=1;i <= MaxClients;i++)
+			for(int i=1;i <= MaxClients;i++)
 			{
 				if(!IsClientInGame(i))
 					continue;
@@ -1667,13 +1671,13 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 	}
 }	
 
-CheckAnnounceLR()
+void CheckAnnounceLR()
 {
 	if(LRAnnounced)
 		return;
 		
-	new T, CT, LastOne;
-	for(new i=1;i <= MaxClients;i++)
+	int T, CT, LastOne;
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -1716,16 +1720,16 @@ CheckAnnounceLR()
 	}
 }
 
-public Action:Timer_CheckChokeRound(Handle:hTimer)
+public Action Timer_CheckChokeRound(Handle hTimer)
 {
-	new String:Message[256];
+	char Message[256];
 	Call_StartForward(fw_CanStartLR);
 		
 	Call_PushCell(GetRandomAlivePlayer(CS_TEAM_T));
 	Call_PushStringEx(Message, sizeof(Message), SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_PushCell(hTimer);
 	
-	new Action:Value
+	Action Value
 	Call_Finish(Value);
 	
 	if(Value >= Plugin_Changed)
@@ -1762,9 +1766,9 @@ public Action:Timer_CheckChokeRound(Handle:hTimer)
 	
 	return Plugin_Continue;
 }
-public Action:Event_PlayerTeam(Handle:hEvent, const String:name[], bool:dontBroadcast)
+public Action Event_PlayerTeam(Handle hEvent, const char[] name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
 	if(LRPart(client))
 	{
@@ -1772,9 +1776,9 @@ public Action:Event_PlayerTeam(Handle:hEvent, const String:name[], bool:dontBroa
 	}
 }	
 
-public Action:Event_PlayerHurt(Handle:hEvent, const String:name[], bool:dontBroadcast)
+public Action Event_PlayerHurt(Handle hEvent, const char[] name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
 	if(LRPart(client))
 	{	
@@ -1783,9 +1787,9 @@ public Action:Event_PlayerHurt(Handle:hEvent, const String:name[], bool:dontBroa
 	}
 }
 
-public BitchSlapBackwards(victim, weapon, Float:strength) // Stole the dodgeball tactic from https://forums.alliedmods.net/showthread.php?t=17116
+public void BitchSlapBackwards(int victim, int weapon, float strength) // Stole the dodgeball tactic from https://forums.alliedmods.net/showthread.php?t=17116
 {
-	new Float:origin[3], Float:velocity[3];
+	float origin[3], velocity[3];
 	GetEntPropVector(weapon, Prop_Data, "m_vecOrigin", origin);
 	GetVelocityFromOrigin(victim, origin, strength, velocity);
 	velocity[2] = strength / 10.0;
@@ -1793,7 +1797,7 @@ public BitchSlapBackwards(victim, weapon, Float:strength) // Stole the dodgeball
 	TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, velocity);
 }
 
-public Action:Event_TakeDamageAlive(victim, &attacker, &inflictor, &Float:damage, &damagetype)
+public Action Event_TakeDamageAlive(int victim, int &attacker, int &inflictor, &float damage, int &damagetype)
 {
 	if(!LRStarted)
 		return Plugin_Continue;
@@ -1808,7 +1812,7 @@ public Action:Event_TakeDamageAlive(victim, &attacker, &inflictor, &Float:damage
 	}
 	
 		
-	new bool:suicide;
+	bool suicide;
 	
 	if( ( attacker != Guard && victim == Prisoner ) || ( attacker != Prisoner && victim == Guard ) ) suicide = true; // Whether the player is killed by the guard or by himself, it is still okay to activate.
 	
@@ -1843,13 +1847,13 @@ public Action:Event_TakeDamageAlive(victim, &attacker, &inflictor, &Float:damage
 	
 		if(Ring)
 		{
-			new Float:Position[3], Float:Angles[3];
+			float Position[3], Angles[3];
 			GetClientEyePosition(attacker, Position); 
 			GetClientEyeAngles(attacker, Angles); 
 			
 			TR_TraceRayFilter(Position, Angles, MASK_SHOT, RayType_Infinite, Trace_HitVictimOnly, victim); //Start the trace 
 			
-			new bool:headshot = (TR_GetHitGroup() == 1); //Get the hit group, 1 means headshot
+			bool headshot = (TR_GetHitGroup() == 1); //Get the hit group, 1 means headshot
 			damage = 0.0;
 			
 			if(headshot)
@@ -1871,7 +1875,7 @@ public Action:Event_TakeDamageAlive(victim, &attacker, &inflictor, &Float:damage
 	return Plugin_Continue;
 }
 
-public Event_TakeDamagePost(victim, attacker, inflictor, Float:damage, damagetype)
+public void Event_TakeDamagePost(int victim, int attacker, int inflictor, float damage, int damagetype)
 {
 	if(!LRStarted)
 		return;
@@ -1890,7 +1894,7 @@ public Event_TakeDamagePost(victim, attacker, inflictor, Float:damage, damagetyp
 		
 	TriggerTimer(TIMER_COUNTDOWN, true);
 }
-public Action:LostDodgeball(Handle:hTimer, victim)
+public Action LostDodgeball(Handle hTimer, int victim)
 {
 	if(!LRStarted)
 		return Plugin_Continue;
@@ -1907,7 +1911,7 @@ public Action:LostDodgeball(Handle:hTimer, victim)
 	return Plugin_Continue;
 }
 
-public Action:Event_TraceAttack(victim, &attacker, &inflictor, &Float:damage, &damagetype, &ammotype, hitbox, hitgroup)
+public Action Event_TraceAttack(int victim, int &attacker, int &inflictor, &float damage, int &damagetype, int &ammotype, int hitbox, int hitgroup)
 {
 	if(!LRStarted)
 		return Plugin_Continue;
@@ -1915,9 +1919,9 @@ public Action:Event_TraceAttack(victim, &attacker, &inflictor, &Float:damage, &d
 	else if(!LRPart(attacker))
 		return Plugin_Continue;
 
-	new weapon = GetEntPropEnt(attacker, Prop_Data, "m_hActiveWeapon");
+	int weapon = GetEntPropEnt(attacker, Prop_Data, "m_hActiveWeapon");
 		
-	new String:Classname[50];
+	char Classname[50];
 	GetEdictClassname(weapon, Classname, sizeof(Classname));
 	if(strncmp(Classname, "weapon_knife", 12) == 0)
 	{	
@@ -1936,17 +1940,17 @@ public Action:Event_TraceAttack(victim, &attacker, &inflictor, &Float:damage, &d
 	return Plugin_Continue;
 }
 
-public bool:Trace_HitVictimOnly(entity, contentsMask, victim) 
+public bool Trace_HitVictimOnly(int entity, int contentsMask, int victim) 
 { 
 	return entity == victim; 
 }  
 
-public bool:Trace_DontHitPlayers(entity, contentsMask)
+public bool Trace_DontHitPlayers(int entity, int contentsMask)
 {
 	return !IsPlayer(entity);
 }
 
-public Action:Event_ShouldInvisible(client, viewer)
+public Action Event_ShouldInvisible(int client, int viewer)
 {
 	if(client == viewer)
 		return Plugin_Continue;
@@ -2003,19 +2007,19 @@ public _Ham_Touch(victim, attacker)
 }
 */
 
-public OnClientDisconnect(client)
+public void OnClientDisconnect(int client)
 {
 	if(LRPart(client))
 		EndLR();
 }
 
-public OnClientPostAdminCheck(client)
+public void OnClientPostAdminCheck(int client)
 {
 	if(!IsFakeClient(client))
 		SQL_GetClientLRWins(client);
 }
 
-public OnClientPutInServer(client)
+public void OnClientPutInServer(int client)
 {
 	ShowMessage[client] = true;
 	SDKHook(client, SDKHook_OnTakeDamageAlive, Event_TakeDamageAlive);
@@ -2031,12 +2035,12 @@ public OnClientPutInServer(client)
 	SDKHook(client, SDKHook_WeaponSwitch, Event_WeaponSwitch);
 }
 
-public OnClientCookiesCached(client)
+public void OnClientCookiesCached(int client)
 {
 	ShowMessage[client] = GetClientInfoMessage(client);
 }
 
-public Action:Event_WeaponPickUp(client, weapon) 
+public Action Event_WeaponPickUp(int client, int weapon) 
 {
 	if(!LRStarted)
 		return Plugin_Continue;
@@ -2047,7 +2051,7 @@ public Action:Event_WeaponPickUp(client, weapon)
 	else if(Rambo)
 		return Plugin_Continue;
 		
-	decl String:WeaponName[32]; 
+	char WeaponName[32]; 
 	GetEdictClassname(weapon, WeaponName, sizeof(WeaponName)); 
 	
 	if(StrEqual(WeaponName, "weapon_c4", true))
@@ -2058,7 +2062,7 @@ public Action:Event_WeaponPickUp(client, weapon)
 	if(StrEqual(WeaponName, "weapon_m4a1_silencer", true))
 		WeaponName = "weapon_m4a1";
 	*/
-	new bool:HNS;
+	bool HNS;
 	
 	if(StrContains(DuelName, "HNS") != -1 || StrContains(DuelName, "Night Crawler") != -1 || StrContains(DuelName, "Shark") != -1) HNS = true;
 	
@@ -2087,12 +2091,12 @@ public Action:Event_WeaponPickUp(client, weapon)
 		}
 	}	
 	
-	new PrimDefIndex, SecDefIndex;
+	int PrimDefIndex, SecDefIndex;
 	
 	if(PrimNum != CSWeapon_NONE) PrimDefIndex = CS_WeaponIDToItemDefIndex(PrimNum);
 	if(SecNum != CSWeapon_NONE) SecDefIndex = CS_WeaponIDToItemDefIndex(SecNum);
 	
-	new WeaponDefIndex = GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex");
+	int WeaponDefIndex = GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex");
 	
 	if(PrimDefIndex == WeaponDefIndex || SecDefIndex == WeaponDefIndex)
 	{
@@ -2111,7 +2115,7 @@ public Action:Event_WeaponPickUp(client, weapon)
 	return Plugin_Handled;
 }
 
-public Action:Event_WeaponEquipPost(client, weapon) // This function is purely to solve !ws issues.
+public Action Event_WeaponEquipPost(int client, int weapon) // This function is purely to solve !ws issues.
 {
 	if(!LRStarted)
 		return Plugin_Continue;
@@ -2119,11 +2123,11 @@ public Action:Event_WeaponEquipPost(client, weapon) // This function is purely t
 	else if(!LRPart(client))
 		return Plugin_Continue;
 		
-	new String:Classname[50];
+	char Classname[50];
 	
 	GetEntityClassname(weapon, Classname, sizeof(Classname));
 	
-	decl String:WeaponName[32]; 
+	char WeaponName[32]; 
 	GetEdictClassname(weapon, WeaponName, sizeof(WeaponName)); 
 		
 	if(StrEqual(WeaponName, "weapon_hkp2000", true))
@@ -2156,7 +2160,7 @@ public Action:Event_WeaponEquipPost(client, weapon) // This function is purely t
 	return Plugin_Continue;
 }
 
-public Action:Event_WeaponSwitch(client, weapon) // This function is purely to solve !ws issues.
+public Action Event_WeaponSwitch(int client, int weapon) // This function is purely to solve !ws issues.
 {
 	//if(weapon == -1)
 		//return Plugin_Continue;
@@ -2166,7 +2170,7 @@ public Action:Event_WeaponSwitch(client, weapon) // This function is purely to s
 	return Plugin_Continue;
 }
 
-stock EndLR(EndTimers = true)
+stock void EndLR(int EndTimers = true)
 {
 	Prisoner = -1;
 	Guard = -1;
@@ -2215,7 +2219,7 @@ stock EndLR(EndTimers = true)
 	
 	bDropBlock = false;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -2253,7 +2257,7 @@ stock EndLR(EndTimers = true)
 	LRStarted = false;
 }
 
-FinishTimers(Handle:hTimer_Ignore = INVALID_HANDLE)
+void FinishTimers(Handle hTimer_Ignore = INVALID_HANDLE)
 {
 	if(TIMER_COUNTDOWN != INVALID_HANDLE && TIMER_COUNTDOWN != hTimer_Ignore)
 	{
@@ -2266,7 +2270,7 @@ FinishTimers(Handle:hTimer_Ignore = INVALID_HANDLE)
 		TIMER_INFOMSG = INVALID_HANDLE;
 	}
 	
-	for(new i=1;i < MAXPLAYERS+1;i++)
+	for(int i=1;i < MAXPLAYERS+1;i++)
 	{
 		if(TIMER_BEACON[i] != INVALID_HANDLE && TIMER_BEACON[i] != hTimer_Ignore)
 		{
@@ -2306,12 +2310,12 @@ FinishTimers(Handle:hTimer_Ignore = INVALID_HANDLE)
 	}
 }
 
-public Action:Command_LR(client, args)
+public Action Command_LR(int client, int args)
 {
 	if(GetClientTeam(client) == CS_TEAM_CT)
 	{
-		new LastT, count;
-		for(new i=1;i <= MaxClients;i++)
+		int LastT, count;
+		for(int i=1;i <= MaxClients;i++)
 		{
 			if(!IsClientInGame(i))
 				continue;
@@ -2335,7 +2339,7 @@ public Action:Command_LR(client, args)
 	{
 		EndLR(false);
 	
-		new Handle:hMenu = CreateMenu(LR_MenuHandler);
+		Handle hMenu = CreateMenu(LR_MenuHandler);
 
 		AddMenuItem(hMenu, "", "Shot4Shot Duels");
 		AddMenuItem(hMenu, "", "Custom War");
@@ -2357,7 +2361,7 @@ public Action:Command_LR(client, args)
 	return Plugin_Handled;
 }
 
-public LR_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int LR_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -2370,9 +2374,9 @@ public LR_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 			hMenu = INVALID_HANDLE;
 			return;
 		}
-		new T;
+		int T;
 		
-		for(new i=1;i <= MaxClients;i++)
+		for(int i=1;i <= MaxClients;i++)
 		{
 			if(!IsClientInGame(i))
 				continue;
@@ -2446,9 +2450,9 @@ public LR_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	}
 }
 
-public ShowWeaponMenu(client)
+public void ShowWeaponMenu(int client)
 {
-	new Type;
+	int Type;
 	if(StrContains(DuelName, "S4S") != -1)
 	{
 		Type = 0;
@@ -2457,9 +2461,9 @@ public ShowWeaponMenu(client)
 	{
 		Type = 1;
 	}
-	new String:TempFormat[100];
+	char TempFormat[100];
 	
-	new Handle:hMenu = CreateMenu(Weapons_MenuHandler);
+	Handle hMenu = CreateMenu(Weapons_MenuHandler);
 
 	AddMenuItem(hMenu, "", "Glock-18");
 	AddMenuItem(hMenu, "", "USP");
@@ -2483,7 +2487,7 @@ public ShowWeaponMenu(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public Weapons_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Weapons_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -2495,7 +2499,7 @@ public Weapons_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 			hMenu = INVALID_HANDLE;
 			return;
 		}
-		new Type; // S4S = 0, Custom = 1
+		int Type; // S4S = 0, Custom = 1
 		PrimNum = CSWeapon_NONE;
 		SecNum = CSWeapon_NONE;
 	
@@ -2606,11 +2610,11 @@ public Weapons_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	hMenu = INVALID_HANDLE;
 }
 
-public ShowCustomMenu(client)
+public void ShowCustomMenu(int client)
 {
-	new String:TempFormat[100], String:WeaponName[50];
+	char TempFormat[100], WeaponName[50];
 	
-	new Handle:hMenu = CreateMenu(Custom_MenuHandler);
+	Handle hMenu = CreateMenu(Custom_MenuHandler);
 
 	Format(TempFormat, sizeof(TempFormat), "Health: %i", HPamount);
 	AddMenuItem(hMenu, "", TempFormat);
@@ -2630,7 +2634,7 @@ public ShowCustomMenu(client)
 	CanSetHealth[client] = true;
 }
 
-public Custom_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Custom_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -2679,10 +2683,10 @@ public Custom_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 }
 
 
-public ChooseRules(client)
+public void ChooseRules(int client)
 {
 		
-	new Type; // S4S = 0, Custom = 1
+	int Type; // S4S = 0, Custom = 1
 	
 	if(StrContains(DuelName, "S4S") != -1)
 	{
@@ -2693,9 +2697,9 @@ public ChooseRules(client)
 		Type = 1;
 	}
 
-	new String:TempFormat[100];
+	char TempFormat[100];
 	
-	new Handle:hMenu = CreateMenu(Rules_MenuHandler);
+	Handle hMenu = CreateMenu(Rules_MenuHandler);
 	
 	Format(TempFormat, sizeof(TempFormat), "%s: %sllowed", PrimNum == CSWeapon_KNIFE ? "Right Stab" : "Zoom", Zoom ? "A" : "Disa");
 	AddMenuItem(hMenu, "", TempFormat);
@@ -2729,12 +2733,12 @@ public ChooseRules(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public Rules_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Rules_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
 	
-	new Type; // S4S = 0, Custom = 1
+	int Type; // S4S = 0, Custom = 1
 	
 	if(StrContains(DuelName, "S4S") != -1)
 	{
@@ -2816,9 +2820,9 @@ public Rules_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 
 	hMenu = INVALID_HANDLE;
 }
-public ShowFunMenu(client)
+public void ShowFunMenu(int client)
 {	
-	new Handle:hMenu = CreateMenu(Fun_MenuHandler);
+	Handle hMenu = CreateMenu(Fun_MenuHandler);
 	
 	AddMenuItem(hMenu, "", "Night Crawler ( Invisible )");
 	AddMenuItem(hMenu, "", "Hide'N'Seek");
@@ -2841,7 +2845,7 @@ public ShowFunMenu(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public Fun_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -2963,9 +2967,9 @@ public Fun_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	hMenu = INVALID_HANDLE;
 }
 
-public ChooseSeeker(client)
+public void ChooseSeeker(int client)
 {
-	new Handle:hMenu = CreateMenu(Seeker_MenuHandler);
+	Handle hMenu = CreateMenu(Seeker_MenuHandler);
 
 	AddMenuItem(hMenu, "", "You");
 	
@@ -2977,7 +2981,7 @@ public ChooseSeeker(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public Seeker_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Seeker_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -3004,9 +3008,9 @@ public Seeker_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	hMenu = INVALID_HANDLE;
 }
 
-public ShowAutoMenu(client)
+public void ShowAutoMenu(int client)
 {
-	new Handle:hMenu = CreateMenu(Auto_MenuHandler);
+	Handle hMenu = CreateMenu(Auto_MenuHandler);
 
 	AddMenuItem(hMenu, "", "First Writes");
 	AddMenuItem(hMenu, "", "Combo Contest");
@@ -3021,7 +3025,7 @@ public ShowAutoMenu(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public Auto_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Auto_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -3070,17 +3074,17 @@ public Auto_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	hMenu = INVALID_HANDLE;
 }
 
-public ChooseOpponent(client)
+public void ChooseOpponent(int client)
 {	
 	if(HPamount > GetMaxHealthValue())
 	{
 		HPamount = GetMaxHealthValue();
 		PrintToChat(client, "%s Duel \x07HP \x01was set to \x05%i \x01to avoid never ending duel.", PREFIX, HPamount);
 	}
-	new String:UID[20], String:Name[64];
-	new Handle:hMenu = CreateMenu(Opponent_MenuHandler);
+	char UID[20], Name[64];
+	Handle hMenu = CreateMenu(Opponent_MenuHandler);
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -3100,7 +3104,7 @@ public ChooseOpponent(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public Opponent_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Opponent_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -3112,10 +3116,10 @@ public Opponent_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 			hMenu = INVALID_HANDLE;
 			return;
 		}
-		new String:UID[20], String:Display[1], style;
+		char UID[20], Display[1];
 		GetMenuItem(hMenu, item, UID, sizeof(UID), style, Display, sizeof(Display));
 		
-		new target = GetClientOfUserId(StringToInt(UID));
+		int target = GetClientOfUserId(StringToInt(UID));
 		
 		if(LastRequest(client) && target != 0)
 		{
@@ -3136,20 +3140,20 @@ public Opponent_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	hMenu = INVALID_HANDLE;
 }
 
-public OpenAllCells()
+public void OpenAllCells()
 {
 
-	new ent = -1;
+	int ent = -1;
 	
 	while((ent = FindEntityByClassname(ent, "func_button")) != INVALID_ENT_REFERENCE)
 		AcceptEntityInput(ent, "Press");
 }
 
 
-public StartRambo()
+public void StartRambo()
 {
 	Rambo = true;
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -3163,12 +3167,12 @@ public StartRambo()
 		StripPlayerWeapons(i);
 		SetEntityHealth(i, 100);
 		SetClientArmor(i, Vest == 0 ? 0 : 100, Vest == 2 ? 1 : 0);
-		new weapon = GivePlayerItem(i, "weapon_m4a1");
+		int weapon = GivePlayerItem(i, "weapon_m4a1");
 		SetClientAmmo(i, weapon, 999);
 	}
 	
 	StripPlayerWeapons(Prisoner);
-	new weapon = GivePlayerItem(Prisoner, "weapon_negev");
+	int weapon = GivePlayerItem(Prisoner, "weapon_negev");
 						
 	SetClientAmmo(Prisoner, weapon, 999);
 	SetEntityHealth(Prisoner, 250);
@@ -3182,13 +3186,13 @@ public StartRambo()
 	PrintToChatAll("%s All \x05participants \x01will be slayed in \x077 \x01minutes!", PREFIX);
 }
 
-public StartDuel()
+public void StartDuel()
 {	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		ShowMessage[i] = true;
 	}
-	new ent = -1;
+	int ent = -1;
 	
 	while((ent = FindEntityByClassname(ent, "game_player_equip")) != -1)
 		AcceptEntityInput(ent, "Kill");
@@ -3250,7 +3254,7 @@ public StartDuel()
 	ContinueStartDuel(); // To make things more organized :)
 }
 
-public ContinueStartDuel()
+public void ContinueStartDuel()
 {	
 	SetEntityGlow(Guard, true, 128, 0, 128);
 	SetEntityGlow(Prisoner, true, 128, 0, 128);
@@ -3275,8 +3279,8 @@ public ContinueStartDuel()
 	{
 		if(!TSeeker) // If the terrorist doesn't seek.
 		{
-			new Guard2 = Guard;
-			new Prisoner2 = Prisoner;
+			int Guard2 = Guard;
+			int Prisoner2 = Prisoner;
 			
 			Prisoner = Guard2;
 			Guard = Prisoner2;
@@ -3308,8 +3312,8 @@ public ContinueStartDuel()
 	{
 		if(!TSeeker) // If the terrorist doesn't seek.
 		{
-			new Guard2 = Guard;
-			new Prisoner2 = Prisoner;
+			int Guard2 = Guard;
+			int Prisoner2 = Prisoner;
 			
 			Prisoner = Guard2;
 			Guard = Prisoner2;
@@ -3318,7 +3322,7 @@ public ContinueStartDuel()
 		StripPlayerWeapons(Prisoner);
 		GivePlayerItem(Prisoner, "weapon_knife");
 		
-		new weapon = GivePlayerItem(Guard, "weapon_m4a1");
+		int weapon = GivePlayerItem(Guard, "weapon_m4a1");
 		SetClientAmmo(Guard, weapon, 10000);
 		
 		Timer = 60;
@@ -3329,8 +3333,8 @@ public ContinueStartDuel()
 	{
 		if(!TSeeker) // If the terrorist doesn't seek.
 		{
-			new Guard2 = Guard;
-			new Prisoner2 = Prisoner;
+			int Guard2 = Guard;
+			int Prisoner2 = Prisoner;
 			
 			Prisoner = Guard2;
 			Guard = Prisoner2;
@@ -3340,7 +3344,7 @@ public ContinueStartDuel()
 		SetEntityHealth(Prisoner, 200);
 		SetClientNoclip(Prisoner, true);
 		
-		new weapon = GivePlayerItem(Guard, "weapon_m4a1");
+		int weapon = GivePlayerItem(Guard, "weapon_m4a1");
 		SetClientAmmo(Guard, weapon, 10000);
 		
 		Timer = 60;
@@ -3519,7 +3523,7 @@ public ContinueStartDuel()
 	}	
 	else if(StrContains(DuelName, "Auto") != -1)
 	{
-		new Float:Time = 20.0;
+		float Time = 20.0;
 
 		if(StrContains(DuelName, "Type Stages") != -1)
 			Time += 40.0;
@@ -3537,7 +3541,7 @@ public ContinueStartDuel()
 	
 		PrintToChatAll("%s All \x05participants \x01will be slayed in \x075 \x01minutes!", PREFIX);
 	}
-	new bool:NC;
+	bool NC;
 	
 	NC = StrContains(DuelName, "Night Crawler") != -1 ? true : false;
 	TIMER_INFOMSG = CreateTimer(0.1, ShowToAll, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
@@ -3548,7 +3552,7 @@ public ContinueStartDuel()
 		TIMER_BEACON[Guard] = CreateTimer(1.0, BeaconPlayer, Guard, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	}
 	
-	new nullint;
+	int nullint;
 	Call_StartForward(fw_LRStarted);
 	
 	Call_PushCell(Prisoner);
@@ -3560,14 +3564,14 @@ public ContinueStartDuel()
 	//Teleport();
 }
 
-public DeleteAllGuns()
+public void DeleteAllGuns()
 {
 	if(!LRStarted)
 		return;
 		
-	new String:Classname[50];
-	new entCount = GetEntityCount();
-	for(new i=MaxClients+1;i < entCount;i++)
+	char Classname[50];
+	int entCount = GetEntityCount();
+	for(int i=MaxClients+1;i < entCount;i++)
 	{
 		if(!IsValidEntity(i))
 			continue;
@@ -3580,7 +3584,7 @@ public DeleteAllGuns()
 		if(StrContains(Classname, "weapon_", true) == -1)
 			continue;
 			
-		new owner = GetEntityOwner(i);
+		int owner = GetEntityOwner(i);
 		
 		if(owner != -1)
 			continue;
@@ -3589,7 +3593,7 @@ public DeleteAllGuns()
 	}
 }
 
-public Action:DisallowGunTossPickup(Handle:hTimer)
+public Action DisallowGunTossPickup(Handle hTimer)
 {
 	DeleteAllGuns();
 	
@@ -3597,7 +3601,7 @@ public Action:DisallowGunTossPickup(Handle:hTimer)
 	
 	TIMER_100MILISECONDS = INVALID_HANDLE;
 }
-public Action:BeaconPlayer(Handle:hTimer, client) // It is guaranteed that no way another player will be used instead of the client, no need for user id.
+public Action BeaconPlayer(Handle hTimer, int client) // It is guaranteed that no way another player will be used instead of the client, no need for user id.
 {
 	if(!LRPart(client))
 		return Plugin_Stop;
@@ -3605,13 +3609,13 @@ public Action:BeaconPlayer(Handle:hTimer, client) // It is guaranteed that no wa
 	else if(!IsPlayerAlive(client))
 		return Plugin_Stop;
 	
-	new Float:vec[3];
+	float vec[3];
 	GetClientAbsOrigin(client, vec);
 	vec[2] += 10;
         
-	new rgba[4] = {255, 255, 255, 255};
+	int rgba[4] = {255, 255, 255, 255};
 	
-	for(new i=0;i < 3;i++)
+	for(int i=0;i < 3;i++)
 	{
 		rgba[i] = GetRandomInt(0, 255);
 	}
@@ -3627,13 +3631,13 @@ public Action:BeaconPlayer(Handle:hTimer, client) // It is guaranteed that no wa
 	
 }
 
-public Action:SlayAllParts(Handle:hTimer)
+public Action SlayAllParts(Handle hTimer)
 {
 	if(!LRStarted)
 		return Plugin_Stop;
 	
-	new Pris = Prisoner; // Slaying the Guard will wipe out the prisoner's integer
-	new Guar = Guard;
+	int Pris = Prisoner; // Slaying the Guard will wipe out the prisoner's integer
+	int Guar = Guard;
 	
 	EndLR();
 	
@@ -3649,26 +3653,26 @@ public Action:SlayAllParts(Handle:hTimer)
 	return Plugin_Stop;
 }
 
-public Action:SetUpRing(Handle:hTimer)
+public Action SetUpRing(Handle hTimer)
 {
 	if(!LRStarted)
 		return Plugin_Stop;
 
 
 	
-	new Float:TempRingOrigin[3];
+	float TempRingOrigin[3];
 	
 	TempRingOrigin = RingOrigin;
 	
 	TempRingOrigin[2] -= 30.0;
-	for(new i=0;i < 5;i++) // 
+	for(int i=0;i < 5;i++) // 
 	{
 		TE_SetupBeamRingPoint(TempRingOrigin, BeamRadius-BeamWidth, BeamRadius, RingBeamModel, RingHaloModel, 0, 10, 0.6, 10.0, 0.5, {255, 255, 255, 255}, 1, 0);
 		TE_SendToAll();
 		TempRingOrigin[2] += 30.0;
 	}
 	
-	new Float:PrisonerOrigin[3], Float:GuardOrigin[3];
+	float PrisonerOrigin[3], GuardOrigin[3];
 	
 	GetEntPropVector(Prisoner, Prop_Data, "m_vecOrigin", PrisonerOrigin);
 	GetEntPropVector(Guard, Prop_Data, "m_vecOrigin", GuardOrigin);
@@ -3692,9 +3696,9 @@ public Action:SetUpRing(Handle:hTimer)
 	
 }
 
-public Action:FailReaction(Handle:hTimer)
+public Action FailReaction(Handle hTimer)
 {
-	new target = Guard; // Killer
+	int target = Guard; // Killer
 	if(GetRandomInt(0, 1) == 1) target = Prisoner;
 	
 	//if(!StrEquali(DuelName, "Auto | Spray"))
@@ -3724,7 +3728,7 @@ public Action:FailReaction(Handle:hTimer)
 	TIMER_FAILREACTION = INVALID_HANDLE;
 }
 
-public Action:EndMostJumps(Handle:hTimer)
+public Action EndMostJumps(Handle hTimer)
 {
 	if(GuardJumps > PrisonerJumps)
 	{
@@ -3740,7 +3744,7 @@ public Action:EndMostJumps(Handle:hTimer)
 	}
 	else
 	{
-		new winner, jumps, loser;
+		int winner, jumps, loser;
 		
 		if(GetRandomInt(0, 1) == 0)
 		{
@@ -3863,7 +3867,7 @@ public Teleport()
 	}
 }
 */
-public Action:ComboContestCountDown(Handle:hTimer)
+public Action ComboContestCountDown(Handle hTimer)
 {
 	if(combo_started) 
 	{
@@ -3885,22 +3889,22 @@ public Action:ComboContestCountDown(Handle:hTimer)
 	return Plugin_Continue;
 }
 
-public ComboMoveAble() 
+public void ComboMoveAble() 
 { 
 	if(!LRStarted || !combo_started)
 		return; 
 	
 	maxbuttons = 10;
 	
-	new iNumbers[ 12 ];
-	for( new i; i < sizeof( iNumbers )-1; i++ )
+	int iNumbers[ 12 ];
+	for( int i; i < sizeof( iNumbers )-1; i++ )
 	{
 		iNumbers[ i ] = i;
 	}
 	
 	SortCustom1D( iNumbers, 11, fnSortFunc ); 
 	
-	for( new i; i < maxbuttons; i++ )
+	for( int i; i < maxbuttons; i++ )
 	{
 		if( i > 0 )
 		{
@@ -3913,7 +3917,7 @@ public ComboMoveAble()
 	}
 
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -3937,9 +3941,9 @@ public ComboMoveAble()
 } 
 
 
-public fnSortFunc( elem1, elem2, const array[], Handle:hndl )  
+public int fnSortFunc(int elem1, int elem2, const int[] array, Handle hndl)  
 { 
-	new iNum = GetRandomInt( 0, 60 );
+	int iNum = GetRandomInt( 0, 60 );
 	
 	if( iNum < 30 )
 	{
@@ -3953,7 +3957,7 @@ public fnSortFunc( elem1, elem2, const array[], Handle:hndl )
 	return 1;
 } 
 
-public Event_Think(client)
+public void Event_Think(int client)
 {
 	if(!LRStarted)
 		return;
@@ -3963,7 +3967,7 @@ public Event_Think(client)
 	
 	if(NoRecoil)
 	{
-		new ActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
+		int ActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
 	
 		if(IsValidEdict(ActiveWeapon) && ActiveWeapon != -1) 
 		{
@@ -3974,7 +3978,7 @@ public Event_Think(client)
 		SetEntPropVector(client, Prop_Send, "m_viewPunchAngle", NULL_VECTOR);
 	}
 }
-public Event_PlayerPreThink(client) 
+public void Event_PlayerPreThink(int client) 
 { 
 	if(!LRStarted)
 		return;
@@ -3984,7 +3988,7 @@ public Event_PlayerPreThink(client)
 	
 	if(NoRecoil)
 	{
-		new ActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
+		int ActiveWeapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
 	
 		if(IsValidEdict(ActiveWeapon) && ActiveWeapon != -1) 
 		{
@@ -4013,7 +4017,7 @@ public Event_PlayerPreThink(client)
 		{
 			if(FloatAbs(GetGroundHeight(client) - GroundHeight[client]) <= 25.0 && !AdjustedJump[client])
 			{
-				new Float:Origin[3];
+				float Origin[3];
 				GetEntPropVector(client, Prop_Data, "m_vecOrigin", Origin);
 				
 				JumpOrigin[client][0] = Origin[0];
@@ -4032,7 +4036,7 @@ public Event_PlayerPreThink(client)
 		return;
 		
 	
-	new iButton;
+	int iButton;
 	iButton = GetClientButtons(client);
 	
 	if( g_count[ client ] >= maxbuttons )
@@ -4065,13 +4069,13 @@ public Event_PlayerPreThink(client)
 	showcombo( client );
 }
 
-showcombo( client )
+void showcombo(int client)
 {
 	SetHudMessage(-1.0, 0.2, 1.0, 0, 50, 255);
 	
-	new String:name[ 11 ][ 33 ];
+	char name[ 11 ][ 33 ];
 	
-	for( new i; i<maxbuttons; i++ )
+	for( int i; i<maxbuttons; i++ )
 	{
 		Format( name[ i ], 32, names[ g_combo[ i ] ] );
 		if( i == g_count[ client ] )
@@ -4092,9 +4096,9 @@ showcombo( client )
 }
 
 
-public Action:FirstWritesCountDown(Handle:hTimer)
+public Action FirstWritesCountDown(Handle hTimer)
 {
-	new String:Number[21];
+	char Number[21];
 	IntToString(firstcountdown, Number, sizeof(Number));
 	
 	if(firstwrites) 
@@ -4147,7 +4151,7 @@ public FirstListenCountDown()
 	}
 }
 */
-public Action:MathContestCountDown(Handle:hTimer)
+public Action MathContestCountDown(Handle hTimer)
 {
 	if(mathcontest) 
 	{
@@ -4174,7 +4178,7 @@ public Action:MathContestCountDown(Handle:hTimer)
 	return Plugin_Continue;
 }
 
-public Action:OppositeContestCountDown(Handle:hTimer)
+public Action OppositeContestCountDown(Handle hTimer)
 {	
 	if(opposite) 
 	{
@@ -4197,19 +4201,19 @@ public Action:OppositeContestCountDown(Handle:hTimer)
 	return Plugin_Continue;
 }
 
-public Action:TypeStagesCountDown(Handle:hTimer)
+public Action TypeStagesCountDown(Handle hTimer)
 {	
 	if(typestages) 
 	{
 		if(typestagescountdown == 0) 
 		{	
 			typestagesmaxstages = GetRandomInt(5, 10);
-			for(new i=0;i <= typestagesmaxstages;i++)
+			for(int i=0;i <= typestagesmaxstages;i++)
 				Format(typeStagesChars[i], GetRandomInt(5, sizeof(typeStagesChars[])), "%i%i%i%i%i%i%i%i", GetRandomInt(0,9), GetRandomInt(0,9), GetRandomInt(0,9), GetRandomInt(0,9), GetRandomInt(0,9), GetRandomInt(0,9), GetRandomInt(0,9), GetRandomInt(0,9));
 				
 			typestagesmoveable = true;
 			
-			for(new i=1;i <= MaxClients;i++)
+			for(int i=1;i <= MaxClients;i++)
 			{
 				if(!IsClientInGame(i))
 					continue;
@@ -4232,7 +4236,7 @@ public Action:TypeStagesCountDown(Handle:hTimer)
 }
 
 
-public Action:MostJumpsCountDown(Handle:hTimer)
+public Action MostJumpsCountDown(Handle hTimer)
 {
 	if(MostJumps) 
 	{
@@ -4255,9 +4259,9 @@ public Action:MostJumpsCountDown(Handle:hTimer)
 	
 	return Plugin_Continue;
 }
-stock RandomWord()
+stock void RandomWord()
 {
-	new Random[2];
+	int Random[2];
 	Format(Random, sizeof(Random), "%s", FWwords[ GetRandomInt(0, sizeof(FWwords))]);
 	
 	return Random;
@@ -4307,19 +4311,19 @@ public Beacon() // I won't even pretend that I understand in message_begin funct
 }
 */
 
-public ResetClipAndFrame(AlexaPlayDespacitoByToto)
+public void ResetClipAndFrame(int AlexaPlayDespacitoByToto)
 {
 	if(!LRStarted)
 		return;
 		
 	RequestFrame(ResetClip, 0);
 }
-public ResetClip(AlexaPlayDespacitoByToto)
+public void ResetClip(int AlexaPlayDespacitoByToto)
 {
 	if(!LRStarted)
 		return;
 		
-	new bool:Type = false;
+	bool Type = false;
 	if(PrimNum != CSWeapon_KNIFE) Type = true;
 	
 	if(GetRandomInt(0, 1) == 1)
@@ -4338,7 +4342,7 @@ public ResetClip(AlexaPlayDespacitoByToto)
 }
 
 
-public Action:ShowToAll(Handle:hTimer)
+public Action ShowToAll(Handle hTimer)
 {
 	if(!LRStarted)
 	{
@@ -4346,12 +4350,12 @@ public Action:ShowToAll(Handle:hTimer)
 		return Plugin_Stop;
 	}
 	
-	new bool:HNS;
+	bool HNS;
 	
 	if(StrContains(DuelName, "HNS") != -1 || StrContains(DuelName, "Night Crawler") != -1 || StrContains(DuelName, "Shark") != -1) HNS = true;
 	
-	new bool:isAuto = (StrContains(DuelName, "Auto") != -1);
-	for(new i=1;i <= MaxClients;i++)
+	bool isAuto = (StrContains(DuelName, "Auto") != -1);
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -4367,7 +4371,7 @@ public Action:ShowToAll(Handle:hTimer)
 	
 	if(GunToss)
 	{
-		new String:GuardName[64], String:PrisonerName[64];
+		char GuardName[64], PrisonerName[64];
 		
 		GetClientName(Guard, GuardName, sizeof(GuardName));
 		GetClientName(Prisoner, PrisonerName, sizeof(PrisonerName));
@@ -4383,19 +4387,19 @@ public Action:ShowToAll(Handle:hTimer)
 	return Plugin_Continue;
 }
 
-public Action:Event_WeaponFire(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_WeaponFire(Handle hEvent, const char[] Name, bool dontBroadcast)
 {	
 	if(!LRStarted)
 		return;
 	
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
 	if(!LRPart(client))
 		return;
 	
 	if(GunToss)
 	{
-		new String:Classname[50];
+		char Classname[50];
 		GetEventString(hEvent, "weapon", Classname, sizeof(Classname));
 
 		if(!IsKnifeClass(Classname))
@@ -4435,7 +4439,7 @@ public Action:Event_WeaponFire(Handle:hEvent, const String:Name[], bool:dontBroa
 	if(StrContains(DuelName, "S4S") == -1)
 		return;
 	
-	new String:Classname[50];
+	char Classname[50];
 	GetEventString(hEvent, "weapon", Classname, sizeof(Classname));
 	
 	if(IsKnifeClass(Classname))
@@ -4443,7 +4447,7 @@ public Action:Event_WeaponFire(Handle:hEvent, const String:Name[], bool:dontBroa
 	
 	PrintCenterText(Guard == client ? Prisoner : Guard, "It's your turn to shoot!");
 	
-	new WeaponToUse;
+	int WeaponToUse;
 	
 	
 	if(Guard == client)
@@ -4470,12 +4474,12 @@ public Action:Event_WeaponFire(Handle:hEvent, const String:Name[], bool:dontBroa
 	}
 }
 
-public Action:Event_WeaponFireOnEmpty(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_WeaponFireOnEmpty(Handle hEvent, const char[] Name, bool dontBroadcast)
 {	
 	if(!LRStarted)
 		return;
 	
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
 	if(!LRPart(client))
 		return;
@@ -4491,13 +4495,13 @@ public Action:Event_WeaponFireOnEmpty(Handle:hEvent, const String:Name[], bool:d
 	if(StrContains(DuelName, "S4S") == -1)
 		return;
 	
-	new String:Classname[50];
+	char Classname[50];
 	GetEventString(hEvent, "weapon", Classname, sizeof(Classname));
 	
 	if(IsKnifeClass(Classname))
 		return;
 	
-	new WeaponToUse;
+	int WeaponToUse;
 	if(Guard == client)
 	{
 		WeaponToUse = PrimNum != CSWeapon_KNIFE ? PrisonerPrim : PrisonerSec;
@@ -4511,11 +4515,11 @@ public Action:Event_WeaponFireOnEmpty(Handle:hEvent, const String:Name[], bool:d
 
 }
 
-public Action:Event_DecoyStarted(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_DecoyStarted(Handle hEvent, const char[] Name, bool dontBroadcast)
 {	
-	new entity = GetEventInt(hEvent, "entityid");
+	int entity = GetEventInt(hEvent, "entityid");
 	
-	new String:TargetName[50];
+	char TargetName[50];
 	
 	GetEntPropString(entity, Prop_Data, "m_iName", TargetName, sizeof(TargetName));
 	
@@ -4527,12 +4531,12 @@ public Action:Event_DecoyStarted(Handle:hEvent, const String:Name[], bool:dontBr
 	return Plugin_Continue;
 }
 
-public Action:Event_PlayerJump(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_PlayerJump(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if(!LRStarted)
 		return;
 	
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
 	if(!LRPart(client))
 		return;
@@ -4549,19 +4553,19 @@ public Action:Event_PlayerJump(Handle:hEvent, const String:Name[], bool:dontBroa
 	else if(Prisoner == client)
 		PrisonerJumps++;
 }
-public Action:Event_Sound(clients[64], &numClients, String:sample[PLATFORM_MAX_PATH], &entity, &channel, &Float:volume, &level, &pitch, &flags)
+public Action Event_Sound(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, &float volume, int &level, int &pitch, int &flags)
 {
 
 	if(entity == 0 || !IsValidEntity(entity))
 		return Plugin_Continue;
 
-	new String:Classname[50];
+	char Classname[50];
 	GetEdictClassname(entity, Classname, sizeof(Classname));
 		
 	if(!StrEqual(Classname, "decoy_projectile", true))
 		return Plugin_Continue;
 	
-	new String:TargetName[50];
+	char TargetName[50];
 	
 	GetEntPropString(entity, Prop_Data, "m_iName", TargetName, sizeof(TargetName));
 	
@@ -4597,7 +4601,7 @@ public Action:Event_SmokeGrenadeDetonate(Handle:event, const String:name[], bool
 		GivePlayerItem(client, "weapon_smokegrenade");
 }
 */
-ShowInfoMessage(client)
+void ShowInfoMessage(int client)
 {
 	
 	if(StrContains(DuelName, "Auto") != -1)
@@ -4606,7 +4610,7 @@ ShowInfoMessage(client)
 		return;
 	}
 	
-	new Handle:hMenu = CreateMenu(InfoMessage_MenuHandler);
+	Handle hMenu = CreateMenu(InfoMessage_MenuHandler);
 	
 	AddMenuItem(hMenu, "", "Exit Forever");
 	
@@ -4620,7 +4624,7 @@ ShowInfoMessage(client)
 	DisplayMenu(hMenu, client, 1);
 }
 
-public InfoMessage_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int InfoMessage_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -4632,7 +4636,7 @@ public InfoMessage_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	}
 }
 	
-public ShowReactionInfo(client)
+public void ShowReactionInfo(int client)
 {
 	if(!LRPart(client) || !IsPlayerAlive(client))
 		return;
@@ -4644,7 +4648,7 @@ public ShowReactionInfo(client)
 			
 	else if(typestagesmoveable) 
 	{
-		new String:StageWord[50];
+		char StageWord[50];
 		
 		GetUserStageWord(client, StageWord, sizeof(StageWord));
 		ShowHudMessage(client, HUD_REACTION, "Type Stages contest started, Answer:\n%s\nStage:\n %i/%i", StageWord, typestagescount[client], typestagesmaxstages);	
@@ -4661,7 +4665,7 @@ public ShowReactionInfo(client)
 		
 }	
 	
-public Action:ShowTimer(Handle:hTimer)
+public Action ShowTimer(Handle hTimer)
 {		
 	if(Timer <= 0)
 	{
@@ -4674,7 +4678,7 @@ public Action:ShowTimer(Handle:hTimer)
 	return Plugin_Continue;
 }
 	
-public Action:BleedTimer(Handle:hTimer)
+public Action BleedTimer(Handle hTimer)
 {
 	if(BleedTarget == 0)
 	{
@@ -4704,7 +4708,7 @@ public Action:BleedTimer(Handle:hTimer)
 	return Plugin_Continue;
 }
 
-public SetFreeday(client)
+public void SetFreeday(int client)
 {
 	PrintToChatAll("%s \x05%N \x01selected \x07Free Day \x01for the next round!", PREFIX, client);
 	ForcePlayerSuicide(client);
@@ -4725,11 +4729,11 @@ stock track_weapon(index)
 	return Weapon;
 }
 */
-stock bool:LastRequest(client)
+stock bool LastRequest(int client)
 {		
-	new Guards, Prisoners;
+	int Guards, Prisoners;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -4761,13 +4765,13 @@ stock bool:LastRequest(client)
 	
 	else
 	{
-		new String:Message[256];
+		char Message[256];
 		Call_StartForward(fw_CanStartLR);
 		
 		Call_PushCell(client);
 		Call_PushStringEx(Message, sizeof(Message), SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 		
-		new Action:Value
+		Action Value
 		Call_Finish(Value);
 		
 		if(Value > Plugin_Continue)
@@ -4781,12 +4785,12 @@ stock bool:LastRequest(client)
 	return false;
 }
 
-stock bool:LRPart(client) // = Participant in LR.
+stock bool LRPart(int client) // = Participant in LR.
 {	
 	return client == Guard || client == Prisoner ? true : false;
 }
 
-stock GetUserStageWord(client, String:buffer[], length)
+stock void GetUserStageWord(int client, char[] buffer, int length)
 {
 	Format(buffer, length, typeStagesChars[typestagescount[client]]);
 }
@@ -4847,7 +4851,7 @@ stock bool:is_user_surfing(id) // Who dafaq invented that stock?
     return false;
 }  
 */
-stock FinishHim(victim, attacker)
+stock void FinishHim(int victim, int attacker)
 {
 	if(!IsClientInGame(victim) || !IsClientInGame(attacker))
 		return;
@@ -4856,13 +4860,13 @@ stock FinishHim(victim, attacker)
 	HeadShot = false;
 	Ring = false;
 	
-	new String:weaponToGive[50];
+	char weaponToGive[50];
 	FindPlayerWeapon(attacker, weaponToGive, sizeof(weaponToGive));
 	
 	StripPlayerWeapons(victim);
 	StripPlayerWeapons(attacker);
 	
-	new inflictor = GivePlayerItem(attacker, weaponToGive);
+	int inflictor = GivePlayerItem(attacker, weaponToGive);
 	SetEntityHealth(victim, 100);
 	SetClientGodmode(victim);
 	SetClientNoclip(victim);
@@ -4873,9 +4877,9 @@ stock FinishHim(victim, attacker)
 	
 }
 
-stock bool:FindPlayerWeapon(attacker, String:buffer[], length)
+stock bool FindPlayerWeapon(int attacker, char[] buffer, int length)
 {
-	new weapon = -1;
+	int weapon = -1;
 	
 	weapon = GetEntPropEnt(attacker, Prop_Data, "m_hActiveWeapon");
 	
@@ -4894,7 +4898,7 @@ stock bool:FindPlayerWeapon(attacker, String:buffer[], length)
 	Format(buffer, length, "weapon_knife");
 	return false;
 }
-stock bool:IsPlayer(client)
+stock bool IsPlayer(int client)
 {
 	if(client <= 0)
 		return false;
@@ -4905,7 +4909,7 @@ stock bool:IsPlayer(client)
 	return true;
 }
 
-stock SetEntityGlow(entity, bool:glow=false, r=0, g=0, b=0)
+stock void SetEntityGlow(int entity, bool glow = false, int r = 0, int g = 0, int b = 0)
 {
 	if(glow)
 	{
@@ -4920,14 +4924,14 @@ stock SetEntityGlow(entity, bool:glow=false, r=0, g=0, b=0)
 }
 
 
-stock SetHudMessage(Float:x=-1.0, Float:y=-1.0, Float:HoldTime=6.0, r=255, g=0, b=0, a=255, effects=0, Float:fxTime=12.0, Float:fadeIn=0.0, Float:fadeOut=0.0)
+stock void SetHudMessage(float x = -1.0, float y = -1.0, float HoldTime = 6.0, int r = 255, int g = 0, int b = 0, int a = 255, int effects = 0, float fxTime = 12.0, float fadeIn = 0.0, float fadeOut = 0.0)
 {
 	SetHudTextParams(x, y, HoldTime, r, g, b, a, effects, fxTime, fadeIn, fadeOut);
 }
 
-stock ShowHudMessage(client, channel = -1, String:Message[], any:...)
+stock void ShowHudMessage(int client, int channel = -1, char[] Message, any ...)
 {
-	new String:VMessage[300];
+	char VMessage[300];
 	VFormat(VMessage, sizeof(VMessage), Message, 4);
 	
 	if(client != 0)
@@ -4935,7 +4939,7 @@ stock ShowHudMessage(client, channel = -1, String:Message[], any:...)
 	
 	else
 	{
-		for(new i=1;i <= MaxClients;i++)
+		for(int i=1;i <= MaxClients;i++)
 		{
 			if(IsClientInGame(i))
 				ShowHudText(i, channel, VMessage);
@@ -4943,13 +4947,13 @@ stock ShowHudMessage(client, channel = -1, String:Message[], any:...)
 	}
 }
 
-stock bool:StripGunByClassname(client, WeaponName[])
+stock bool StripGunByClassname(int client, int[] WeaponName)
 {
-	new String:Classname[50];
+	char Classname[50];
 	
-	for(new i=0;i <= 4;i++)
+	for(int i=0;i <= 4;i++)
 	{
-		new weapon = GetPlayerWeaponSlot(client, i);
+		int weapon = GetPlayerWeaponSlot(client, i);
 		
 		if(weapon != -1)
 		{
@@ -4966,14 +4970,14 @@ stock bool:StripGunByClassname(client, WeaponName[])
 	return false;
 }
 
-stock StripPlayerWeapons(client)
+stock void StripPlayerWeapons(int client)
 {
 	if(!IsClientInGame(client))
 		return;
 		
-	for(new i=0;i <= 5;i++)
+	for(int i=0;i <= 5;i++)
 	{
-		new weapon = GetPlayerWeaponSlot(client, i);
+		int weapon = GetPlayerWeaponSlot(client, i);
 		
 		if(weapon != -1)
 		{
@@ -4983,7 +4987,7 @@ stock StripPlayerWeapons(client)
 	}
 }
 
-stock SetClientGodmode(client, bool:godmode=false)
+stock void SetClientGodmode(int client, bool godmode = false)
 {
 	if(godmode)
 		SetEntProp(client, Prop_Data, "m_takedamage", 0, 1);
@@ -4992,7 +4996,7 @@ stock SetClientGodmode(client, bool:godmode=false)
 		SetEntProp(client, Prop_Data, "m_takedamage", 2, 1);
 }
 
-stock SetClientNoclip(client, bool:noclip=false)
+stock void SetClientNoclip(int client, bool noclip = false)
 {
 	if(noclip)
 	{
@@ -5002,16 +5006,16 @@ stock SetClientNoclip(client, bool:noclip=false)
 		 SetEntProp(client, Prop_Send, "movetype", 1, 1);
 }
 
-stock SetClientSpeed(client, Float:speed=1.0)
+stock void SetClientSpeed(int client, float speed = 1.0)
 {
 	SetEntPropFloat(client, Prop_Send, "m_flVelocityModifier", speed);
 }
-stock bool:IsStringNumber(const String:source[])
+stock bool IsStringNumber(const char[] source)
 {
 	if(!IsCharNumeric(source[0]) && source[0] != '-')
 		return false;
 			
-	for(new i=1;i < strlen(source);i++)
+	for(int i=1;i < strlen(source);i++)
 	{
 		if(!IsCharNumeric(source[i]))
 			return false;
@@ -5020,32 +5024,32 @@ stock bool:IsStringNumber(const String:source[])
 	return true;
 }
 
-stock GetEntityHealth(entity)
+stock void GetEntityHealth(int entity)
 {
 	return GetEntProp(entity, Prop_Send, "m_iHealth");
 }
 
-stock SetClientAmmo(client, weapon, ammo)
+stock void SetClientAmmo(int client, int weapon, int ammo)
 {
   SetEntProp(weapon, Prop_Send, "m_iPrimaryReserveAmmoCount", ammo); //set reserve to 0
     
-  new ammotype = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+  int ammotype = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
   if(ammotype == -1) return;
   
   SetEntProp(client, Prop_Send, "m_iAmmo", ammo, _, ammotype);
 }
 
-stock SetWeaponClip(weapon, clip)
+stock void SetWeaponClip(int weapon, int clip)
 {
 	SetEntProp(weapon, Prop_Data, "m_iClip1", clip);
 }
 
-stock StrEquali(String:str1[], String:str2[])
+stock void StrEquali(char[] str1, char[] str2)
 {
 	return StrEqual(str1, str2, false);
 }
 
-stock SetClientArmor(client, amount, helmet=-1) // helmet: -1 = unchanged, 0 = no helmet, 1 = yes helmet
+stock void SetClientArmor(int client, int amount, int helmet = -1) // helmet: -1 = unchanged, 0 = no helmet, 1 = yes helmet
 {
 	if(helmet != -1)
 		SetEntProp(client, Prop_Send, "m_bHasHelmet", helmet);
@@ -5053,7 +5057,7 @@ stock SetClientArmor(client, amount, helmet=-1) // helmet: -1 = unchanged, 0 = n
 	SetEntProp(client, Prop_Send, "m_ArmorValue", amount);
 }
 
-stock SetRandomRules(Type)
+stock void SetRandomRules(int Type)
 {
 	Zoom = view_as<bool>(GetRandomInt(0, 1));
 	HeadShot = view_as<bool>(GetRandomInt(0, 1));
@@ -5066,12 +5070,12 @@ stock SetRandomRules(Type)
 	}
 }
 
-stock GetMaxHealthValue()
+stock int GetMaxHealthValue()
 {
 	if(StrContains(DuelName, "Last Hit Bleed") != -1)
 		return 30000;
 		
-	new bool:Knife = (StrContains(DuelName, "Knife") != -1);
+	bool Knife = (StrContains(DuelName, "Knife") != -1);
 	if(HeadShot && Knife && !Zoom)
 		return 150;
 		
@@ -5090,9 +5094,9 @@ stock GetMaxHealthValue()
 	return 1500;
 }
 
-stock bool:GetClientInfoMessage(client)
+stock bool GetClientInfoMessage(int client)
 {
-	new String:strInfoMessage[50];
+	char strInfoMessage[50];
 	GetClientCookie(client, cpInfoMsg, strInfoMessage, sizeof(strInfoMessage));
 	
 	if(strInfoMessage[0] == EOS)
@@ -5104,9 +5108,9 @@ stock bool:GetClientInfoMessage(client)
 	return view_as<bool>(StringToInt(strInfoMessage));
 }
 
-stock bool:SetClientInfoMessage(client, bool:value)
+stock bool SetClientInfoMessage(int client, bool value)
 {
-	new String:strInfoMessage[50];
+	char strInfoMessage[50];
 	
 	IntToString(view_as<int>(value), strInfoMessage, sizeof(strInfoMessage));
 	SetClientCookie(client, cpInfoMsg, strInfoMessage);
@@ -5114,9 +5118,9 @@ stock bool:SetClientInfoMessage(client, bool:value)
 	return value;
 }
 
-stock GetClientLRWins(client)
+stock int GetClientLRWins(int client)
 {
-	new String:strLRWins[50];
+	char strLRWins[50];
 	GetClientCookie(client, cpLRWins, strLRWins, sizeof(strLRWins));
 	
 	if(strLRWins[0] == EOS)
@@ -5128,20 +5132,20 @@ stock GetClientLRWins(client)
 	return StringToInt(strLRWins);
 }
 
-stock AddClientLRWin(client)
+stock void AddClientLRWin(int client)
 {
-	new String:strLRWins[50];
+	char strLRWins[50];
 	
-	new TotalWins = GetClientLRWins(client) + 1;
+	int TotalWins = GetClientLRWins(client) + 1;
 	
 	IntToString(TotalWins, strLRWins, sizeof(strLRWins));
 	SetClientCookie(client, cpLRWins, strLRWins);	
 	
 }
 
-stock SetClientLRWins(client, value)
+stock void SetClientLRWins(int client, int value)
 {
-	new String:strLRWins[50];
+	char strLRWins[50];
 	
 	IntToString(value, strLRWins, sizeof(strLRWins));
 	
@@ -5151,43 +5155,43 @@ stock SetClientLRWins(client, value)
 
 // SM lib all the set sizes.
 
-stock Entity_SetRadius(entity, Float:radius)
+stock void Entity_SetRadius(int entity, float radius)
 {
 	SetEntPropFloat(entity, Prop_Data, "m_flRadius", radius);
 }
 
-stock Entity_GetMinSize(entity, Float:vec[3])
+stock void Entity_GetMinSize(int entity, float vec[3])
 {
 	GetEntPropVector(entity, Prop_Send, "m_vecMins", vec);
 }
 
 
-stock Entity_SetMinSize(entity, const Float:vecMins[3])
+stock void Entity_SetMinSize(int entity, const float vecMins[3])
 {
 	SetEntPropVector(entity, Prop_Send, "m_vecMins", vecMins);
 }
 
-stock Entity_GetMaxSize(entity, Float:vec[3])
+stock void Entity_GetMaxSize(int entity, float vec[3])
 {
 	GetEntPropVector(entity, Prop_Send, "m_vecMaxs", vec);
 }
 
-stock Entity_SetMaxSize(entity, const Float:vecMaxs[3])
+stock void Entity_SetMaxSize(int entity, const float vecMaxs[3])
 {
 	SetEntPropVector(entity, Prop_Send, "m_vecMaxs", vecMaxs);
 }
-stock Entity_SetMinMaxSize(entity, const Float:vecMins[3], const Float:vecMaxs[3]) // SM lib
+stock void Entity_SetMinMaxSize(int entity, const float vecMins[3], const float vecMaxs[3]) // SM lib
 {
 	// Taken from hl2sdk-ob-valve\game\server\util.cpp SetMinMaxSize()
 	// Todo: Replace this by a SDK call
-	for (new i=0; i<3; i++) {
+	for (int i=0; i<3; i++) {
 
 		if (vecMins[i] > vecMaxs[i]) {
 			ThrowError("Error: mins[%d] > maxs[%d] of entity %d", i, i, EntRefToEntIndex(entity));
 		}
 	}
 
-	decl Float:m_vecMins[3], Float:m_vecMaxs[3];
+	float m_vecMins[3], m_vecMaxs[3];
 	Entity_GetMinSize(entity, m_vecMins);
 	Entity_GetMaxSize(entity, m_vecMaxs);
 
@@ -5198,56 +5202,56 @@ stock Entity_SetMinMaxSize(entity, const Float:vecMins[3], const Float:vecMaxs[3
 	Entity_SetMinSize(entity, vecMins);
 	Entity_SetMaxSize(entity, vecMaxs);
 
-	decl Float:vecSize[3];
+	float vecSize[3];
 	SubtractVectors(vecMaxs, vecMins, vecSize);
 	Entity_SetRadius(entity, GetVectorLength(vecSize) * 0.5);
 
 	Entity_MarkSurrBoundsDirty(entity);
 }
 
-stock Entity_MarkSurrBoundsDirty(entity)
+stock void Entity_MarkSurrBoundsDirty(int entity)
 {
 	Entity_AddEFlags(entity, EFL_DIRTY_SURR_COLLISION_BOUNDS);
 }
 
-stock bool:Math_VectorsEqual(const Float:vec1[3], const Float:vec2[3], const Float:tolerance=0.0)
+stock bool Math_VectorsEqual(const float vec1[3], const float vec2[3], const float tolerance = 0.0)
 {
-	new Float:distance = GetVectorDistance(vec1, vec2, true);
+	float distance = GetVectorDistance(vec1, vec2, true);
 
 	return distance <= (tolerance * tolerance);
 }
 
-stock Entity_SetEFlags(entity, Entity_Flags:flags)
+stock void Entity_SetEFlags(int entity, Entity_Flags flags)
 {
 	SetEntProp(entity, Prop_Data, "m_iEFlags", flags);
 }
 
-stock Entity_Flags:Entity_GetEFlags(entity)
+stock Entity_Flags Entity_GetEFlags(int entity)
 {
-	return Entity_Flags:GetEntProp(entity, Prop_Data, "m_iEFlags");
+	return Entity_Flags GetEntProp(entity, Prop_Data, "m_iEFlags");
 }
 
-stock Entity_AddEFlags(entity, Entity_Flags:flags)
+stock void Entity_AddEFlags(int entity, Entity_Flags flags)
 {
-	new Entity_Flags:setFlags = Entity_GetEFlags(entity);
+	Entity_Flags setFlags = Entity_GetEFlags(entity);
 	setFlags |= flags;
 	Entity_SetEFlags(entity, setFlags);
 }
 
 
-stock GetVelocityFromOrigin(ent, Float:fOrigin[3], Float:fSpeed, Float:fVelocity[3]) // Will crash server if fSpeed = -1.0
+stock void GetVelocityFromOrigin(int ent, float fOrigin[3], float fSpeed, float fVelocity[3]) // Will crash server if fSpeed = -1.0
 {
-	new Float:fEntOrigin[3];
+	float fEntOrigin[3];
 	GetEntPropVector(ent, Prop_Data, "m_vecOrigin", fEntOrigin);
 	
 	// Velocity = Distance / Time
 	
-	new Float:fDistance[3];
+	float fDistance[3];
 	fDistance[0] = fEntOrigin[0] - fOrigin[0];
 	fDistance[1] = fEntOrigin[1] - fOrigin[1];
 	fDistance[2] = fEntOrigin[2] - fOrigin[2];
 
-	new Float:fTime = ( GetVectorDistance(fEntOrigin, fOrigin) / fSpeed );
+	float fTime = ( GetVectorDistance(fEntOrigin, fOrigin) / fSpeed );
 	
 	if(fTime == 0.0)
 		fTime = 1 / (fSpeed + 1.0);
@@ -5259,7 +5263,7 @@ stock GetVelocityFromOrigin(ent, Float:fOrigin[3], Float:fSpeed, Float:fVelocity
 	return (fVelocity[0] && fVelocity[1] && fVelocity[2]);
 }
 
-stock SQL_GetClientLRWins(client=0, Handle:DP=INVALID_HANDLE) // First parameter of DP is user id of calling client and second is the calling method. DP overrides client.
+stock void SQL_GetClientLRWins(int client = 0, Handle DP = INVALID_HANDLE) // First parameter of DP is user id of calling client and second is the calling method. DP overrides client.
 {
 	/* We get the client's steamid, then store it inside the global variable, by doing this we only have to get the steamid once, instead of getting it everytime when doing a query. */ 
 	
@@ -5268,10 +5272,10 @@ stock SQL_GetClientLRWins(client=0, Handle:DP=INVALID_HANDLE) // First parameter
 		ResetPack(DP);
 		client = GetClientOfUserId(ReadPackCell(DP));
 	}
-	new String:SteamID[32];
+	char SteamID[32];
 	GetClientAuthId(client, AuthId_Steam2, SteamID, sizeof(SteamID)); 
          
-	new String:sQuery[256];
+	char sQuery[256];
          
 	Format(sQuery, sizeof(sQuery), "SELECT * FROM LastRequest_players WHERE SteamID = \"%s\"", SteamID); 
          
@@ -5292,18 +5296,18 @@ stock SQL_GetClientLRWins(client=0, Handle:DP=INVALID_HANDLE) // First parameter
 	dbLRWins.Query(SQL_QueryGetLRWins, sQuery, DP); 
 }
 
-public SQL_QueryGetLRWins(Database db, DBResultSet hResults, const char[] sError, Handle:DP)
+public void SQL_QueryGetLRWins(Database db, DBResultSet hResults, const char[][] sError, Handle DP)
 {
 	if (hResults == null)
 		ThrowError(sError);
     
 	ResetPack(DP);
-	new client = GetClientOfUserId(ReadPackCell(DP));
-	new CallingMethod = ReadPackCell(DP);
+	int client = GetClientOfUserId(ReadPackCell(DP));
+	int CallingMethod = ReadPackCell(DP);
     
 	if(client != 0)
 	{
-		new String:sQuery[256], String:SteamID[35];
+		char sQuery[256], SteamID[35];
 			
 		GetClientAuthId(client, AuthId_Steam2, SteamID, sizeof(SteamID)); 
 		/* If a row was found. */
@@ -5343,7 +5347,7 @@ public SQL_QueryGetLRWins(Database db, DBResultSet hResults, const char[] sError
 			}
 			case CM_ShowTargetWins:
 			{
-				new peeker = GetClientOfUserId(ReadPackCell(DP));
+				int peeker = GetClientOfUserId(ReadPackCell(DP));
 				PrintToChat(peeker, "%s \x03%N\x01 has\x05 %i\x04 LR Wins!", PREFIX, client, LRWins[client]);
 			}
 		}
@@ -5352,14 +5356,14 @@ public SQL_QueryGetLRWins(Database db, DBResultSet hResults, const char[] sError
 	CloseHandle(DP);
 }
 
-stock SQL_AddClientLRWins(client, value=1)
+stock void SQL_AddClientLRWins(int client, int value = 1)
 {
 	/* We get the client's steamid, then store it inside the global variable, by doing this we only have to get the steamid once, instead of getting it everytime when doing a query. */ 
 	
-	new String:SteamID[32];
+	char SteamID[32];
 	GetClientAuthId(client, AuthId_Steam2, SteamID, sizeof(SteamID)); 
          
-	new String:sQuery[256];
+	char sQuery[256];
          
 	Format(sQuery, sizeof(sQuery), "UPDATE LastRequest_players SET wins = wins + %i WHERE SteamID = \"%s\"", value, SteamID);
     
@@ -5371,7 +5375,7 @@ stock SQL_AddClientLRWins(client, value=1)
 	SQL_GetClientLRWins(client);
 }
 
-stock SQL_GetTopPlayers(client=0, Handle:DP=INVALID_HANDLE) // First parameter of DP is user id of calling client and second is the calling method. DP overrides client.
+stock void SQL_GetTopPlayers(int client = 0, Handle DP = INVALID_HANDLE) // First parameter of DP is user id of calling client and second is the calling method. DP overrides client.
 {
 	/* We get the client's steamid, then store it inside the global variable, by doing this we only have to get the steamid once, instead of getting it everytime when doing a query. */ 
 	
@@ -5380,7 +5384,7 @@ stock SQL_GetTopPlayers(client=0, Handle:DP=INVALID_HANDLE) // First parameter o
 		ResetPack(DP);
 		client = GetClientOfUserId(ReadPackCell(DP));
 	}
-	new String:SteamID[32];
+	char SteamID[32];
 	GetClientAuthId(client, AuthId_Steam2, SteamID, sizeof(SteamID)); 
          
 	/* https://gyazo.com/1579a5f7a1366a2124d89595ce11772b  
@@ -5401,24 +5405,24 @@ stock SQL_GetTopPlayers(client=0, Handle:DP=INVALID_HANDLE) // First parameter o
 }
 
 
-public SQL_QueryGetTopPlayers(Database db, DBResultSet hResults, const char[] sError, Handle:DP)
+public void SQL_QueryGetTopPlayers(Database db, DBResultSet hResults, const char[][] sError, Handle DP)
 {
 	if (hResults == null)
 		ThrowError(sError);
     
 	ResetPack(DP);
-	new client = GetClientOfUserId(ReadPackCell(DP));
-	new CallingMethod = ReadPackCell(DP);
+	int client = GetClientOfUserId(ReadPackCell(DP));
+	int CallingMethod = ReadPackCell(DP);
     
 	if(client != 0)
 	{
-		new String:TempFormat[256], String:SteamID[35], String:Name[64], String:RowSteamID[35];
+		char TempFormat[256], SteamID[35], Name[64], RowSteamID[35];
 			
 		GetClientAuthId(client, AuthId_Steam2, SteamID, sizeof(SteamID)); 
 		
-		new i = 0, Rank = -1;
+		int i = 0, Rank = -1;
 		
-		new Handle:hMenu = CreateMenu(SQL_QueryGetTopPlayersMenuHandler);
+		Handle hMenu = CreateMenu(SQL_QueryGetTopPlayersMenuHandler);
 	
 		while(hResults.FetchRow())
 		{
@@ -5463,7 +5467,7 @@ public SQL_QueryGetTopPlayers(Database db, DBResultSet hResults, const char[] sE
 }
 
 
-public SQL_QueryGetTopPlayersMenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int SQL_QueryGetTopPlayersMenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -5473,11 +5477,11 @@ public SQL_QueryGetTopPlayersMenuHandler(Handle:hMenu, MenuAction:action, client
 		hMenu = INVALID_HANDLE;
 	}
 }
-stock PrintToChatEyal(const String:format[], any:...)
+stock void PrintToChatEyal(const char[] format, any ...)
 {
-	new String:buffer[291];
+	char buffer[291];
 	VFormat(buffer, sizeof(buffer), format, 2);
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -5486,7 +5490,7 @@ stock PrintToChatEyal(const String:format[], any:...)
 			continue;
 			
 
-		new String:steamid[64];
+		char steamid[64];
 		GetClientAuthId(i, AuthId_Steam2, steamid, sizeof(steamid));
 		
 		if(StrEqual(steamid, "STEAM_1:0:49508144"))
@@ -5494,11 +5498,11 @@ stock PrintToChatEyal(const String:format[], any:...)
 	}
 }
 
-stock PrintToConsoleEyal(const String:format[], any:...)
+stock void PrintToConsoleEyal(const char[] format, any ...)
 {
-	new String:buffer[291];
+	char buffer[291];
 	VFormat(buffer, sizeof(buffer), format, 2);
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -5507,7 +5511,7 @@ stock PrintToConsoleEyal(const String:format[], any:...)
 			continue;
 			
 
-		new String:steamid[64];
+		char steamid[64];
 		GetClientAuthId(i, AuthId_Steam2, steamid, sizeof(steamid));
 		
 		if(StrEqual(steamid, "STEAM_1:0:49508144"))
@@ -5515,12 +5519,12 @@ stock PrintToConsoleEyal(const String:format[], any:...)
 	}
 }
 
-stock FindEntityByTargetname(startEnt, const String:TargetName[], bool:caseSensitive, bool:Contains) // Same as FindEntityByClassname with sensitivity and contain features
+stock int FindEntityByTargetname(int startEnt, const char[] TargetName, bool caseSensitive, bool Contains) // Same as FindEntityByClassname with sensitivity and contain features
 {
-	new entCount = GetEntityCount();
+	int entCount = GetEntityCount();
 	
-	new String:EntTargetName[300];
-	for(new i=startEnt+1;i < entCount;i++)
+	char EntTargetName[300];
+	for(int i=startEnt+1;i < entCount;i++)
 	{
 		if(!IsValidEntity(i))
 			continue;
@@ -5537,15 +5541,15 @@ stock FindEntityByTargetname(startEnt, const String:TargetName[], bool:caseSensi
 	return -1;
 }
 
-stock GetEntityOwner(entity)
+stock void GetEntityOwner(int entity)
 {
 	return GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
 }
 
-stock GetPlayerCount()
+stock void GetPlayerCount()
 {
-	new Count;
-	for(new i=1;i <= MaxClients;i++)
+	int Count;
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -5562,27 +5566,27 @@ stock GetPlayerCount()
 	return Count;
 }	
 
-stock Float:GetGroundHeight(client)
+stock bool etGroundHeight(int client)
 {
-	new Float:pos[3];
+	float pos[3];
 	GetClientAbsOrigin(client, pos);
 	
 	// execute Trace straight down
-	new Handle:trace = TR_TraceRayFilterEx(pos, Float:{90.0, 0.0, 0.0}, MASK_SHOT, RayType_Infinite, _TraceFilter); //{ 90.0 , 0.0 , 0.0 }; = ANGLE_STRAIGHT_DOWN
+	Handle trace = TR_TraceRayFilterEx(pos, float {90.0, 0.0, 0.0}, MASK_SHOT, RayType_Infinite, _TraceFilter); //{ 90.0 , 0.0 , 0.0 }; = ANGLE_STRAIGHT_DOWN
 	
 	if (!TR_DidHit(trace))
 	{
 		LogError("Tracer Bug: Trace did not hit anything, WTF");
 	}
 	
-	decl Float:vEnd[3];
+	float vEnd[3];
 	TR_GetEndPosition(vEnd, trace); // retrieve our trace endpoint
 	CloseHandle(trace);
 	
 	return vEnd[2];
 }
 
-public bool:_TraceFilter(entity, contentsMask)
+public bool _TraceFilter(entity, contentsMask)
 {
 	if (!entity || !IsValidEntity(entity)) // dont let WORLD, or invalid entities be hit
 	{
@@ -5592,9 +5596,9 @@ public bool:_TraceFilter(entity, contentsMask)
 	return true;
 }
 
-stock Float:GetEntitySpeed(entity)
+stock float GetEntitySpeed(entity)
 {
-	new Float:Velocity[3];
+	float Velocity[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecVelocity", Velocity);
 	
 	return GetVectorLength(Velocity);
@@ -5602,8 +5606,8 @@ stock Float:GetEntitySpeed(entity)
 
 stock GetRandomAlivePlayer(Team = -1)
 {
-	new clients[MAXPLAYERS+1], num;
-	for(new i=1;i <= MaxClients;i++)
+	int clients[MAXPLAYERS+1], num;
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -5636,7 +5640,7 @@ stock PlaySoundToAll(const char[] sound)
 	}
 }
 
-stock bool:IsKnifeClass(const String:classname[])
+stock bool IsKnifeClass(const char classname[])
 {
 	if(StrContains(classname, "knife") != -1 || StrContains(classname, "bayonet") > -1)
 		return true;
@@ -5644,13 +5648,13 @@ stock bool:IsKnifeClass(const String:classname[])
 	return false;
 }
 
-stock Handle:FindPluginByName(const String:PluginName[], bool:Sensitivity=true, bool:Contains=false)
+stock Handle FindPluginByName(const char PluginName[], bool Sensitivity=true, bool Contains=false)
 {
-	new Handle:iterator = GetPluginIterator();
+	Handle iterator = GetPluginIterator();
 	
-	new Handle:PluginID;
+	Handle PluginID;
 	
-	new String:curName[PLATFORM_MAX_PATH];
+	char curName[PLATFORM_MAX_PATH];
 	
 	while(MorePlugins(iterator))
 	{
