@@ -138,13 +138,17 @@ Handle hcv_NoclipSpeed = INVALID_HANDLE;
 Handle hcv_NoSpread = INVALID_HANDLE;
 Handle hcv_svCheats = INVALID_HANDLE;
 
-int Prisoner, Guard, FreeDayUID = -1;
+// GENERAL LR //
+int Prisoner, Guard, FreeDayUID = -1, ChokeTimer, GeneralTimer;
 int PrisonerPrim, PrisonerSec, GuardPrim, GuardSec//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;
 int HPamount, BPAmmo, Vest;
+char PrimWep[32], SecWep[32];
+CSWeaponID PrimNum, SecNum;
 bool Zoom, HeadShot, Jump, Duck, TSeeker, Dodgeball, Ring, NoRecoil;
 char DuelName[100];
 bool LRStarted, LRAnnounced;
 bool ShowMessage[MAXPLAYERS + 1];
+// GENERAL LR END //
 
 bool isGangLoaded = false;
 
@@ -155,15 +159,31 @@ bool Hooked[MAXPLAYERS+1], BypassBlockers;
 int LRWins[MAXPLAYERS+1];
 
 int firstcountdown;
+bool firstwrites, firstwritesmoveable;
+char firstchars[32];
+
 int g_combo[12], combocountdown, combomoveable, g_count[MAXPLAYERS + 1], g_buttons[12], maxbuttons, g_synchud;
 bool combo_started;
-int firstlistencountdown, firstlistennum;
+
+bool mathcontest, mathcontestmoveable
 int mathcontestcountdown, mathnum[2];
+char mathresult[64];
+
+bool opposite, oppositemoveable;
 int oppositecountdown, oppositewords;
+
+bool typestages, typestagesmoveable;
 int typestagescountdown, typestagescount[MAXPLAYERS+1], typestagesmaxstages;
+
 bool MostJumps, mostjumpsmovable;
+int mostjumpscountdown, GuardJumps, PrisonerJumps;
 bool GunToss, AdjustedJump[MAXPLAYERS+1], DroppedDeagle[MAXPLAYERS+1], Rambo;
+int OriginCount[2048];
+float LastOrigin[2048][3], JumpOrigin[MAXPLAYERS + 1][3], LastDistance[MAXPLAYERS+1], GroundHeight[MAXPLAYERS+1];
+
 bool Bleed;
+int BleedTarget
+
 char TPDir[200], DuelN[100][MAXPLAYERS+1];// Type determines whether duel name is Custom or S4S
 bool bDropBlock, PrisonerThrown, GuardThrown;
 
@@ -403,7 +423,7 @@ public void OnClientSettingsChanged(int client)
 	SQL_GetClientLRWins(client);
 }
 
-public void SQL_Error(Database db, DBResultSet hResults, const char[][] Error, int Data) 
+public void SQL_Error(Database db, DBResultSet hResults, const char[] Error, int Data) 
 { 
     /* If something fucked up. */ 
     if (hResults == null) 
@@ -553,8 +573,6 @@ public Action CheckDroppedDeagleGuard(Handle hTimer, int weapon)
 
 public void OnConfigsExecuted()
 {
-	MapOkay = true; // For now...
-	
 	
 	/* Sm
 	
@@ -613,7 +631,7 @@ public void OnMapStart()
 	AddFileToDownloadsTable(fullpath);
 }
 
-public APLRes AskPluginLoad2(Handle myself, bool late, char[][] error, int err_max)
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	//CreateNative("LR_isDodgeball", LR_isDodgeball);
 	CreateNative("LR_isActive", LR_isActive);
@@ -1098,7 +1116,7 @@ public Action Command_StopBall(int client, int args)
 		
 		SetEntProp(ent, Prop_Send, "movetype", MOVETYPE_NONE, 1);
 		
-		TeleportEntity(ent, NULL_VECTOR, NULL_VECTOR, float {0.0, 0.0, -0.1});
+		TeleportEntity(ent, NULL_VECTOR, NULL_VECTOR, view_as<float>({0.0, 0.0, -0.1}));
 		
 		SetEntProp(ent, Prop_Send, "movetype", Movetype, 1);
 		
@@ -1180,7 +1198,7 @@ public Action Command_LRTop(int client, int args)
 }
 
 
-public void SQL_ChangeDatabases(Database db, DBResultSet hResults, const char[][] Error, Handle DP) 
+public void SQL_ChangeDatabases(Database db, DBResultSet hResults, const char[] Error, Handle DP) 
 { 
     /* If something fucked up. */ 
     if (hResults == null) 
@@ -2126,13 +2144,11 @@ stock void EndLR(int EndTimers = true)
 	
 	firstwrites = false;
 	combo_started = false;
-	firstlisten = false;
 	mathcontest = false;
 	opposite = false;
 	typestages = false;
 	firstwritesmoveable = false;
 	combomoveable = false;
-	firstlistenmoveable = false;
 	mathcontestmoveable = false;
 	oppositemoveable = false;
 	typestagesmoveable = false;
@@ -2767,10 +2783,6 @@ public void ShowFunMenu(int client)
 	AddMenuItem(hMenu, "", "Gun Toss");
 	AddMenuItem(hMenu, "", "Dodgeball");
 	AddMenuItem(hMenu, "", "Backstabs");
-	//AddMenuItem(hMenu, "", "Ring of Death");
-	
-	//if(MapOkay)
-		//AddMenuItem(hMenu, "", "Jump");
 		
 	AddMenuItem(hMenu, "", "Freeday");
 	
@@ -3051,8 +3063,8 @@ public int Opponent_MenuHandler(Handle hMenu, MenuAction action, int client, int
 			hMenu = INVALID_HANDLE;
 			return;
 		}
-		char UID[20], Display[1];
-		GetMenuItem(hMenu, item, UID, sizeof(UID), style, Display, sizeof(Display));
+		char UID[20];
+		GetMenuItem(hMenu, item, UID, sizeof(UID));
 		
 		int target = GetClientOfUserId(StringToInt(UID));
 		
@@ -3227,7 +3239,7 @@ public void ContinueStartDuel()
 		SetEntityHealth(Guard, 100);
 		SetEntityHealth(Prisoner, 100);
 		
-		Timer = 60;
+		GeneralTimer = 60;
 		TIMER_COUNTDOWN = CreateTimer(1.0, ShowTimer, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	}
 	
@@ -3260,7 +3272,7 @@ public void ContinueStartDuel()
 		int weapon = GivePlayerItem(Guard, "weapon_m4a1");
 		SetClientAmmo(Guard, weapon, 10000);
 		
-		Timer = 60;
+		GeneralTimer = 60;
 		TIMER_COUNTDOWN = CreateTimer(1.0, ShowTimer, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	}
 	
@@ -3282,7 +3294,7 @@ public void ContinueStartDuel()
 		int weapon = GivePlayerItem(Guard, "weapon_m4a1");
 		SetClientAmmo(Guard, weapon, 10000);
 		
-		Timer = 60;
+		GeneralTimer = 60;
 		
 		SetConVarFloat(hcv_NoclipSpeed, 1.3);
 		TIMER_COUNTDOWN = CreateTimer(1.0, ShowTimer, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
@@ -3378,68 +3390,6 @@ public void ContinueStartDuel()
 		TIMER_REACTION = CreateTimer(1.0, TypeStagesCountDown, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 		
 	}
-	/*
-	else if(StrContains(DuelName, "Spray") != -1)
-	{
-		SetEntPropFloat(Prisoner, Prop_Send, "m_flNextDecalTime", 0.0);
-		SetEntPropFloat(Guard, Prop_Send, "m_flNextDecalTime", 0.0);
-		PrintToChatAll("Each player can spray once ONLY!");
-		PrintToChatAll("You can only use E to spray, once you press it will spray it for you.");
-	}
-	
-	else if(StrContains(DuelName, "Ring") != -1)
-	{
-		Ring = true;
-		
-		GetClientAbsOrigin(Prisoner, RingOrigin);
-		new Float:GuardOrigin[3];
-		
-		GuardOrigin = RingOrigin;
-		//GuardOrigin[2] += 85.0;
-		
-		RingOrigin[2] += 30.0;
-		
-		TeleportEntity(Guard, GuardOrigin, NULL_VECTOR, Float:{0.0, 0.0, -0.1});
-		
-		PrintToChatAll("%s \x01Use right click to push your \x07opponent!", PREFIX);
-		PrintToChatAll("%s \x01Use right click to push your \x07opponent!", PREFIX);
-		PrintToChatAll("%s \x01Use right click to push your \x07opponent!", PREFIX);
-		new Float:Sensitivity = 1.0;
-		
-		new bool:NoRing = false;
-		new Float:Position[3], Float:Angles[3];
-		
-		Angles = Float:{0.0, 0.0, 0.0};
-		
-		GetClientEyePosition(Prisoner, Position); 
-		
-		for(new Float:i=0.0;i <= 360.0;i += Sensitivity)
-		{
-			Angles[1] = i;
-			
-			TR_TraceRayFilter(Position, Angles, MASK_PLAYERSOLID, RayType_Infinite, Trace_DontHitPlayers); //Start the trace 
-			
-			new Float:EndPosition[3];
-			
-			TR_GetEndPosition(EndPosition);
-			
-			EndPosition[2] = 0.0;
-			Position[2] = 0.0;
-			
-			new Float:DistanceSquared = GetVectorDistance(Position, EndPosition, true);
-			
-			if(DistanceSquared <= FloatSquare(BeamRadius - BeamWidth + 20.0))
-			{
-				NoRing = true;
-			}
-		}
-		
-		if(NoRing)
-			PrintToChatEyal("Error: Could not locate a good ring point.");
-			
-		CreateTimer(0.1, SetUpRing, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-	}
-	*/
 	if(StrContains(DuelName, "Most Jumps") != -1)
 	{
 		StripPlayerWeapons(Guard);
@@ -3586,49 +3536,6 @@ public Action SlayAllParts(Handle hTimer)
 	TIMER_SLAYALL = INVALID_HANDLE;
 	
 	return Plugin_Stop;
-}
-
-public Action SetUpRing(Handle hTimer)
-{
-	if(!LRStarted)
-		return Plugin_Stop;
-
-
-	
-	float TempRingOrigin[3];
-	
-	TempRingOrigin = RingOrigin;
-	
-	TempRingOrigin[2] -= 30.0;
-	for(int i=0;i < 5;i++) // 
-	{
-		TE_SetupBeamRingPoint(TempRingOrigin, BeamRadius-BeamWidth, BeamRadius, RingBeamModel, RingHaloModel, 0, 10, 0.6, 10.0, 0.5, {255, 255, 255, 255}, 1, 0);
-		TE_SendToAll();
-		TempRingOrigin[2] += 30.0;
-	}
-	
-	float PrisonerOrigin[3], GuardOrigin[3];
-	
-	GetEntPropVector(Prisoner, Prop_Data, "m_vecOrigin", PrisonerOrigin);
-	GetEntPropVector(Guard, Prop_Data, "m_vecOrigin", GuardOrigin);
-	
-	GuardOrigin[2] = RingOrigin[2];
-	PrisonerOrigin[2] = RingOrigin[2];
-	
-	if(GetVectorDistance(PrisonerOrigin, RingOrigin, false) > BeamRadius / 2 + BeamWidth)
-	{
-		Ring = false; // To block any damage immunity
-		FinishHim(Prisoner, Guard);
-	}
-	else if(GetVectorDistance(GuardOrigin, RingOrigin, false) > BeamRadius / 2 + BeamWidth)
-	{
-		Ring = false; // To block any damage immunity
-		FinishHim(Guard, Prisoner);
-	}
-	
-	return Plugin_Continue;
-	
-	
 }
 
 public Action FailReaction(Handle hTimer)
@@ -4058,34 +3965,7 @@ public Action FirstWritesCountDown(Handle hTimer)
 	
 	return Plugin_Continue;
 }
-/*
-public FirstListenCountDown()
-{
-	new Args[2][21];
-	
-	if(firstlisten) 
-	{
-		if(firstlistencountdown == 0) 
-		{
-			firstlistennum = GetRandomInt(1, 99);
-			firstlistenmoveable = true;
-			
-			num_to_str(firstlistennum, Args[0], 20);
-			num_to_word(firstlistennum, Args[1], 20);
-			
-			client_cmd(0, "spk ^"vox/%s^"", Args[1]);
-		}
-		else if(firstlistencountdown > 0) 
-		{
-			client_cmd(0, "spk ^"fvox/bell^"");
-			set_hudmessage(0, 50, 255, -1.0, 0.35, 0, 6.0, 0.9, 0.1, 0.2, 6);
-			show_hudmessage(0, "First listen contest will start in\n %i Second%s\n", firstlistencountdown, firstlistencountdown > 1 ? "s" : "");
-			firstlistencountdown--;
-			set_task(1.0, "FirstListenCountDown");
-		}
-	}
-}
-*/
+
 public Action MathContestCountDown(Handle hTimer)
 {
 	if(mathcontest) 
@@ -4602,7 +4482,7 @@ public void ShowReactionInfo(int client)
 	
 public Action ShowTimer(Handle hTimer)
 {		
-	if(Timer <= 0)
+	if(GeneralTimer <= 0)
 	{
 		FinishHim(Prisoner, Guard);
 		return Plugin_Stop;
@@ -4959,7 +4839,7 @@ stock bool IsStringNumber(const char[] source)
 	return true;
 }
 
-stock void GetEntityHealth(int entity)
+stock int GetEntityHealth(int entity)
 {
 	return GetEntProp(entity, Prop_Send, "m_iHealth");
 }
@@ -5194,8 +5074,6 @@ stock void GetVelocityFromOrigin(int ent, float fOrigin[3], float fSpeed, float 
 	fVelocity[0] = fDistance[0] / fTime;
 	fVelocity[1] = fDistance[1] / fTime;
  	fVelocity[2] = fDistance[2] / fTime;
-
-	return (fVelocity[0] && fVelocity[1] && fVelocity[2]);
 }
 
 stock void SQL_GetClientLRWins(int client = 0, Handle DP = INVALID_HANDLE) // First parameter of DP is user id of calling client and second is the calling method. DP overrides client.
@@ -5476,12 +5354,12 @@ stock int FindEntityByTargetname(int startEnt, const char[] TargetName, bool cas
 	return -1;
 }
 
-stock void GetEntityOwner(int entity)
+stock int GetEntityOwner(int entity)
 {
 	return GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
 }
 
-stock void GetPlayerCount()
+stock int GetPlayerCount()
 {
 	int Count;
 	for(int i=1;i <= MaxClients;i++)
@@ -5501,7 +5379,7 @@ stock void GetPlayerCount()
 	return Count;
 }	
 
-stock bool etGroundHeight(int client)
+stock int GetGroundHeight(int client)
 {
 	float pos[3];
 	GetClientAbsOrigin(client, pos);
@@ -5521,7 +5399,7 @@ stock bool etGroundHeight(int client)
 	return vEnd[2];
 }
 
-public bool _TraceFilter(entity, contentsMask)
+public bool _TraceFilter(int entity, contentsMask)
 {
 	if (!entity || !IsValidEntity(entity)) // dont let WORLD, or invalid entities be hit
 	{
@@ -5531,7 +5409,7 @@ public bool _TraceFilter(entity, contentsMask)
 	return true;
 }
 
-stock float GetEntitySpeed(entity)
+stock float GetEntitySpeed(int entity)
 {
 	float Velocity[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecVelocity", Velocity);
@@ -5607,7 +5485,7 @@ stock Handle FindPluginByName(const char PluginName[], bool Sensitivity=true, bo
 	return INVALID_HANDLE;
 }
 
-stock SetEntityMaxHealth(entity, amount)
+stock SetEntityMaxHealth(int entity, int amount)
 {
 	SetEntProp(entity, Prop_Data, "m_iMaxHealth", amount);
 }
