@@ -1,3 +1,7 @@
+/* put the line below after all of the includes!
+#pragma newdecls required
+*/
+
 #include <sourcemod>
 #include <cstrike>
 #include <sdktools>
@@ -16,13 +20,13 @@
 #define EF_NORECEIVESHADOW          (1 << 6)
 #define EF_PARENT_ANIMATES          (1 << 9)
 
-new String:NET_WORTH_ORDER_BY_FORMULA[512];
+char NET_WORTH_ORDER_BY_FORMULA[512];
 
-new bool:dbFullConnected = false;
+bool dbFullConnected = false;
 
-native bool:JailBreakDays_IsDayActive();
+native bool JailBreakDays_IsDayActive();
 
-new const GangColors[][] =
+int GangColors[][] =
 {
    {255, 0, 0}, // red
    {0, 255, 0}, // green
@@ -58,9 +62,9 @@ new const GangColors[][] =
    {145, 127, 162} // d סגל גל בהיר
 }
 
-new Handle:dbGangs = INVALID_HANDLE;
+Handle dbGangs = INVALID_HANDLE;
 
-new Handle:hcv_HonorPerKill = INVALID_HANDLE;
+Handle hcv_HonorPerKill = INVALID_HANDLE;
 
 #define MIN_PLAYERS_FOR_GC 3
 
@@ -103,21 +107,27 @@ new Handle:hcv_HonorPerKill = INVALID_HANDLE;
 
 // Variables about the client's gang.
 
-new ClientHonor[MAXPLAYERS+1];
-new String:ClientGang[MAXPLAYERS+1][32], ClientRank[MAXPLAYERS+1], String:ClientMotd[MAXPLAYERS+1][32], bool:ClientLoadedFromDb[MAXPLAYERS+1], String:ClientTag[MAXPLAYERS+1][32];
+int ClientRank[MAXPLAYERS+1], ClientGangHonor[MAXPLAYERS+1], ClientHonor[MAXPLAYERS+1];
+bool ClientLoadedFromDb[MAXPLAYERS + 1];
+char ClientGang[MAXPLAYERS+1][32], ClientMotd[MAXPLAYERS+1][32], ClientTag[MAXPLAYERS+1][32];
 
-new ClientHealthPerkT[MAXPLAYERS+1], ClientSpeedPerkT[MAXPLAYERS+1], ClientNadePerkT[MAXPLAYERS+1], ClientHealthPerkCT[MAXPLAYERS+1], ClientSpeedPerkCT[MAXPLAYERS+1], ClientGetHonorPerk[MAXPLAYERS+1], ClientGangSizePerk[MAXPLAYERS+1], ClientFriendlyFirePerk[MAXPLAYERS+1];
+int ClientHealthPerkT[MAXPLAYERS+1], ClientSpeedPerkT[MAXPLAYERS+1], ClientNadePerkT[MAXPLAYERS+1], ClientHealthPerkCT[MAXPLAYERS+1], ClientSpeedPerkCT[MAXPLAYERS+1], ClientGetHonorPerk[MAXPLAYERS+1], ClientGangSizePerk[MAXPLAYERS+1], ClientFriendlyFirePerk[MAXPLAYERS+1];
 
 // ClientAccessManage basically means if the client can either invite, kick, upgrade, promote or MOTD.
-new ClientAccessManage[MAXPLAYERS+1], ClientAccessInvite[MAXPLAYERS+1], ClientAccessKick[MAXPLAYERS+1], ClientAccessPromote[MAXPLAYERS+1], ClientAccessUpgrade[MAXPLAYERS+1], ClientAccessMOTD[MAXPLAYERS+1];
+int ClientAccessManage[MAXPLAYERS+1], ClientAccessInvite[MAXPLAYERS+1], ClientAccessKick[MAXPLAYERS+1], ClientAccessPromote[MAXPLAYERS+1], ClientAccessUpgrade[MAXPLAYERS+1], ClientAccessMOTD[MAXPLAYERS+1];
 
 // Extra Variables.
-new bool:GangAttemptLeave[MAXPLAYERS+1], bool:GangAttemptDisband[MAXPLAYERS+1], bool:GangAttemptStepDown[MAXPLAYERS+1], GangStepDownTarget[MAXPLAYERS+1], bool:MotdShown[MAXPLAYERS+1], ClientGangHonor[MAXPLAYERS+1], CanGetHonor[MAXPLAYERS+1], ClientActionEdit[MAXPLAYERS+1];
-new String:GangCreateName[MAXPLAYERS+1][32], String:GangCreateTag[MAXPLAYERS+1][10];
-new ClientMembersCount[MAXPLAYERS+1];
-new ClientWhiteGlow[MAXPLAYERS+1], ClientColorfulGlow[MAXPLAYERS+1], ClientGlowColorSlot[MAXPLAYERS+1], bool:CachedSpawn[MAXPLAYERS+1]; // White glow is how gang members see themselves, colorful glow is how other players see gang members.
+bool GangAttemptLeave[MAXPLAYERS+1], GangAttemptDisband[MAXPLAYERS+1], GangAttemptStepDown[MAXPLAYERS+1], MotdShown[MAXPLAYERS+1];
+int GangStepDownTarget[MAXPLAYERS + 1];
+char GangCreateName[MAXPLAYERS+1][32], GangCreateTag[MAXPLAYERS+1][10];
+int ClientMembersCount[MAXPLAYERS+1];
+int ClientWhiteGlow[MAXPLAYERS+1], ClientColorfulGlow[MAXPLAYERS+1], ClientGlowColorSlot[MAXPLAYERS+1];// White glow is how gang members see themselves, colorful glow is how other players see gang members.
 
-public Plugin:myinfo =
+int ClientActionEdit[MAXPLAYERS + 1];
+
+bool CachedSpawn[MAXPLAYERS + 1], CanGetHonor[MAXPLAYERS+1];
+
+public Plugin myinfo =
 {
     name = "JB Gangs",
     author = "Eyal282",
@@ -126,7 +136,7 @@ public Plugin:myinfo =
     url = "NULL"
 };
 
-public OnPluginStart()
+public void OnPluginStart()
 {	
 
 	Format(NET_WORTH_ORDER_BY_FORMULA, sizeof(NET_WORTH_ORDER_BY_FORMULA), "%i + GangHonor + GangHealthPerkT*0.5*%i*(GangHealthPerkT+1) + GangHealthPerkCT*0.5*%i*(GangHealthPerkCT+1) + GangSpeedPerkT*0.5*%i*(GangSpeedPerkT+1) + GangSpeedPerkCT*0.5*%i*(GangSpeedPerkCT+1) + GangNadePerkT*0.5*%i*(GangNadePerkT+1) + GangGetHonorPerk*0.5*%i*(GangGetHonorPerk+1) + GangSizePerk*0.5*%i*(GangSizePerk+1) + GangFFPerk*0.5*%i*(GangFFPerk+1)", GANG_COSTCREATE, GANG_HEALTHCOST, GANG_HEALTHCOST, GANG_SPEEDCOST, GANG_SPEEDCOST, GANG_NADECOST, GANG_GETCREDITSCOST, GANG_SIZECOST, GANG_FRIENDLYFIRECOST);
@@ -158,7 +168,7 @@ public OnPluginStart()
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	
-	new const String:HonorPerKillCvarName[] = "gang_system_honor_per_kill";
+	char HonorPerKillCvarName[] = "gang_system_honor_per_kill";
 	
 	hcv_HonorPerKill = CreateConVar(HonorPerKillCvarName, "100", "Amount of honor you get per kill as T");
 	
@@ -174,7 +184,7 @@ public OnPluginStart()
 	//HandleGameData();
 }
 
-public OnLibraryAdded(const String:name[])
+public void OnLibraryAdded(const char[] name)
 {
 	/*
 	#if defined _updater_included
@@ -186,9 +196,9 @@ public OnLibraryAdded(const String:name[])
 	*/
 }
 
-public OnPluginEnd()
+public void OnPluginEnd()
 {
-	for(new i=1;i < MAXPLAYERS+1;i++)
+	for(int i=1;i < MAXPLAYERS+1;i++)
 	{
 		TryDestroyGlow(i);
 	}
@@ -261,7 +271,7 @@ public Updater_OnPluginUpdated()
 	ServerCommand("changelevel %s", MapName);
 }
 */
-public LastRequest_OnLRStarted(Prisoner, Guard)
+public void LastRequest_OnLRStarted(int Prisoner, int Guard)
 {
 ///	SDKUnhook(Prisoner, SDKHook_PostThink, Event_PreThinkT);
 //	SDKUnhook(Prisoner, SDKHook_PostThink, Event_PreThinkCT);
@@ -269,9 +279,9 @@ public LastRequest_OnLRStarted(Prisoner, Guard)
 	//SDKUnhook(Guard, SDKHook_PreThink, Event_PreThinkCT);
 }
 
-public Event_PlayerSpawn(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public void Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
 	if(client == 0)
 		return;
@@ -279,9 +289,9 @@ public Event_PlayerSpawn(Handle:hEvent, const String:Name[], bool:dontBroadcast)
 	CachedSpawn[client] = false;
 	RequestFrame(Event_PlayerSpawnPlusFrame, GetEventInt(hEvent, "userid"));
 }
-public Event_PlayerSpawnPlusFrame(UserId)
+public void Event_PlayerSpawnPlusFrame(int UserId)
 {
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	if(CachedSpawn[client])
 		return;
@@ -339,7 +349,7 @@ public Event_PlayerSpawnPlusFrame(UserId)
 	}
 }
 
-CreateGlow(client)
+void CreateGlow(int client)
 {
 	if(EntRefToEntIndex(ClientWhiteGlow[client]) != INVALID_ENT_REFERENCE && EntRefToEntIndex(ClientColorfulGlow[client]) != INVALID_ENT_REFERENCE)
 		return;
@@ -356,10 +366,10 @@ CreateGlow(client)
 	CreateColorfulGlow(client);
 }
 
-CreateWhiteGlow(client)
+void CreateWhiteGlow(int client)
 {
-	new String:Model[PLATFORM_MAX_PATH];
-	new Float:Origin[3], Float:Angles[3];
+	char Model[PLATFORM_MAX_PATH];
+	float Origin[3], Angles[3];
 
 	// Get the original model path
 	GetEntPropString(client, Prop_Data, "m_ModelName", Model, sizeof(Model));
@@ -368,7 +378,7 @@ CreateWhiteGlow(client)
 	GetClientEyePosition(client, Origin);
 	Origin[2] -= 75.0;
 	GetClientEyeAngles(client, Angles);
-	new GlowEnt = CreateEntityByName("prop_dynamic_glow");
+	int GlowEnt = CreateEntityByName("prop_dynamic_glow");
 	
 	DispatchKeyValue(GlowEnt, "model", Model);
 	DispatchKeyValue(GlowEnt, "disablereceiveshadows", "1");
@@ -381,7 +391,7 @@ CreateWhiteGlow(client)
 	// Spawn and teleport the entity
 	DispatchSpawn(GlowEnt);
 	
-	new fEffects = GetEntProp(GlowEnt, Prop_Send, "m_fEffects");
+	int fEffects = GetEntProp(GlowEnt, Prop_Send, "m_fEffects");
 	SetEntProp(GlowEnt, Prop_Send, "m_fEffects", fEffects|EF_BONEMERGE|EF_NOSHADOW|EF_NORECEIVESHADOW|EF_PARENT_ANIMATES);
 
 	// Give glowing effect to the entity
@@ -404,7 +414,7 @@ CreateWhiteGlow(client)
 	
 	SetEntPropEnt(GlowEnt, Prop_Send, "m_hOwnerEntity", client);
 	
-	new String:iName[32];
+	char iName[32];
 
 	FormatEx(iName, sizeof(iName), "Gang-Glow %i", GetClientUserId(client));
 	SetEntPropString(GlowEnt, Prop_Data, "m_iName", iName);
@@ -421,10 +431,10 @@ CreateWhiteGlow(client)
 }
 
 
-CreateColorfulGlow(client)
+void CreateColorfulGlow(int client)
 {
-	new String:Model[PLATFORM_MAX_PATH];
-	new Float:Origin[3], Float:Angles[3];
+	char Model[PLATFORM_MAX_PATH];
+	float Origin[3], Angles[3];
 
 	// Get the original model path
 	GetEntPropString(client, Prop_Data, "m_ModelName", Model, sizeof(Model));
@@ -433,7 +443,7 @@ CreateColorfulGlow(client)
 	GetClientEyePosition(client, Origin);
 	Origin[2] -= 75.0;
 	GetClientEyeAngles(client, Angles);
-	new GlowEnt = CreateEntityByName("prop_dynamic_glow");
+	int GlowEnt = CreateEntityByName("prop_dynamic_glow");
 	
 	DispatchKeyValue(GlowEnt, "model", Model);
 	DispatchKeyValue(GlowEnt, "disablereceiveshadows", "1");
@@ -446,7 +456,7 @@ CreateColorfulGlow(client)
 	// Spawn and teleport the entity
 	DispatchSpawn(GlowEnt);
 	
-	new fEffects = GetEntProp(GlowEnt, Prop_Send, "m_fEffects");
+	int fEffects = GetEntProp(GlowEnt, Prop_Send, "m_fEffects");
 	SetEntProp(GlowEnt, Prop_Send, "m_fEffects", fEffects|EF_BONEMERGE|EF_NOSHADOW|EF_NORECEIVESHADOW|EF_PARENT_ANIMATES);
 
 	// Give glowing effect to the entity
@@ -456,9 +466,9 @@ CreateColorfulGlow(client)
 
 	// Set glowing color
 	
-	new VarColor[4] = {255, 255, 255, 255};
+	int VarColor[4] = {255, 255, 255, 255};
 	
-	for(new i=0;i < 3;i++)
+	for(int i=0;i < 3;i++)
 	{
 		VarColor[i] = GangColors[ClientGlowColorSlot[client]][i];
 	}
@@ -477,7 +487,7 @@ CreateColorfulGlow(client)
 	
 	SetEntPropEnt(GlowEnt, Prop_Send, "m_hOwnerEntity", client);
 	
-	new String:iName[32];
+	char iName[32];
 
 	FormatEx(iName, sizeof(iName), "Gang-Glow %i", GetClientUserId(client));
 	SetEntPropString(GlowEnt, Prop_Data, "m_iName", iName);
@@ -493,19 +503,19 @@ CreateColorfulGlow(client)
 	ClientColorfulGlow[client] = GlowEnt;
 }
 
-public Action:Timer_CheckGlowPlayerModel(Handle:hTimer, Ref)
+public Action Timer_CheckGlowPlayerModel(Handle hTimer, int Ref)
 {
-	new GlowEnt = EntRefToEntIndex(Ref);
+	int GlowEnt = EntRefToEntIndex(Ref);
 	
 	if(GlowEnt == INVALID_ENT_REFERENCE)
 		return;
 		
-	new client = GetEntPropEnt(GlowEnt, Prop_Send, "m_hOwnerEntity");
+	int client = GetEntPropEnt(GlowEnt, Prop_Send, "m_hOwnerEntity");
 	
 	if(client == -1)
 		return;
 		
-	new String:Model[PLATFORM_MAX_PATH];
+	char Model[PLATFORM_MAX_PATH];
 
 	// Get the original model path
 	GetEntPropString(client, Prop_Data, "m_ModelName", Model, sizeof(Model));
@@ -513,12 +523,12 @@ public Action:Timer_CheckGlowPlayerModel(Handle:hTimer, Ref)
 	SetEntityModel(GlowEnt, Model);
 }
 
-public Action:Hook_ShouldSeeWhiteGlow(glow, viewer)
+public Action Hook_ShouldSeeWhiteGlow(int glow, int viewer)
 {
 	if(!IsValidEntity(glow))
 		return Plugin_Continue;
 		
-	new client = GetEntPropEnt(glow, Prop_Send, "m_hOwnerEntity");
+	int client = GetEntPropEnt(glow, Prop_Send, "m_hOwnerEntity");
 	
 	if(client == viewer)
 		return Plugin_Handled;
@@ -529,7 +539,7 @@ public Action:Hook_ShouldSeeWhiteGlow(glow, viewer)
 	else if(GetClientTeam(viewer) != GetClientTeam(client))
 		return Plugin_Handled;
 	
-	new ObserverTarget = GetEntPropEnt(viewer, Prop_Send, "m_hObserverTarget"); // This is the player the viewer is spectating. No need to check if it's invalid ( -1 )
+	int ObserverTarget = GetEntPropEnt(viewer, Prop_Send, "m_hObserverTarget"); // This is the player the viewer is spectating. No need to check if it's invalid ( -1 )
 	
 	if(ObserverTarget == client)
 		return Plugin_Handled;
@@ -538,35 +548,35 @@ public Action:Hook_ShouldSeeWhiteGlow(glow, viewer)
 }
 
 
-public Action:Hook_ShouldSeeColorfulGlow(glow, viewer)
+public Action Hook_ShouldSeeColorfulGlow(int glow, int viewer)
 {
 	if(!IsValidEntity(glow))
 		return Plugin_Continue;
 		
-	new client = GetEntPropEnt(glow, Prop_Send, "m_hOwnerEntity");
+	int client = GetEntPropEnt(glow, Prop_Send, "m_hOwnerEntity");
 	
 	if(AreClientsSameGang(client, viewer))
 		return Plugin_Handled;
 	
-	new ObserverTarget = GetEntPropEnt(viewer, Prop_Send, "m_hObserverTarget"); // This is the player the viewer is spectating. No need to check if it's invalid ( -1 )
+	int ObserverTarget = GetEntPropEnt(viewer, Prop_Send, "m_hObserverTarget"); // This is the player the viewer is spectating. No need to check if it's invalid ( -1 )
 	
 	if(ObserverTarget == client)
 		return Plugin_Handled;
 
 	return Plugin_Continue;
 }
-public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	new victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-	new attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
+	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
 	
 	TryDestroyGlow(victim);
 	
 	if(IsPlayer(attacker) && attacker != victim && (GetClientTeam(victim) == CS_TEAM_CT || GetAliveTeamCount(CS_TEAM_T) == 0))
 	{
-		new honor = GetConVarInt(hcv_HonorPerKill);
+		int honor = GetConVarInt(hcv_HonorPerKill);
 		
-		new bool:IsVIP = CheckCommandAccess(attacker, "sm_null_command", ADMFLAG_CUSTOM2, true);
+		bool IsVIP = CheckCommandAccess(attacker, "sm_null_command", ADMFLAG_CUSTOM2, true);
 		
 		if(IsVIP)
 			honor *= 2;
@@ -577,9 +587,9 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:Name[], bool:dontBro
 		GiveClientHonor(attacker, honor);
 	}
 }
-public Action:Event_RoundEnd(Handle:hEvent, const String:Name[], bool:dontBroadcast)
+public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsValidPlayer(i))
 			continue;
@@ -591,7 +601,7 @@ public Action:Event_RoundEnd(Handle:hEvent, const String:Name[], bool:dontBroadc
 		
 	}
 }
-TryDestroyGlow(client)
+void TryDestroyGlow(int client)
 {	
 	if(ClientWhiteGlow[client] != 0 && IsValidEntity(ClientWhiteGlow[client]))
 	{
@@ -605,22 +615,22 @@ TryDestroyGlow(client)
 		ClientColorfulGlow[client] = 0;
 	}
 	
-	new ent = -1; // Some bugs don't fix themselves...
+	int ent = -1; // Some bugs don't fix themselves...
 	
 	while((ent = FindEntityByClassname(ent, "prop_dynamic_glow")) != -1)
 	{
-		new String:iName[32];
+		char iName[32];
 		GetEntPropString(ent, Prop_Data, "m_iName", iName, sizeof(iName));
 		
 		if(strncmp(iName, "Gang-Glow", 9) != 0)
 			continue;
 		
-		new String:dummy_value[1], String:sUserId[11], pos;
-		pos = BreakString(iName, dummy_value, 0);
+		char dummy_value[1], sUserId[11];
+		int pos = BreakString(iName, dummy_value, 0);
 		
 		BreakString(iName[pos], sUserId, sizeof(sUserId));
 		
-		new i = GetClientOfUserId(StringToInt(sUserId));
+		int i = GetClientOfUserId(StringToInt(sUserId));
 		
 		if(i == 0 || !IsPlayerAlive(i) || i == client)
 		{
@@ -629,16 +639,16 @@ TryDestroyGlow(client)
 	}
 }
 
-public OnClientSettingsChanged(client)
+public void OnClientSettingsChanged(int client)
 {	
 	if(IsValidPlayer(client))
 		StoreClientLastInfo(client);
 }
 
-public ConnectDatabase()
+public void ConnectDatabase()
 {
-	new String:error[256];
-	new Handle:hndl = INVALID_HANDLE;
+	char error[256];
+	Handle hndl = INVALID_HANDLE;
 	if((hndl = SQLite_UseDatabase("JB_Gangs", error, sizeof(error))) == INVALID_HANDLE)
 		SetFailState(error);
 
@@ -651,7 +661,7 @@ public ConnectDatabase()
 		SQL_TQuery(dbGangs, SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Honor (AuthId VARCHAR(32) NOT NULL UNIQUE, Honor INT(11) NOT NULL)", 2, DBPrio_High);
 		SQL_TQuery(dbGangs, SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_upgradelogs (GangName VARCHAR(32) NOT NULL, AuthId VARCHAR(32) NOT NULL, Perk VARCHAR(32) NOT NULL, BValue INT NOT NULL, AValue INT NOT NULL, timestamp INT NOT NULL)", 3, DBPrio_High); 
 		
-		new String:sQuery[512];
+		char sQuery[512];
 		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "ALTER TABLE GangSystem_Gangs ADD COLUMN GangMinRankInvite INT(11) NOT NULL DEFAULT %i", RANK_OFFICER);
 		SQL_TQuery(dbGangs, SQLCB_ErrorIgnore, sQuery, _, DBPrio_High);
 
@@ -684,7 +694,7 @@ public ConnectDatabase()
 		
 		dbFullConnected = true;
 		
-		for(new i=1;i <= MaxClients;i++)
+		for(int i=1;i <= MaxClients;i++)
 		{
 			if(!IsValidPlayer(i))
 				continue;
@@ -697,18 +707,18 @@ public ConnectDatabase()
 	}
 }
 
-public SQLCB_Error(Handle:owner, Handle:hndl, const char[] Error, QueryUniqueID) 
+public void SQLCB_Error(Handle owner, Handle hndl, const char[] Error, int QueryUniqueID) 
 { 
     /* If something fucked up. */ 
 	if (hndl == null) 
 		SetFailState("%s --> %i", Error, QueryUniqueID); 
 } 
 
-public SQLCB_ErrorIgnore(Handle:owner, Handle:hndl, const char[] Error, Data) 
+public void SQLCB_ErrorIgnore(Handle owner, Handle hndl, const char[] Error, int Data) 
 { 
 } 
 
-public OnClientPutInServer(client)
+public void OnClientPutInServer(int client)
 {
 //	DHookEntity(DHook_PlayerMaxSpeed, true, client);	
 	
@@ -716,14 +726,14 @@ public OnClientPutInServer(client)
 	ClientColorfulGlow[client] = 0;
 }
 
-public OnClientConnected(client)
+public void OnClientConnected(int client)
 {	
 	ResetVariables(client, true);
 	
 	CanGetHonor[client] = false;
 } 
 
-ResetVariables(client, bool:login=true)
+void ResetVariables(int client, bool login = true)
 {
 	ClientHonor[client] = 0;
 	ClientHealthPerkT[client] = 0;
@@ -756,9 +766,9 @@ ResetVariables(client, bool:login=true)
 	ClientLoadedFromDb[client] = false;
 }
 
-public OnClientDisconnect(client)
+public void OnClientDisconnect(int client)
 {
-	new String:AuthId[35], String:Name[64];
+	char AuthId[35], Name[64];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
 	Format(Name, sizeof(Name), "%N", client);
@@ -768,7 +778,7 @@ public OnClientDisconnect(client)
 	TryDestroyGlow(client);
 }
 
-public OnClientPostAdminCheck(client)
+public void OnClientPostAdminCheck(int client)
 {
 	if(!dbFullConnected)
 		return;
@@ -780,12 +790,12 @@ public OnClientPostAdminCheck(client)
 	LoadClientGang(client);
 }
 
-LoadClientGang(client, LowPrio=false)
+void LoadClientGang(int client, int LowPrio = false)
 {
-	new String:AuthId[35]
+	char AuthId[35]
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE AuthId = '%s'", AuthId);
 
 	if(!LowPrio)
@@ -803,14 +813,14 @@ LoadClientGang(client, LowPrio=false)
 		SQL_TQuery(dbGangs, SQLCB_LoadClientHonor, sQuery, GetClientUserId(client), DBPrio_Low);
 }	
 
-public SQLCB_LoadClientGang(Handle:owner, Handle:hndl, String:error[], any:data)
+public void SQLCB_LoadClientGang(Handle owner, Handle hndl, char[] error, any data)
 {
 	if(hndl == null)
 	{
 		SetFailState(error);
 	}
 
-	new client = GetClientOfUserId(data);
+	int client = GetClientOfUserId(data);
 	if(client == 0)
 	{
 		return;
@@ -827,7 +837,7 @@ public SQLCB_LoadClientGang(Handle:owner, Handle:hndl, String:error[], any:data)
 			SQL_FetchString(hndl, 0, ClientGang[client], sizeof(ClientGang[]));
 			ClientRank[client] = SQL_FetchInt(hndl, 2);
 			
-			for(new i=1;i <= MaxClients;i++)
+			for(int i=1;i <= MaxClients;i++)
 			{
 				if(!IsClientInGame(i))
 					continue;
@@ -843,11 +853,11 @@ public SQLCB_LoadClientGang(Handle:owner, Handle:hndl, String:error[], any:data)
 			
 			if(ClientGlowColorSlot[client] == -1)
 			{
-				for(new i=0;i < sizeof(GangColors);i++)
+				for(int i=0;i < sizeof(GangColors);i++)
 				{
-					new bool:glowTaken = false;
+					bool glowTaken = false;
 					
-					for(new compareClient=1;compareClient <= MaxClients;compareClient++)
+					for(int compareClient=1;compareClient <= MaxClients;compareClient++)
 					{
 						if(!IsClientInGame(compareClient))
 							continue;
@@ -869,7 +879,7 @@ public SQLCB_LoadClientGang(Handle:owner, Handle:hndl, String:error[], any:data)
 					}
 				}
 			}
-			new String:sQuery[256];
+			char sQuery[256];
 			SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Gangs WHERE GangName = '%s'", ClientGang[client]);
 			SQL_TQuery(dbGangs, SQLCB_LoadGangByClient, sQuery, GetClientUserId(client), DBPrio_High);
 		}
@@ -883,14 +893,14 @@ public SQLCB_LoadClientGang(Handle:owner, Handle:hndl, String:error[], any:data)
 	}
 }
 
-public SQLCB_LoadGangByClient(Handle:owner, Handle:hndl, String:error[], any:data)
+public void SQLCB_LoadGangByClient(Handle owner, Handle hndl, char[] error, any data)
 {
 	if(hndl == null)
 	{
 		SetFailState(error);
 	}
 
-	new client = GetClientOfUserId(data);
+	int client = GetClientOfUserId(data);
 	if(client == 0)
 	{
 		return;
@@ -919,7 +929,7 @@ public SQLCB_LoadGangByClient(Handle:owner, Handle:hndl, String:error[], any:dat
 			ClientAccessMOTD[client] = SQL_FetchInt(hndl, 15);
 			ClientFriendlyFirePerk[client] = SQL_FetchInt(hndl, 16);
 			
-			new Smallest = ClientAccessInvite[client];
+			int Smallest = ClientAccessInvite[client];
 			
 			if(ClientAccessKick[client] < Smallest)
 				Smallest = ClientAccessKick[client];
@@ -947,14 +957,14 @@ public SQLCB_LoadGangByClient(Handle:owner, Handle:hndl, String:error[], any:dat
 			if(IsPlayerAlive(client))
 				CreateGlow(client);
 				
-			new String:sQuery[256];
+			char sQuery[256];
 			SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangName = '%s'", ClientGang[client]);
 			
 			SQL_TQuery(dbGangs, SQLCB_CheckMemberCount, sQuery, GetClientUserId(client));
 		}
 		else // Gang was deleted
 		{
-			new String:AuthId[35];
+			char AuthId[35];
 			GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 			
 			KickAuthIdFromGang(AuthId, ClientGang[client]);
@@ -971,12 +981,12 @@ public SQLCB_LoadGangByClient(Handle:owner, Handle:hndl, String:error[], any:dat
 }
 
 
-public SQLCB_LoadClientHonor(Handle:owner, Handle:hndl, String:error[], any:data)
+public void SQLCB_LoadClientHonor(Handle owner, Handle hndl, char[] error, any data)
 {
 	if(hndl == null)
 		SetFailState(error);
 
-	new client = GetClientOfUserId(data);
+	int client = GetClientOfUserId(data);
 	
 	if(client == 0)
 		return;
@@ -991,11 +1001,11 @@ public SQLCB_LoadClientHonor(Handle:owner, Handle:hndl, String:error[], any:data
 		}
 		else
 		{
-			new String:AuthId[35];
+			char AuthId[35];
 			GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 			
 			// The reason I use INSERT OR IGNORE rather than just INSERT is bots, that can have multiple steam IDs.
-			new String:sQuery[256];
+			char sQuery[256];
 			SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "INSERT OR IGNORE INTO GangSystem_Honor (AuthId, Honor) VALUES ('%s', 0)", AuthId);
 			
 			SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 4);
@@ -1004,29 +1014,29 @@ public SQLCB_LoadClientHonor(Handle:owner, Handle:hndl, String:error[], any:data
 	}
 }
 
-stock KickClientFromGang(client, const String:GangName[])
+stock void KickClientFromGang(int client, const char[] GangName)
 {
-	new String:AuthId[35];
+	char AuthId[35];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
 	KickAuthIdFromGang(AuthId, GangName);
 }
 
-stock KickAuthIdFromGang(const String:AuthId[], const String:GangName[])
+stock void KickAuthIdFromGang(const char[] AuthId, const char[] GangName)
 {
-	new String:sQuery[256];
+	char sQuery[256];
 	Format(sQuery, sizeof(sQuery), "DELETE FROM GangSystem_Members WHERE AuthId = '%s' AND GangName = '%s'", AuthId, GangName);
 	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 5);
 	
 	UpdateInGameAuthId(AuthId);
 }
 
-public Action:CommandListener_Say(client, const String:command[], args) 
+public Action CommandListener_Say(int client, const char[] command, int args) 
 {
 	if(!IsValidPlayer(client))
 		return Plugin_Continue;	
 	
-	new String:Args[256];
+	char Args[256];
 	GetCmdArgString(Args, sizeof(Args))
 	StripQuotes(Args);
 	
@@ -1039,7 +1049,7 @@ public Action:CommandListener_Say(client, const String:command[], args)
 			PrintToChat(client, " %s \x01Gang message cannot be \x07empty." ,PREFIX);
 			return Plugin_Handled;
 		}
-		new String:RankName[32];
+		char RankName[32];
 		GetRankName(GetClientRank(client), RankName, sizeof(RankName));
 		
 		PrintToChatGang(ClientGang[client], "\x04[Gang Chat] \x05%s \x04%N\x01 : %s", RankName, client, Args);
@@ -1051,9 +1061,9 @@ public Action:CommandListener_Say(client, const String:command[], args)
 	return Plugin_Continue;
 }
 
-public ListenerSayPlusFrame(UserId)
+public void ListenerSayPlusFrame(int UserId)
 {
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	if(IsClientGang(client))
 	{
@@ -1068,7 +1078,7 @@ public ListenerSayPlusFrame(UserId)
 }
 
 
-public Action:Command_MotdGang(client, args)
+public Action Command_MotdGang(int client, int args)
 {
 	if(!IsClientGang(client))
 	{
@@ -1077,13 +1087,13 @@ public Action:Command_MotdGang(client, args)
 	}
 	else if(!CheckGangAccess(client, ClientAccessMOTD[client]))
 	{
-		new String:RankName[32];
+		char RankName[32];
 		GetRankName(ClientAccessMOTD[client], RankName, sizeof(RankName));
 		PrintToChat(client, " %s \x05You \x01have to be a gang \x07%s \x01to use this \x07command!", PREFIX, RankName);
 		return Plugin_Handled;	
 	}
 	
-	new String:Args[100];
+	char Args[100];
 	GetCmdArgString(Args, sizeof(Args));
 	StripQuotes(Args);
 	
@@ -1092,7 +1102,7 @@ public Action:Command_MotdGang(client, args)
 		PrintToChat(client, " %s Invalid motd! \x05You \x01can only use \x07SPACEBAR, \x07a-z, A-Z\x01, _, -, \x070-9", PREFIX);
 		return Plugin_Handled;
 	}
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangMotd = '%s' WHERE GangName = '%s'", Args, ClientGang[client]);
 	
 	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 6);
@@ -1101,18 +1111,18 @@ public Action:Command_MotdGang(client, args)
 	
 	return Plugin_Handled;
 }
-public Action:Command_DonateGang(client, args)
+public Action Command_DonateGang(int client, int args)
 {
 	if(!IsClientGang(client))
 	{
 		PrintToChat(client, "%s \x05You \x01have to be in a \x07gang \x01to use this command!", PREFIX);
 		return Plugin_Handled;
 	}
-	new String:Args[20];
+	char Args[20];
 	GetCmdArgString(Args, sizeof(Args));
 	StripQuotes(Args);
 	
-	new amount = StringToInt(Args);
+	int amount = StringToInt(Args);
 	
 	if(StrEqual(Args, "all", false))
 	{
@@ -1136,7 +1146,7 @@ public Action:Command_DonateGang(client, args)
 		PrintToChat(client, "%s \x05You \x01cannot donate more credits than you \x07have.", PREFIX);
 		return Plugin_Handled;
 	}
-	new Handle:hMenu = CreateMenu(DonateGang_MenuHandler);
+	Handle hMenu = CreateMenu(DonateGang_MenuHandler);
 	
 	AddMenuItem(hMenu, Args, "Yes");
 	AddMenuItem(hMenu, "", "No");
@@ -1147,7 +1157,7 @@ public Action:Command_DonateGang(client, args)
 	return Plugin_Handled;
 }
 
-public DonateGang_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int DonateGang_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -1159,16 +1169,16 @@ public DonateGang_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 		
 		if(item + 1 == 1)
 		{
-			new String:strAmount[20], amount, String:strIgnoreable[1];
-			GetMenuItem(hMenu, item, strAmount, sizeof(strAmount), amount, strIgnoreable, 0)
+			char strAmount[20];
+			GetMenuItem(hMenu, item, strAmount, sizeof(strAmount))
 			
-			amount = StringToInt(strAmount);
+			int amount = StringToInt(strAmount);
 			DonateToGang(client, amount);
 		}
 	}
 }
 
-public Action:Command_CreateGang(client, args)
+public Action Command_CreateGang(int client, int args)
 {
 	if(!ClientLoadedFromDb[client])
 	{
@@ -1181,7 +1191,7 @@ public Action:Command_CreateGang(client, args)
 		return Plugin_Handled;
 	}
 	
-	new String:Args[32];
+	char Args[32];
 	GetCmdArgString(Args, sizeof(Args));
 	StripQuotes(Args);
 	
@@ -1202,7 +1212,7 @@ public Action:Command_CreateGang(client, args)
 		PrintToChat(client, "%s Name selected! Please select your \x07gang \x01tag using \x07!gangtag.", PREFIX);
 		return Plugin_Handled;
 	}	
-	new Handle:hMenu = CreateMenu(CreateGang_MenuHandler);
+	Handle hMenu = CreateMenu(CreateGang_MenuHandler);
 	
 	AddMenuItem(hMenu, "", "Yes");
 	AddMenuItem(hMenu, "", "No");
@@ -1215,7 +1225,7 @@ public Action:Command_CreateGang(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_CreateGangTag(client, args)
+public Action Command_CreateGangTag(int client, int args)
 {
 	if(IsClientGang(client))
 	{
@@ -1223,7 +1233,7 @@ public Action:Command_CreateGangTag(client, args)
 		return Plugin_Handled;
 	}
 	
-	new String:Args[10];
+	char Args[10];
 	GetCmdArgString(Args, sizeof(Args));
 	StripQuotes(Args);
 	
@@ -1244,7 +1254,7 @@ public Action:Command_CreateGangTag(client, args)
 		PrintToChat(client, "%s Invalid tag! \x05You \x01can only use \x07a-z, A-Z\x01, _, -, \x070-9!", PREFIX);
 		return Plugin_Handled;
 	}
-	new Handle:hMenu = CreateMenu(CreateGang_MenuHandler);
+	Handle hMenu = CreateMenu(CreateGang_MenuHandler);
 	
 	AddMenuItem(hMenu, "", "Yes");
 	AddMenuItem(hMenu, "", "No");
@@ -1256,7 +1266,7 @@ public Action:Command_CreateGangTag(client, args)
 	
 	return Plugin_Handled;
 }
-public Action:Command_LeaveGang(client, args)
+public Action Command_LeaveGang(int client, int args)
 {
 	if(!IsClientGang(client))
 	{
@@ -1277,7 +1287,7 @@ public Action:Command_LeaveGang(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_DisbandGang(client, args)
+public Action Command_DisbandGang(int client, int args)
 {
 	if(!IsClientGang(client))
 	{
@@ -1297,10 +1307,10 @@ public Action:Command_DisbandGang(client, args)
 	
 	PrintToChatAll("%s \x05%N \x01has disbanded the gang \x07%s!", PREFIX, client, ClientGang[client]);
 	
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "DELETE FROM GangSystem_Gangs WHERE GangName = '%s'", ClientGang[client]);
 	
-	new Handle:DP = CreateDataPack();
+	Handle DP = CreateDataPack();
 	
 	WritePackString(DP, ClientGang[client]);
 	
@@ -1310,7 +1320,7 @@ public Action:Command_DisbandGang(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_StepDown(client, args)
+public Action Command_StepDown(int client, int args)
 {
 	if(!IsClientGang(client))
 	{
@@ -1328,7 +1338,7 @@ public Action:Command_StepDown(client, args)
 		return Plugin_Handled;
 	}
 	
-	new NewLeader = GetClientOfUserId(GangStepDownTarget[client]);
+	int NewLeader = GetClientOfUserId(GangStepDownTarget[client]);
 	
 	if(NewLeader == 0)
 	{
@@ -1345,7 +1355,7 @@ public Action:Command_StepDown(client, args)
 	PrintToChatGang(ClientGang[client], "%s \x05%N \x01has stepped down to \x07Co-Leader.", PREFIX, client);
 	PrintToChatGang(ClientGang[client], "%s \x05%N \x01is now the gang \x07Leader.", PREFIX, NewLeader);
 	
-	new String:AuthId[35], String:AuthIdNewLeader[35];
+	char AuthId[35], AuthIdNewLeader[35];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	GetClientAuthId(NewLeader, AuthId_Engine, AuthIdNewLeader, sizeof(AuthIdNewLeader));
 	
@@ -1357,16 +1367,16 @@ public Action:Command_StepDown(client, args)
 	return Plugin_Handled;
 }
 
-public SQLCB_GangDisbanded(Handle:owner, Handle:hndl, String:error[], Handle:DP)
+public void SQLCB_GangDisbanded(Handle owner, Handle hndl, char[] error, Handle DP)
 {
-	new String:GangName[32];
+	char GangName[32];
 	ResetPack(DP);
 	
 	ReadPackString(DP, GangName, sizeof(GangName));
 	
 	CloseHandle(DP);
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -1380,7 +1390,7 @@ public SQLCB_GangDisbanded(Handle:owner, Handle:hndl, String:error[], Handle:DP)
 		OnClientPostAdminCheck(i);
 	}
 }
-public CreateGang_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int CreateGang_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -1405,7 +1415,7 @@ public CreateGang_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 		}	
 	}
 }
-public Action:Command_GC(client, args)
+public Action Command_GC(int client, int args)
 {
 	if(!IsClientGang(client))
 	{
@@ -1436,7 +1446,7 @@ public Action:Command_GC(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_BreachGang(client, args)
+public Action Command_BreachGang(int client, int args)
 {
 	if(IsClientGang(client))
 	{
@@ -1450,11 +1460,12 @@ public Action:Command_BreachGang(client, args)
 		return Plugin_Handled;
 	}
 	
-	new String:GangName[32];
+	char GangName[32];
 	GetCmdArgString(GangName, sizeof(GangName));
 	StripQuotes(GangName);
 	
-	new String:AuthId[35], Handle:DP = CreateDataPack();
+	char AuthId[35];
+	Handle DP = CreateDataPack();
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	WritePackString(DP, AuthId);
 	
@@ -1463,7 +1474,7 @@ public Action:Command_BreachGang(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_BreachGangRank(client, args)
+public Action Command_BreachGangRank(int client, int args)
 {
 	if(!IsClientGang(client))
 	{
@@ -1477,22 +1488,22 @@ public Action:Command_BreachGangRank(client, args)
 		return Plugin_Handled;
 	}
 	
-	new String:RankToSet[11];
+	char RankToSet[11];
 	GetCmdArg(1, RankToSet, sizeof(RankToSet));
 	
-	new Rank = StringToInt(RankToSet);
+	int Rank = StringToInt(RankToSet);
 	
 	if(Rank > RANK_COLEADER)
 		Rank = RANK_LEADER;
 		
-	new String:AuthId[35];
+	char AuthId[35];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
 	SetAuthIdRank(AuthId, ClientGang[client], Rank);
 	
 	return Plugin_Handled;
 }
-public Action:Command_Gang(client, args)
+public Action Command_Gang(int client, int args)
 {
 	if(!ClientLoadedFromDb[client])
 	{
@@ -1502,13 +1513,13 @@ public Action:Command_Gang(client, args)
 	GangAttemptLeave[client] = false;
 	GangAttemptDisband[client] = false;
 
-	new Handle:hMenu = CreateMenu(Gang_MenuHandler);
+	Handle hMenu = CreateMenu(Gang_MenuHandler);
 		
-	new bool:isGang = IsClientGang(client);
+	bool isGang = IsClientGang(client);
 	
-	new bool:isLeader = (IsClientGang(client) && CheckGangAccess(client, RANK_LEADER));
+	bool isLeader = (IsClientGang(client) && CheckGangAccess(client, RANK_LEADER));
 	
-	new String:TempFormat[100];
+	char TempFormat[100];
 	
 	if(!isGang)
 	{
@@ -1532,7 +1543,7 @@ public Action:Command_Gang(client, args)
 }
 
 
-public Gang_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Gang_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -1542,7 +1553,7 @@ public Gang_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 		GangAttemptLeave[client] = false;
 		GangAttemptDisband[client] = false;
 		
-		new String:Info[32];
+		char Info[32];
 		GetMenuItem(hMenu, item, Info, sizeof(Info));
 		
 		if(StrEqual(Info, "Create"))
@@ -1584,22 +1595,22 @@ public Gang_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	}
 }
 
-ShowTopGangsMenu(client)
+void ShowTopGangsMenu(int client)
 {
-	new String:sQuery[1024];
+	char sQuery[1024];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT GangName, (%!s) as net_worth FROM GangSystem_Gangs ORDER BY net_worth DESC", NET_WORTH_ORDER_BY_FORMULA);
 	SQL_TQuery(dbGangs, SQLCB_ShowTopGangsMenu, sQuery, GetClientUserId(client));
 }
 
 
-public SQLCB_ShowTopGangsMenu(Handle:owner, Handle:hndl, String:error[], UserId)
+public void SQLCB_ShowTopGangsMenu(Handle owner, Handle hndl, char[] error, int UserId)
 {
 	if(hndl == null)
 	{
 		SetFailState(error);
 	}
 	
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	if(client == 0)
 		return;
@@ -1607,16 +1618,16 @@ public SQLCB_ShowTopGangsMenu(Handle:owner, Handle:hndl, String:error[], UserId)
 	else if(SQL_GetRowCount(hndl) == 0)
 		return;
 	
-	new Handle:hMenu = CreateMenu(Dummy_MenuHandler);
+	Handle hMenu = CreateMenu(Dummy_MenuHandler);
 	
-	new Rank = 1;
+	int Rank = 1;
 	while(SQL_FetchRow(hndl))
 	{
-		new String:GangName[32];
+		char GangName[32];
 		SQL_FetchString(hndl, 0, GangName, sizeof(GangName));
 	
-		new NetWorth = SQL_FetchInt(hndl, 1);
-		new String:TempFormat[256];
+		int NetWorth = SQL_FetchInt(hndl, 1);
+		char TempFormat[256];
 		FormatEx(TempFormat, sizeof(TempFormat), "%s [Net worth: %i]", GangName, NetWorth);
 		
 		if(StrEqual(ClientGang[client], GangName))
@@ -1631,17 +1642,17 @@ public SQLCB_ShowTopGangsMenu(Handle:owner, Handle:hndl, String:error[], UserId)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public Dummy_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Dummy_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
 }
 
-ShowGangPerks(client)
+void ShowGangPerks(int client)
 {
-	new Handle:hMenu = CreateMenu(Perks_MenuHandler);
+	Handle hMenu = CreateMenu(Perks_MenuHandler);
 	
-	new String:TempFormat[150];
+	char TempFormat[150];
 	
 	Format(TempFormat, sizeof(TempFormat), "Health ( T ) [ %i / %i ] Bonus: +%i [ %i per level ]", ClientHealthPerkT[client], GANG_HEALTHMAX, ClientHealthPerkT[client] * GANG_HEALTHINCREASE, GANG_HEALTHINCREASE);
 	AddMenuItem(hMenu, "", TempFormat, ITEMDRAW_DISABLED);
@@ -1674,7 +1685,7 @@ ShowGangPerks(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public Perks_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Perks_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -1684,9 +1695,9 @@ public Perks_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 }
 
 
-ShowManageGangMenu(client)
+void ShowManageGangMenu(int client)
 {
-	new Handle:hMenu = CreateMenu(ManageGang_MenuHandler);
+	Handle hMenu = CreateMenu(ManageGang_MenuHandler);
 	
 	AddMenuItem(hMenu, "", "Invite To Gang", CheckGangAccess(client, ClientAccessInvite[client]) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	
@@ -1708,7 +1719,7 @@ ShowManageGangMenu(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public ManageGang_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -1790,11 +1801,11 @@ public ManageGang_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 }
 
 
-ShowActionAccessMenu(client)
+void ShowActionAccessMenu(int client)
 {
-	new Handle:hMenu = CreateMenu(ActionAccess_MenuHandler);
-	new String:RankName[32];
-	new String:TempFormat[256];
+	Handle hMenu = CreateMenu(ActionAccess_MenuHandler);
+	char RankName[32];
+	char TempFormat[256];
 	GetRankName(ClientAccessInvite[client], RankName, sizeof(RankName));
 	Format(TempFormat, sizeof(TempFormat), "Invite to Gang - [%s]", RankName);
 	AddMenuItem(hMenu, "", TempFormat);
@@ -1820,7 +1831,7 @@ ShowActionAccessMenu(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public ActionAccess_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int ActionAccess_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -1840,12 +1851,12 @@ public ActionAccess_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	}
 }
 
-ShowActionAccessSetRankMenu(client)
+void ShowActionAccessSetRankMenu(int client)
 {
-	new Handle:hMenu = CreateMenu(ActionAccessSetRank_MenuHandler);
-	new String:RankName[32];
+	Handle hMenu = CreateMenu(ActionAccessSetRank_MenuHandler);
+	char RankName[32];
 	
-	for(new i=RANK_MEMBER;i <= GetClientRank(client);i++)
+	for(int i=RANK_MEMBER;i <= GetClientRank(client);i++)
 	{
 		if(i == GetClientRank(client) && !CheckGangAccess(client, RANK_LEADER))
 			break;
@@ -1860,7 +1871,7 @@ ShowActionAccessSetRankMenu(client)
 	SetMenuExitButton(hMenu, true);
 	SetMenuExitBackButton(hMenu, true);
 	
-	new String:RightName[32];
+	char RightName[32];
 	
 	switch(ClientActionEdit[client])
 	{
@@ -1875,7 +1886,7 @@ ShowActionAccessSetRankMenu(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public ActionAccessSetRank_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int ActionAccessSetRank_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -1888,9 +1899,9 @@ public ActionAccessSetRank_MenuHandler(Handle:hMenu, MenuAction:action, client, 
 		if(!CheckGangAccess(client, RANK_LEADER))
 			return;
 			
-		new TrueRank = item > RANK_COLEADER ? RANK_LEADER : item;
+		int TrueRank = item > RANK_COLEADER ? RANK_LEADER : item;
 		
-		new String:ColumnName[32];
+		char ColumnName[32];
 		switch(ClientActionEdit[client])
 		{
 			case 0: ColumnName = "GangMinRankInvite";
@@ -1900,22 +1911,22 @@ public ActionAccessSetRank_MenuHandler(Handle:hMenu, MenuAction:action, client, 
 			case 4: ColumnName = "GangMinRankMOTD";
 		}
 		
-		new Handle:DP = CreateDataPack();
+		Handle DP = CreateDataPack();
 		
 		WritePackString(DP, ClientGang[client]);
 		
-		new String:sQuery[256];
+		char sQuery[256];
 		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET '%s' = %i WHERE GangName = '%s'", ColumnName, TrueRank, ClientGang[client]);
 		SQL_TQuery(dbGangs, SQLCB_UpdateGang, sQuery, DP);
 	}
 }
-ShowUpgradeMenu(client)
+void ShowUpgradeMenu(int client)
 {
-	new Handle:hMenu = CreateMenu(Upgrade_MenuHandler);
+	Handle hMenu = CreateMenu(Upgrade_MenuHandler);
 
-	new String:TempFormat[100], String:strUpgradeCost[20];
+	char TempFormat[100], strUpgradeCost[20];
 	
-	new upgradecost = GetUpgradeCost(ClientHealthPerkT[client], GANG_HEALTHCOST);
+	int upgradecost = GetUpgradeCost(ClientHealthPerkT[client], GANG_HEALTHCOST);
 	IntToString(upgradecost, strUpgradeCost, sizeof(strUpgradeCost));
 	Format(TempFormat, sizeof(TempFormat), "Health ( T ) [ %i / %i ] Cost: %i", ClientHealthPerkT[client], GANG_HEALTHMAX, upgradecost);
 	AddMenuItem(hMenu, strUpgradeCost, TempFormat, ClientGangHonor[client] >= upgradecost ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
@@ -1962,7 +1973,7 @@ ShowUpgradeMenu(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public Upgrade_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Upgrade_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -1975,22 +1986,22 @@ public Upgrade_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 		if(!CheckGangAccess(client, RANK_MANAGER))
 			return;
 		
-		new String:strUpgradeCost[20], Ignoreable, String:strIgnoreable[1];
-		GetMenuItem(hMenu, item, strUpgradeCost, sizeof(strUpgradeCost), Ignoreable, strIgnoreable, 0)
+		char strUpgradeCost[20];
+		GetMenuItem(hMenu, item, strUpgradeCost, sizeof(strUpgradeCost))
 		LoadClientGang_TryUpgrade(client, item, StringToInt(strUpgradeCost));
 	}
 }
 
 
-LoadClientGang_TryUpgrade(client, item, upgradecost)
+void LoadClientGang_TryUpgrade(int client, int item, int upgradecost)
 {
-	new String:AuthId[35]
+	char AuthId[35]
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE AuthId = '%s'", AuthId);
 	
-	new Handle:DP = CreateDataPack()
+	Handle DP = CreateDataPack()
 	
 	WritePackCell(DP, GetClientUserId(client));
 	WritePackCell(DP, item);
@@ -1998,7 +2009,7 @@ LoadClientGang_TryUpgrade(client, item, upgradecost)
 	SQL_TQuery(dbGangs, SQLCB_LoadClientGang_TryUpgrade, sQuery, DP, DBPrio_High);
 }	
 
-public SQLCB_LoadClientGang_TryUpgrade(Handle:owner, Handle:hndl, String:error[], Handle:DP)
+public void SQLCB_LoadClientGang_TryUpgrade(Handle owner, Handle hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 	{
@@ -2007,7 +2018,7 @@ public SQLCB_LoadClientGang_TryUpgrade(Handle:owner, Handle:hndl, String:error[]
 	
 	ResetPack(DP);
 	
-	new client = GetClientOfUserId(ReadPackCell(DP));
+	int client = GetClientOfUserId(ReadPackCell(DP));
 	if (!IsValidPlayer(client))
 	{
 		CloseHandle(DP);
@@ -2022,7 +2033,7 @@ public SQLCB_LoadClientGang_TryUpgrade(Handle:owner, Handle:hndl, String:error[]
 			SQL_FetchString(hndl, 0, ClientGang[client], sizeof(ClientGang[]));
 			ClientRank[client] = SQL_FetchInt(hndl, 2);
 			
-			new String:sQuery[256];
+			char sQuery[256];
 			SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Gangs WHERE GangName = '%s'", ClientGang[client]);
 			SQL_TQuery(dbGangs, SQLCB_LoadGangByClient_TryUpgrade, sQuery, DP, DBPrio_High);
 		}
@@ -2034,7 +2045,7 @@ public SQLCB_LoadClientGang_TryUpgrade(Handle:owner, Handle:hndl, String:error[]
 	}
 }
 
-public SQLCB_LoadGangByClient_TryUpgrade(Handle:owner, Handle:hndl, String:error[], Handle:DP)
+public void SQLCB_LoadGangByClient_TryUpgrade(Handle owner, Handle hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 	{
@@ -2043,9 +2054,9 @@ public SQLCB_LoadGangByClient_TryUpgrade(Handle:owner, Handle:hndl, String:error
 
 	ResetPack(DP);
 	
-	new client = GetClientOfUserId(ReadPackCell(DP));
-	new item = ReadPackCell(DP);
-	new upgradecost = ReadPackCell(DP);
+	int client = GetClientOfUserId(ReadPackCell(DP));
+	int item = ReadPackCell(DP);
+	int upgradecost = ReadPackCell(DP);
 	
 	CloseHandle(DP);
 	if (!IsValidPlayer(client))
@@ -2075,14 +2086,15 @@ public SQLCB_LoadGangByClient_TryUpgrade(Handle:owner, Handle:hndl, String:error
 	}
 }
 
-TryUpgradePerk(client, item, upgradecost) // Safety accomplished.
+void TryUpgradePerk(int client, int item, int upgradecost) // Safety accomplished.
 {
 	if(ClientGangHonor[client] < upgradecost)
 	{	
 		PrintToChat(client, "%s Your gang doesn't have enough credits to \x07upgrade.", PREFIX);
 		return;
 	}	
-	new PerkToUse, PerkMax, String:PerkName[32], String:PerkNick[32];
+	int PerkToUse, PerkMax;
+	char PerkName[32], PerkNick[32];
 	
 	switch(item + 1)
 	{
@@ -2103,7 +2115,7 @@ TryUpgradePerk(client, item, upgradecost) // Safety accomplished.
 		return;
 	}
 		
-	new String:sQuery[256];
+	char sQuery[256];
 	
 	char steamid[32];
 	GetClientAuthId(client, AuthId_Engine, steamid, sizeof(steamid));
@@ -2113,7 +2125,7 @@ TryUpgradePerk(client, item, upgradecost) // Safety accomplished.
 	
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangHonor = GangHonor - %i WHERE GangName = '%s'", upgradecost, ClientGang[client]);
 	
-	new Handle:DP = CreateDataPack(), Handle:DP2 = CreateDataPack();
+	Handle DP = CreateDataPack(), DP2 = CreateDataPack();
 	
 	WritePackString(DP, ClientGang[client]);
 	SQL_TQuery(dbGangs, SQLCB_UpdateGang, sQuery, DP);
@@ -2126,19 +2138,19 @@ TryUpgradePerk(client, item, upgradecost) // Safety accomplished.
 
 }
 
-public SQLCB_UpdateGang(Handle:owner, Handle:hndl, String:error[], Handle:DP)
+public void SQLCB_UpdateGang(Handle owner, Handle hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 		SetFailState(error);
 	
 	ResetPack(DP);
 	
-	new String:GangName[32];
+	char GangName[32];
 	ReadPackString(DP, GangName, sizeof(GangName));
 
 	CloseHandle(DP);
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsValidPlayer(i))
 			continue;
@@ -2153,20 +2165,20 @@ public SQLCB_UpdateGang(Handle:owner, Handle:hndl, String:error[], Handle:DP)
 }
 
 
-ShowPromoteMenu(client)
+void ShowPromoteMenu(int client)
 {
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangName = '%s' ORDER BY LastConnect DESC", ClientGang[client]); 
 	SQL_TQuery(dbGangs, SQLCB_ShowPromoteMenu, sQuery, GetClientUserId(client));
 }
 
-public SQLCB_ShowPromoteMenu(Handle:owner, Handle:hndl, String:error[], UserId)
+public void SQLCB_ShowPromoteMenu(Handle owner, Handle hndl, char[] error, int UserId)
 {
 	if(hndl == null)
 	{
 		SetFailState(error);
 	}
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 
 	if (!IsValidPlayer(client))
 	{
@@ -2174,19 +2186,19 @@ public SQLCB_ShowPromoteMenu(Handle:owner, Handle:hndl, String:error[], UserId)
 	}
 	else 
 	{
-		new Handle:hMenu = CreateMenu(Promote_MenuHandler);
+		Handle hMenu = CreateMenu(Promote_MenuHandler);
 	
-		new String:TempFormat[200], String:Info[250], String:iAuthId[35], String:Name[64];
+		char TempFormat[200], Info[250], iAuthId[35], Name[64];
 		while(SQL_FetchRow(hndl))
 		{
 			SQL_FetchString(hndl, 1, iAuthId, sizeof(iAuthId));
-			new Rank = SQL_FetchInt(hndl, 2);
+			int Rank = SQL_FetchInt(hndl, 2);
 			
-			new String:strRank[32];
+			char strRank[32];
 			GetRankName(Rank, strRank, sizeof(strRank));
 			SQL_FetchString(hndl, 4, Name, sizeof(Name));
 			
-			new LastConnect = SQL_FetchInt(hndl, 7);
+			int LastConnect = SQL_FetchInt(hndl, 7);
 			
 			Format(Info, sizeof(Info), "\"%s\" \"%s\" \"%i\" \"%i\"", iAuthId, Name, Rank, LastConnect);
 			Format(TempFormat, sizeof(TempFormat), "%s [%s] - %s [Donated: %i]", Name, strRank, FindClientByAuthId(iAuthId) != 0 ? "ONLINE" : "OFFLINE", SQL_FetchInt(hndl, 3));
@@ -2202,7 +2214,7 @@ public SQLCB_ShowPromoteMenu(Handle:owner, Handle:hndl, String:error[], UserId)
 	}
 }
 
-public Promote_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Promote_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -2212,18 +2224,18 @@ public Promote_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 		
 	else if(action == MenuAction_Select)
 	{	
-		new String:Info[200], Ignoreable, String:strIgnoreable[1];
-		GetMenuItem(hMenu, item, Info, sizeof(Info), Ignoreable, strIgnoreable, 0);
+		char Info[200];
+		GetMenuItem(hMenu, item, Info, sizeof(Info));
 		
 		PromoteMenu_ChooseRank(client, Info);
 	}
 }
 
-PromoteMenu_ChooseRank(client, const String:Info[])
+void PromoteMenu_ChooseRank(int client, const char[] Info)
 {
-	new Handle:hMenu = CreateMenu(ChooseRank_MenuHandler);
+	Handle hMenu = CreateMenu(ChooseRank_MenuHandler);
 	
-	for(new i=RANK_MEMBER;i <= GetClientRank(client);i++)
+	for(int i=RANK_MEMBER;i <= GetClientRank(client);i++)
 	{
 		if(i == GetClientRank(client) && !CheckGangAccess(client, RANK_LEADER))
 			break;
@@ -2231,23 +2243,23 @@ PromoteMenu_ChooseRank(client, const String:Info[])
 		else if(i > RANK_COLEADER)
 			i = RANK_LEADER;
 			
-		new String:RankName[20];
+		char RankName[20];
 		GetRankName(i, RankName, sizeof(RankName));
 		
 		AddMenuItem(hMenu, Info, RankName);
 	}
 	
-	new String:iAuthId[35], String:Name[64], String:strRank[11], String:strLastConnect[11];
+	char iAuthId[35], Name[64], strRank[11], strLastConnect[11];
 	
-	new len = BreakString(Info, iAuthId, sizeof(iAuthId));
+	int len = BreakString(Info, iAuthId, sizeof(iAuthId));
 	
-	new len2 = BreakString(Info[len], Name, sizeof(Name));
+	int len2 = BreakString(Info[len], Name, sizeof(Name));
 	
-	new len3 = BreakString(Info[len+len2], strRank, sizeof(strRank));
+	int len3 = BreakString(Info[len+len2], strRank, sizeof(strRank));
 	
 	BreakString(Info[len+len2+len3], strLastConnect, sizeof(strLastConnect));
 
-	new String:Date[64];
+	char Date[64];
 	FormatTime(Date, sizeof(Date), "%d/%m/%Y - %H:%M:%S", StringToInt(strLastConnect));		
 	
 	SetMenuTitle(hMenu, "%s Choose the rank you want to give to %s\nTarget's Last Connect: %s", MENU_PREFIX, Name, Date);
@@ -2256,7 +2268,7 @@ PromoteMenu_ChooseRank(client, const String:Info[])
 	DisplayMenu(hMenu, client, 30);
 }
 
-public ChooseRank_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int ChooseRank_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -2266,14 +2278,14 @@ public ChooseRank_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 		
 	else if(action == MenuAction_Select)
 	{	
-		new String:Info[200], String:iAuthId[35], String:strRank[20], String:strLastConnect[11], String:Name[64], Ignoreable, String:strIgnoreable[1];
-		GetMenuItem(hMenu, item, Info, sizeof(Info), Ignoreable, strIgnoreable, 0);
+		char Info[200], iAuthId[35], strRank[20], strLastConnect[11], Name[64];
+		GetMenuItem(hMenu, item, Info, sizeof(Info));
 		
-		new len = BreakString(Info, iAuthId, sizeof(iAuthId));
+		int len = BreakString(Info, iAuthId, sizeof(iAuthId));
 		
-		new len2 = BreakString(Info[len], Name, sizeof(Name));
+		int len2 = BreakString(Info[len], Name, sizeof(Name));
 		
-		new len3 = BreakString(Info[len+len2], strRank, sizeof(strRank));
+		int len3 = BreakString(Info[len+len2], strRank, sizeof(strRank));
 		
 		BreakString(Info[len+len2+len3], strLastConnect, sizeof(strLastConnect));
 		
@@ -2282,7 +2294,7 @@ public ChooseRank_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 			
 		if(item < GetClientRank(client))
 		{
-			new String:NewRank[32];
+			char NewRank[32];
 			GetRankName(item, NewRank, sizeof(NewRank));
 			PrintToChatGang(ClientGang[client], " %s has been \x07promoted \x01to \x05%s", Name, NewRank);
 			SetAuthIdRank(iAuthId, ClientGang[client], item);
@@ -2291,7 +2303,7 @@ public ChooseRank_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 		{
 			GangAttemptStepDown[client] = true;
 			
-			new target = FindClientByAuthId(iAuthId);
+			int target = FindClientByAuthId(iAuthId);
 			
 			if(target == 0)
 			{
@@ -2311,20 +2323,20 @@ public ChooseRank_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	}
 }
 
-ShowKickMenu(client)
+void ShowKickMenu(int client)
 {
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangName = '%s' ORDER BY LastConnect DESC", ClientGang[client]); 
 	SQL_TQuery(dbGangs, SQLCB_ShowKickMenu, sQuery, GetClientUserId(client));
 }
 
-public SQLCB_ShowKickMenu(Handle:owner, Handle:hndl, String:error[], UserId)
+public void SQLCB_ShowKickMenu(Handle owner, Handle hndl, char[] error, int UserId)
 {
 	if(hndl == null)
 	{
 		SetFailState(error);
 	}
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 
 	if (!IsValidPlayer(client))
 	{
@@ -2332,19 +2344,19 @@ public SQLCB_ShowKickMenu(Handle:owner, Handle:hndl, String:error[], UserId)
 	}
 	else 
 	{
-		new Handle:hMenu = CreateMenu(Kick_MenuHandler);
+		Handle hMenu = CreateMenu(Kick_MenuHandler);
 	
-		new String:TempFormat[200], String:Info[250], String:iAuthId[35], String:Name[64];
+		char TempFormat[200], Info[250], iAuthId[35], Name[64];
 		while(SQL_FetchRow(hndl))
 		{
 			SQL_FetchString(hndl, 1, iAuthId, sizeof(iAuthId));
-			new Rank = SQL_FetchInt(hndl, 2);
+			int Rank = SQL_FetchInt(hndl, 2);
 			
-			new String:strRank[32];
+			char strRank[32];
 			GetRankName(Rank, strRank, sizeof(strRank));
 			SQL_FetchString(hndl, 4, Name, sizeof(Name));
 			
-			new LastConnect = SQL_FetchInt(hndl, 7);
+			int LastConnect = SQL_FetchInt(hndl, 7);
 			
 			Format(Info, sizeof(Info), "\"%s\" \"%s\" \"%i\" \"%i\"", iAuthId, Name, Rank, LastConnect);
 			Format(TempFormat, sizeof(TempFormat), "%s [%s] - %s [Donated: %i]", Name, strRank, FindClientByAuthId(iAuthId) != 0 ? "ONLINE" : "OFFLINE", SQL_FetchInt(hndl, 3));
@@ -2361,7 +2373,7 @@ public SQLCB_ShowKickMenu(Handle:owner, Handle:hndl, String:error[], UserId)
 }
 
 
-public Kick_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Kick_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -2371,14 +2383,14 @@ public Kick_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 		
 	else if(action == MenuAction_Select)
 	{	
-		new String:Info[200], String:iAuthId[35], String:strRank[20], String:strLastConnect[11], String:Name[64], Ignoreable, String:strIgnoreable[1];
-		GetMenuItem(hMenu, item, Info, sizeof(Info), Ignoreable, strIgnoreable, 0);
+		char Info[200], iAuthId[35], strRank[20], strLastConnect[11], Name[64];
+		GetMenuItem(hMenu, item, Info, sizeof(Info));
 		
-		new len = BreakString(Info, iAuthId, sizeof(iAuthId));
+		int len = BreakString(Info, iAuthId, sizeof(iAuthId));
 		
-		new len2 = BreakString(Info[len], Name, sizeof(Name));
+		int len2 = BreakString(Info[len], Name, sizeof(Name));
 		
-		new len3 = BreakString(Info[len+len2], strRank, sizeof(strRank));
+		int len3 = BreakString(Info[len+len2], strRank, sizeof(strRank));
 		
 		BreakString(Info[len+len2+len3], strLastConnect, sizeof(strLastConnect));
 		
@@ -2389,14 +2401,14 @@ public Kick_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	}
 }
 
-ShowConfirmKickMenu(client, const String:iAuthId[], const String:Name[], LastConnect)
+void ShowConfirmKickMenu(int client, const char[] iAuthId, const char[] Name, int LastConnect)
 {
-	new Handle:hMenu = CreateMenu(ConfirmKick_MenuHandler);
+	Handle hMenu = CreateMenu(ConfirmKick_MenuHandler);
 	
 	AddMenuItem(hMenu, iAuthId, "Yes");
 	AddMenuItem(hMenu, Name, "No"); // This will also be used.
 	
-	new String:Date[64];
+	char Date[64];
 	FormatTime(Date, sizeof(Date), "%d/%m/%Y - %H:%M:%S", LastConnect);
 	
 	SetMenuTitle(hMenu, "%s Gang Kick\nAre you sure you want to kick %s?\nSteam ID of target: %s\nTarget's last connect: %s", MENU_PREFIX, Name, iAuthId, Date);
@@ -2404,7 +2416,7 @@ ShowConfirmKickMenu(client, const String:iAuthId[], const String:Name[], LastCon
 	DisplayMenu(hMenu, client, 60);
 }
 
-public ConfirmKick_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int ConfirmKick_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -2416,9 +2428,9 @@ public ConfirmKick_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	{	
 		if(item + 1 == 1)
 		{
-			new String:iAuthId[35], String:Name[64], Ignoreable, String:strIgnoreable[1];
-			GetMenuItem(hMenu, 0, iAuthId, sizeof(iAuthId), Ignoreable, strIgnoreable, 0)
-			GetMenuItem(hMenu, 1, Name, sizeof(Name), Ignoreable, strIgnoreable, 0)
+			char iAuthId[35], Name[64];
+			GetMenuItem(hMenu, 0, iAuthId, sizeof(iAuthId))
+			GetMenuItem(hMenu, 1, Name, sizeof(Name))
 			
 			PrintToChatGang(ClientGang[client], "%s \x05%N \x01has kicked \x07%s \x01from the gang!", PREFIX, client, Name);
 			
@@ -2427,10 +2439,10 @@ public ConfirmKick_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	}
 }
 
-ShowInviteMenu(client)
+void ShowInviteMenu(int client)
 {
-	new Handle:hMenu = CreateMenu(Invite_MenuHandler);
-	for(new i=1;i <= MaxClients;i++)
+	Handle hMenu = CreateMenu(Invite_MenuHandler);
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsValidPlayer(i))
 			continue;
@@ -2441,7 +2453,7 @@ ShowInviteMenu(client)
 		//else if(IsFakeClient(i))
 			//continue;
 	
-		new String:strUserId[20], String:iName[64];
+		char strUserId[20], iName[64];
 		IntToString(GetClientUserId(i), strUserId, sizeof(strUserId));
 		GetClientName(i, iName, sizeof(iName));
 		
@@ -2455,7 +2467,7 @@ ShowInviteMenu(client)
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
-public Invite_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Invite_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -2465,10 +2477,10 @@ public Invite_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 		
 	else if(action == MenuAction_Select)
 	{	
-		new String:strUserId[20], target, String:strIgnoreable[1];
-		GetMenuItem(hMenu, item, strUserId, sizeof(strUserId), target, strIgnoreable, 0)
+		char strUserId[20];
+		GetMenuItem(hMenu, item, strUserId, sizeof(strUserId))
 		
-		target = GetClientOfUserId(StringToInt(strUserId));
+		int target = GetClientOfUserId(StringToInt(strUserId));
 		
 		if(IsValidPlayer(target))
 		{
@@ -2476,14 +2488,14 @@ public Invite_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 			{
 				if(!IsFakeClient(target))
 				{
-					new String:AuthId[35];
+					char AuthId[35];
 					GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 					ShowAcceptInviteMenu(target, AuthId, ClientGang[client]);
 					PrintToChat(client, "%s \x05You \x01have invited \x07%N \x01to join the gang!", PREFIX, target);
 				}
 				else
 				{
-					new String:AuthId[35];
+					char AuthId[35];
 					GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 					AddClientToGang(target, AuthId, ClientGang[client]);
 				}
@@ -2492,12 +2504,12 @@ public Invite_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	}
 }
 
-ShowAcceptInviteMenu(target, const String:AuthIdInviter[], const String:GangName[])
+void ShowAcceptInviteMenu(int target, const char[] AuthIdInviter, const char[] GangName)
 {
 	if(!IsValidPlayer(target))
 		return;
 	
-	new Handle:hMenu = CreateMenu(AcceptInvite_MenuHandler);
+	Handle hMenu = CreateMenu(AcceptInvite_MenuHandler);
 	
 	AddMenuItem(hMenu, AuthIdInviter, "Yes");
 	AddMenuItem(hMenu, GangName, "No"); // This info string will also be used.
@@ -2506,7 +2518,7 @@ ShowAcceptInviteMenu(target, const String:AuthIdInviter[], const String:GangName
 	DisplayMenu(hMenu, target, 10);
 }
 
-public AcceptInvite_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int AcceptInvite_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -2515,11 +2527,11 @@ public AcceptInvite_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	{	
 		if(item + 1 == 1)
 		{
-			new String:AuthIdInviter[35], String:GangName[32], Ignoreable, String:strIgnoreable[1];
-			GetMenuItem(hMenu, 0, AuthIdInviter, sizeof(AuthIdInviter), Ignoreable, strIgnoreable, 0)
-			GetMenuItem(hMenu, 1, GangName, sizeof(GangName), Ignoreable, strIgnoreable, 0)
+			char AuthIdInviter[35], GangName[32];
+			GetMenuItem(hMenu, 0, AuthIdInviter, sizeof(AuthIdInviter))
+			GetMenuItem(hMenu, 1, GangName, sizeof(GangName))
 			
-			new String:LastGang[sizeof(ClientGang[])];
+			char LastGang[32];
 			LastGang = ClientGang[client];
 			
 			ClientGang[client] = GangName;
@@ -2531,21 +2543,21 @@ public AcceptInvite_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 	}
 }
 
-ShowMembersMenu(client)
+void ShowMembersMenu(int client)
 {
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangName = '%s' ORDER BY LastConnect DESC", ClientGang[client]); 
 	SQL_TQuery(dbGangs, SQLCB_ShowMembersMenu, sQuery, GetClientUserId(client));
 }
 
 
-public SQLCB_ShowMembersMenu(Handle:owner, Handle:hndl, String:error[], UserId)
+public void SQLCB_ShowMembersMenu(Handle owner, Handle hndl, char[] error, int UserId)
 {
 	if(hndl == null)
 	{
 		SetFailState(error);
 	}
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 
 	if (!IsValidPlayer(client))
 	{
@@ -2553,13 +2565,13 @@ public SQLCB_ShowMembersMenu(Handle:owner, Handle:hndl, String:error[], UserId)
 	}
 	else 
 	{
-		new Handle:hMenu = CreateMenu(Members_MenuHandler);
+		Handle hMenu = CreateMenu(Members_MenuHandler);
 	
-		new String:TempFormat[200], String:iAuthId[35], String:Name[64];
+		char TempFormat[200], iAuthId[35], Name[64];
 		while(SQL_FetchRow(hndl))
 		{
-			new String:strRank[32];
-			new Rank = SQL_FetchInt(hndl, 2);
+			char strRank[32];
+			int Rank = SQL_FetchInt(hndl, 2);
 			GetRankName(Rank, strRank, sizeof(strRank));
 			SQL_FetchString(hndl, 4, Name, sizeof(Name));
 			SQL_FetchString(hndl, 1, iAuthId, sizeof(iAuthId));
@@ -2576,7 +2588,7 @@ public SQLCB_ShowMembersMenu(Handle:owner, Handle:hndl, String:error[], UserId)
 }
 
 
-public Members_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
+public int Members_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 {
 	if(action == MenuAction_End)
 		CloseHandle(hMenu);
@@ -2585,7 +2597,7 @@ public Members_MenuHandler(Handle:hMenu, MenuAction:action, client, item)
 		Command_Gang(client, 0);
 }
 
-TryCreateGang(client, const String:GangName[], const String:GangTag[])
+void TryCreateGang(int client, const char[] GangName, const char[] GangTag)
 {	
 	if(GangName[0] == EOS)
 	{
@@ -2608,18 +2620,18 @@ TryCreateGang(client, const String:GangName[], const String:GangTag[])
 		PrintToChat(client, "%s \x05You \x01need \x07%i \x01more credits to open a gang!", PREFIX, GANG_COSTCREATE - ClientHonor[client]);
 		return;
 	}
-	new Handle:DP = CreateDataPack();
+	Handle DP = CreateDataPack();
 	WritePackCell(DP, GetClientUserId(client));
 	WritePackString(DP, GangName);
 	WritePackString(DP, GangTag);
 	
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Gangs WHERE lower(GangName) = lower('%s') OR lower(GangTag) = lower('%s')", GangName, GangTag);
 	SQL_TQuery(dbGangs, SQLCB_CreateGang_CheckTakenNameOrTag, sQuery, DP);
 }
 
 
-public SQLCB_CreateGang_CheckTakenNameOrTag(Handle:owner, Handle:hndl, String:error[], Handle:DP)
+public void SQLCB_CreateGang_CheckTakenNameOrTag(Handle owner, Handle hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 	{
@@ -2627,8 +2639,8 @@ public SQLCB_CreateGang_CheckTakenNameOrTag(Handle:owner, Handle:hndl, String:er
 	}
 	ResetPack(DP);
 	
-	new client = GetClientOfUserId(ReadPackCell(DP));
-	new String:GangName[32], String:GangTag[10];
+	int client = GetClientOfUserId(ReadPackCell(DP));
+	char GangName[32], GangTag[10];
 	
 	ReadPackString(DP, GangName, sizeof(GangName));
 	ReadPackString(DP, GangTag, sizeof(GangTag));
@@ -2648,10 +2660,10 @@ public SQLCB_CreateGang_CheckTakenNameOrTag(Handle:owner, Handle:hndl, String:er
 		}
 		else // Gang name is taken.
 		{
-			new bool:NameTaken = false;
-			new bool:TagTaken = false;
+			bool NameTaken = false;
+			bool TagTaken = false;
 			
-			new String:iGangName[32], String:iGangTag[10];
+			char iGangName[32], iGangTag[10];
 			while(SQL_FetchRow(hndl))
 			{
 				SQL_FetchString(hndl, 0, iGangName, sizeof(iGangName));
@@ -2679,21 +2691,21 @@ public SQLCB_CreateGang_CheckTakenNameOrTag(Handle:owner, Handle:hndl, String:er
 	}
 }
 
-CreateGang(client, const String:GangName[], const String:GangTag[])
+void CreateGang(int client, const char[] GangName, const char[] GangTag)
 {
 	if(ClientHonor[client] < GANG_COSTCREATE)
 		return;
 		
-	new String:sQuery[256];
+	char sQuery[256];
 	
-	new String:AuthId[35];
+	char AuthId[35];
 	
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "DELETE FROM GangSystem_Members WHERE GangName = '%s'", GangName); // Just in case.
 	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 8, DBPrio_High);
 	
-	new Handle:DP = CreateDataPack();
+	Handle DP = CreateDataPack();
 	
 	WritePackString(DP, AuthId);
 	WritePackString(DP, GangName);
@@ -2704,14 +2716,14 @@ CreateGang(client, const String:GangName[], const String:GangTag[])
 	GiveClientHonor(client, -1 * GANG_COSTCREATE);
 }
 
-public SQLCB_GangCreated(Handle:owner, Handle:hndl, String:error[], Handle:DP)
+public void SQLCB_GangCreated(Handle owner, Handle hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 		SetFailState(error);
 	
 	ResetPack(DP);
 	
-	new String:AuthId[35], String:GangName[32];
+	char AuthId[35], GangName[32];
 	ReadPackString(DP, AuthId, sizeof(AuthId));
 	ReadPackString(DP, GangName, sizeof(GangName));
 
@@ -2719,9 +2731,9 @@ public SQLCB_GangCreated(Handle:owner, Handle:hndl, String:error[], Handle:DP)
 	
 	AddAuthIdToGang(AuthId, AuthId, GangName, RANK_LEADER);
 }
-stock AddClientToGang(client, const String:AuthIdInviter[], const String:GangName[], GangRank = RANK_MEMBER)
+stock void AddClientToGang(int client, const char[] AuthIdInviter, const char[] GangName, int GangRank = RANK_MEMBER)
 {
-	new String:AuthId[35];
+	char AuthId[35];
 	
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
@@ -2729,12 +2741,12 @@ stock AddClientToGang(client, const String:AuthIdInviter[], const String:GangNam
 
 }
 
-stock AddAuthIdToGang(const String:AuthId[], const String:AuthIdInviter[], const String:GangName[], GangRank = RANK_MEMBER)
+stock void AddAuthIdToGang(const char[] AuthId, const char[] AuthIdInviter, const char[] GangName, int GangRank = RANK_MEMBER)
 {
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Gangs WHERE GangName = '%s'", GangName);
 	
-	new Handle:DP = CreateDataPack();
+	Handle DP = CreateDataPack();
 	
 	WritePackString(DP, AuthId);
 	WritePackString(DP, AuthIdInviter);
@@ -2744,7 +2756,7 @@ stock AddAuthIdToGang(const String:AuthId[], const String:AuthIdInviter[], const
 
 }
 
-public SQLCB_AuthIdAddToGang_CheckSize(Handle:owner, Handle:hndl, String:error[], Handle:DP)
+public void SQLCB_AuthIdAddToGang_CheckSize(Handle owner, Handle hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 		SetFailState(error);
@@ -2753,17 +2765,17 @@ public SQLCB_AuthIdAddToGang_CheckSize(Handle:owner, Handle:hndl, String:error[]
 	{
 		SQL_FetchRow(hndl);
 		
-		new Size = GANG_INITSIZE + (SQL_FetchInt(hndl, 10) * GANG_SIZEINCREASE);
+		int Size = GANG_INITSIZE + (SQL_FetchInt(hndl, 10) * GANG_SIZEINCREASE);
 		
 		WritePackCell(DP, Size);
 		
 		ResetPack(DP);
-		new String:AuthId[1], String:GangName[32];
+		char AuthId[1], GangName[32];
 		ReadPackString(DP, AuthId, 0);
 		ReadPackString(DP, AuthId, 0);
 		ReadPackString(DP, GangName, sizeof(GangName));
 		
-		new String:sQuery[256];
+		char sQuery[256];
 		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangName = '%s'", GangName);
 		SQL_TQuery(dbGangs, SQLCB_AuthIdAddToGang_CheckMemberCount, sQuery, DP);
 	}
@@ -2775,11 +2787,11 @@ public SQLCB_AuthIdAddToGang_CheckSize(Handle:owner, Handle:hndl, String:error[]
 }
 
 // This callback is used to get someone's member count
-public SQLCB_CheckMemberCount(Handle:owner, Handle:hndl, String:error[], UserId)
+public void SQLCB_CheckMemberCount(Handle owner, Handle hndl, char[] error, int UserId)
 {
-	new MemberCount = SQL_GetRowCount(hndl);
+	int MemberCount = SQL_GetRowCount(hndl);
 	
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	
 	if(client == 0)
 		return;
@@ -2788,18 +2800,18 @@ public SQLCB_CheckMemberCount(Handle:owner, Handle:hndl, String:error[], UserId)
 	
 }
 
-public SQLCB_AuthIdAddToGang_CheckMemberCount(Handle:owner, Handle:hndl, String:error[], Handle:DP)
+public void SQLCB_AuthIdAddToGang_CheckMemberCount(Handle owner, Handle hndl, char[] error, Handle DP)
 {
 	
-	new MemberCount = SQL_GetRowCount(hndl);
+	int MemberCount = SQL_GetRowCount(hndl);
 	
 	ResetPack(DP);
-	new String:AuthId[35], String:AuthIdInviter[35], String:GangName[32], Size, GangRank;
+	char AuthId[35], AuthIdInviter[35], GangName[32];
 	ReadPackString(DP, AuthId, sizeof(AuthId));
 	ReadPackString(DP, AuthIdInviter, sizeof(AuthIdInviter));
 	ReadPackString(DP, GangName, sizeof(GangName));
-	GangRank = ReadPackCell(DP);
-	Size = ReadPackCell(DP);
+	int GangRank = ReadPackCell(DP);
+	int Size = ReadPackCell(DP);
 	
 	if(MemberCount >= Size)
 	{
@@ -2813,14 +2825,14 @@ public SQLCB_AuthIdAddToGang_CheckMemberCount(Handle:owner, Handle:hndl, String:
 }
 
 // The DataPack will contain the invited auth ID as the first thing to be added.
-public FinishAddAuthIdToGang(const String:GangName[], const String:AuthId[], GangRank, String:AuthIdInviter[], Handle:DP)
+public void FinishAddAuthIdToGang(const char[] GangName, const char[] AuthId, int GangRank, char[] AuthIdInviter, Handle DP)
 {
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Members (GangName, AuthId, GangRank, GangInviter, GangDonated, LastName, GangJoinDate, LastConnect) VALUES ('%s', '%s', %i, '%s', 0, '', %i, %i)", GangName, AuthId, GangRank, AuthIdInviter, GetTime(), GetTime());
 
 	SQL_TQuery(dbGangs, SQLCB_AuthIdAddedToGang, sQuery, DP);
 }
-public SQLCB_AuthIdAddedToGang(Handle:owner, Handle:hndl, String:error[], Handle:DP)
+public void SQLCB_AuthIdAddedToGang(Handle owner, Handle hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 	{
@@ -2829,7 +2841,7 @@ public SQLCB_AuthIdAddedToGang(Handle:owner, Handle:hndl, String:error[], Handle
 	
 	ResetPack(DP);
 	
-	new String:AuthId[35];
+	char AuthId[35];
 	
 	ReadPackString(DP, AuthId, sizeof(AuthId));
 	
@@ -2838,10 +2850,10 @@ public SQLCB_AuthIdAddedToGang(Handle:owner, Handle:hndl, String:error[], Handle
 	UpdateInGameAuthId(AuthId);
 }
 
-stock UpdateInGameAuthId(const String:AuthId[])
+stock void UpdateInGameAuthId(const char[] AuthId)
 {
-	new String:iAuthId[35];
-	for(new i = 1;i <= MaxClients;i++)
+	char iAuthId[35];
+	for(int i = 1;i <= MaxClients;i++)
 	{
 		if(!IsValidPlayer(i))
 			continue;
@@ -2859,10 +2871,10 @@ stock UpdateInGameAuthId(const String:AuthId[])
 	}
 }
 
-stock FindClientByAuthId(const String:AuthId[])
+stock int FindClientByAuthId(const char[] AuthId)
 {
-	new String:iAuthId[35];
-	for(new i = 1;i <= MaxClients;i++)
+	char iAuthId[35];
+	for(int i = 1;i <= MaxClients;i++)
 	{
 		if(!IsValidPlayer(i))
 			continue;
@@ -2875,10 +2887,10 @@ stock FindClientByAuthId(const String:AuthId[])
 	
 	return 0;
 }
-stock StoreClientLastInfo(client)
+stock void StoreClientLastInfo(int client)
 {
 	
-	new String:AuthId[35], String:Name[64];
+	char AuthId[35], Name[64];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 
 	Format(Name, sizeof(Name), "%N", client);
@@ -2886,24 +2898,24 @@ stock StoreClientLastInfo(client)
 }
 
 
-stock StoreAuthIdLastInfo(const String:AuthId[], const String:Name[])
+stock void StoreAuthIdLastInfo(const char[] AuthId, const char[] Name)
 {
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Members SET LastName = '%s', LastConnect = %i WHERE AuthId = '%s'", Name, GetTime(), AuthId);
 	
 	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 9, DBPrio_Low);
 }
 
-stock SetAuthIdRank(const String:AuthId[], const String:GangName[], Rank = RANK_MEMBER)
+stock void SetAuthIdRank(const char[] AuthId, const char[] GangName, int Rank = RANK_MEMBER)
 {
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Members SET GangRank = %i WHERE AuthId = '%s' AND GangName = '%s'", Rank, AuthId, GangName);
 	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 10);
 	
 	UpdateInGameAuthId(AuthId);
 }
 
-stock DonateToGang(client, amount)
+stock void DonateToGang(int client, int amount)
 {
 	if(!IsValidPlayer(client))
 		return;
@@ -2911,13 +2923,13 @@ stock DonateToGang(client, amount)
 	else if(!IsClientGang(client))
 		return;
 		
-	new String:AuthId[35];
+	char AuthId[35];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangHonor = GangHonor + %i WHERE GangName = '%s'", amount, ClientGang[client]);
 	
-	new Handle:DP = CreateDataPack();
+	Handle DP = CreateDataPack();
 	
 	WritePackString(DP, ClientGang[client]);
 	
@@ -2932,21 +2944,21 @@ stock DonateToGang(client, amount)
 	PrintToChatGang(ClientGang[client], "%s \x05%N \x01has donated \x07%i \x01to the gang!", PREFIX, client, amount);
 }
 
-public SQLCB_GangDonated(Handle:owner, Handle:hndl, String:error[], Handle:DP)
+public void SQLCB_GangDonated(Handle owner, Handle hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 	{
 		SetFailState(error);
 	}
 	
-	new String:GangName[32];
+	char GangName[32];
 	ResetPack(DP);
 	
 	ReadPackString(DP, GangName, sizeof(GangName));
 	
 	CloseHandle(DP);
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsValidPlayer(i))
 			continue;
@@ -2959,18 +2971,18 @@ public SQLCB_GangDonated(Handle:owner, Handle:hndl, String:error[], Handle:DP)
 	
 	
 }
-stock bool:IsClientGang(client)
+stock bool IsClientGang(int client)
 {
 	return ClientGang[client][0] != EOS ? true : false;
 }
 
-stock GetClientRank(client)
+stock int GetClientRank(int client)
 {
 	return ClientRank[client];
 }
 
 // returns true if the clients are in the same gang, or if checking the same client while he has a gang.
-stock bool:AreClientsSameGang(client, otherclient)
+stock bool AreClientsSameGang(int client, int otherclient)
 {
 	if(!IsClientGang(client) || !IsClientGang(otherclient))
 		return false;
@@ -2978,11 +2990,11 @@ stock bool:AreClientsSameGang(client, otherclient)
 	return StrEqual(ClientGang[client], ClientGang[otherclient], true);
 }
 
-stock PrintToChatGang(const String:GangName[], const String:format[], any:...)
+stock void PrintToChatGang(const char[] GangName, const char[] format, any ...)
 {
-	new String:buffer[291];
+	char buffer[291];
 	VFormat(buffer, sizeof(buffer), format, 3);
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -2998,7 +3010,7 @@ stock PrintToChatGang(const String:GangName[], const String:format[], any:...)
 }
 
 
-stock bool:IsValidPlayer(client)
+stock bool IsValidPlayer(int client)
 {
 	if(client <= 0)
 		return false;
@@ -3010,7 +3022,7 @@ stock bool:IsValidPlayer(client)
 }
 
 
-stock bool:IsPlayer(client)
+stock bool IsPlayer(int client)
 {
 	if(client <= 0)
 		return false;
@@ -3022,7 +3034,7 @@ stock bool:IsPlayer(client)
 }
 
 
-stock GetRankName(Rank, String:buffer[], length)
+stock void GetRankName(int Rank, char[] buffer, int length)
 {
 	switch(Rank)
 	{
@@ -3035,17 +3047,17 @@ stock GetRankName(Rank, String:buffer[], length)
 	}
 }
 
-stock bool:CheckGangAccess(client, Rank)
+stock bool CheckGangAccess(int client, int Rank)
 {
 	return (GetClientRank(client) >= Rank);
 }
 
-stock bool:IsStringNumber(const String:source[])
+stock bool IsStringNumber(const char[] source)
 {
 	if(!IsCharNumeric(source[0]) && source[0] != '-')
 		return false;
 			
-	for(new i=1;i < strlen(source);i++)
+	for(int i=1;i < strlen(source);i++)
 	{
 		if(!IsCharNumeric(source[i]))
 			return false;
@@ -3054,9 +3066,9 @@ stock bool:IsStringNumber(const String:source[])
 	return true;
 }
 
-stock bool:StringHasInvalidCharacters(const String:source[])
+stock bool StringHasInvalidCharacters(const char[] source)
 {
-	for(new i=0;i < strlen(source);i++)
+	for(int i=0;i < strlen(source);i++)
 	{
 		if(!IsCharNumeric(source[i]) && !IsCharAlpha(source[i]) && source[i] != '-' && source[i] != '_' && source[i] != ' ')
 			return true;
@@ -3066,30 +3078,30 @@ stock bool:StringHasInvalidCharacters(const String:source[])
 }
 
 
-stock GetEntityHealth(entity)
+stock int GetEntityHealth(int entity)
 {
 	return GetEntProp(entity, Prop_Send, "m_iHealth");
 }
 
-stock GetEntityMaxHealth(entity)
+stock int GetEntityMaxHealth(int entity)
 {
 	return GetEntProp(entity, Prop_Data, "m_iMaxHealth");
 }
 
-stock SetEntityMaxHealth(entity, amount)
+stock void SetEntityMaxHealth(int entity, int amount)
 {
 	SetEntProp(entity, Prop_Data, "m_iMaxHealth", amount);
 }
 
 
-stock GetUpgradeCost(CurrentPerkLevel, PerkCost)
+stock int GetUpgradeCost(int CurrentPerkLevel, int PerkCost)
 {
 	return (CurrentPerkLevel + 1) * PerkCost;
 }
 
-public JailBreakDays_OnDayStatus(bool:DayActive)
+public void JailBreakDays_OnDayStatus(bool DayActive)
 {
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -3162,10 +3174,10 @@ public int Native_GetClientGangTag(Handle plugin, int numParams)
 
 public int Native_PrintToChatGang(Handle plugin, int numParams)
 {
-	new String:GangName[32];
+	char GangName[32];
 	
 	GetNativeString(1, GangName, sizeof(GangName));
-	new String:buffer[192];
+	char buffer[192];
 	
 	FormatNativeString(0, 2, 3, sizeof(buffer), _, buffer);
 	
@@ -3174,15 +3186,15 @@ public int Native_PrintToChatGang(Handle plugin, int numParams)
 
 public int Native_TryDestroyGlow(Handle plugin, int numParams)
 {
-	new client = GetNativeCell(1);
+	int client = GetNativeCell(1);
 	
 	TryDestroyGlow(client);
 }
 
 public int Native_GiveClientHonor(Handle plugin, int numParams)
 {
-	new client = GetNativeCell(1);
-	new amount = GetNativeCell(2);
+	int client = GetNativeCell(1);
+	int amount = GetNativeCell(2);
 	
 	GiveClientHonor(client, amount);
 }
@@ -3190,16 +3202,16 @@ public int Native_GiveClientHonor(Handle plugin, int numParams)
 
 public int Native_AddClientDonations(Handle plugin, int numParams)
 {
-	new client = GetNativeCell(1);
-	new amount = GetNativeCell(2);
+	int client = GetNativeCell(1);
+	int amount = GetNativeCell(2);
 	
-	new String:AuthId[35];
+	char AuthId[35];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Members SET GangDonated = GangDonated + %i WHERE AuthId = '%s'", amount, AuthId);
 	
-	new Handle:DP = CreateDataPack();
+	Handle DP = CreateDataPack();
 	
 	WritePackString(DP, ClientGang[client]);
 	
@@ -3208,15 +3220,15 @@ public int Native_AddClientDonations(Handle plugin, int numParams)
 
 public int Native_GiveGangHonor(Handle plugin, int numParams)
 {
-	new String:GangName[32];
+	char GangName[32];
 	
 	GetNativeString(1, GangName, sizeof(GangName));
-	new amount = GetNativeCell(2);
+	int amount = GetNativeCell(2);
 	
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangHonor = GangHonor + %i WHERE GangName = '%s'", amount, GangName);
 	
-	new Handle:DP = CreateDataPack();
+	Handle DP = CreateDataPack();
 	
 	WritePackString(DP, GangName);
 	
@@ -3225,11 +3237,11 @@ public int Native_GiveGangHonor(Handle plugin, int numParams)
 
 public any Native_GetFFDamageDecrease(Handle plugin, int numParams)
 {
-	new client = GetNativeCell(1);
+	int client = GetNativeCell(1);
 	return float(ClientFriendlyFirePerk[client] * GANG_FRIENDLYFIREINCREASE) / 100.0;
 }
 
-public SQLCB_GiveGangHonor(Handle:owner, Handle:hndl, String:error[], Handle:DP)
+public void SQLCB_GiveGangHonor(Handle owner, Handle hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 	{
@@ -3238,12 +3250,12 @@ public SQLCB_GiveGangHonor(Handle:owner, Handle:hndl, String:error[], Handle:DP)
 	
 	ResetPack(DP);
 	
-	new String:GangName[32];
+	char GangName[32];
 	ReadPackString(DP, GangName, sizeof(GangName));
 	
 	CloseHandle(DP);
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsValidPlayer(i))
 			continue;
@@ -3254,11 +3266,11 @@ public SQLCB_GiveGangHonor(Handle:owner, Handle:hndl, String:error[], Handle:DP)
 		LoadClientGang(i);
 	}	
 }
-stock PrintToChatEyal(const String:format[], any:...)
+stock void PrintToChatEyal(const char[] format, any ...)
 {
-	new String:buffer[291];
+	char buffer[291];
 	VFormat(buffer, sizeof(buffer), format, 2);
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -3267,7 +3279,7 @@ stock PrintToChatEyal(const String:format[], any:...)
 			continue;
 			
 
-		new String:steamid[64];
+		char steamid[64];
 		GetClientAuthId(i, AuthId_Engine, steamid, sizeof(steamid));
 		
 		if(StrEqual(steamid, "STEAM_1:0:49508144"))
@@ -3275,10 +3287,10 @@ stock PrintToChatEyal(const String:format[], any:...)
 	}
 }
 
-stock GetPlayerCount()
+stock int GetPlayerCount()
 {
-	new Count, Team;
-	for(new i=1;i <= MaxClients;i++)
+	int Count, Team;
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsValidPlayer(i))
 			continue;
@@ -3293,9 +3305,9 @@ stock GetPlayerCount()
 	return Count;
 }
 
-stock LogGangAction(const String:format[], any:...)
+stock void LogGangAction(const char[] format, any ...)
 {
-	new String:buffer[291], String:Path[256];
+	char buffer[291], Path[256];
 	VFormat(buffer, sizeof(buffer), format, 2);	
 	
 	BuildPath(Path_SM, Path, sizeof(Path), "logs/JailBreakGangs.txt");
@@ -3304,7 +3316,7 @@ stock LogGangAction(const String:format[], any:...)
 }
 
 
-stock bool:IsKnifeClass(const String:classname[])
+stock bool IsKnifeClass(const char[] classname)
 {
 	if(StrContains(classname, "knife") != -1 || StrContains(classname, "bayonet") > -1)
 		return true;
@@ -3312,11 +3324,11 @@ stock bool:IsKnifeClass(const String:classname[])
 	return false;
 }
 
-stock GetAliveTeamCount(Team)
+stock int GetAliveTeamCount(int Team)
 {
-	new count = 0;
+	int count = 0;
 	
-	for(new i=1;i <= MaxClients;i++)
+	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
@@ -3333,12 +3345,12 @@ stock GetAliveTeamCount(Team)
 	return count;
 }	
 
-stock GiveClientHonor(client, amount)
+stock void GiveClientHonor(int client, int amount)
 {
-	new String:AuthId[35];
+	char AuthId[35];
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 	
-	new String:sQuery[256];
+	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Honor SET Honor = Honor + %i WHERE AuthId = '%s'", amount, AuthId);
 	
 	ClientHonor[client] += amount;
