@@ -21,6 +21,7 @@ native void Gangs_AddClientDonations(int client, int amount);
 native void Gangs_GiveGangCredits(const char[] GangName, int amount);
 
 
+#define RACE_DISTANCE_TO_WIN 25.0 // Distance from end point in order to win.
 #define LR_SOUNDS_DIRECTORY "WePlay-LRSounds/GZ.mp3"
 
 //#define LR_SOUNDS_S4S "adp_lrsounds/lr_shot4shot.mp3"
@@ -142,7 +143,8 @@ int PrisonerPrim, PrisonerSec, GuardPrim, GuardSec//, PrisonerGangPrim, Prisoner
 int HPamount, BPAmmo, Vest;
 char PrimWep[32], SecWep[32];
 CSWeaponID PrimNum, SecNum;
-bool Zoom, HeadShot, Jump, Duck, TSeeker, Dodgeball, Ring, NoRecoil;
+bool Zoom, HeadShot, Jump, Duck, TSeeker, Dodgeball, Ring, NoRecoil, Race;
+float raceStartOrigin[3], raceEndOrigin[3];
 char DuelName[100];
 bool LRStarted, LRAnnounced;
 bool ShowMessage[MAXPLAYERS + 1];
@@ -331,7 +333,7 @@ public void OnPluginStart()
 	// public Action:LastRequest_OnCanStartLR(client, String:Message[256], Handle:hTimer_Ignore)
 	fw_CanStartLR = CreateGlobalForward("LastRequest_OnCanStartLR", ET_Event, Param_Cell, Param_String, Param_Cell);
 	
-	isGangLoaded = (FindPluginByName("AlonDaPro Gangs") != INVALID_HANDLE);
+	isGangLoaded = (FindPluginByName("JB Gangs") != INVALID_HANDLE);
 	
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -849,6 +851,28 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
 	if(Ring)
 		buttons &= ~IN_ATTACK;
+		
+	if(Race)
+	{
+		float Origin[3];
+		
+		GetEntPropVector(client, Prop_Data, "m_vecOrigin", Origin);
+		
+		if(FloatAbs(Origin[2] - raceEndOrigin[2]) < 75.0)
+			Origin[2] = raceEndOrigin[2];
+			
+		if(GetVectorDistance(Origin, raceEndOrigin) < RACE_DISTANCE_TO_WIN)
+		{
+			if(Guard == client)
+			{
+				FinishHim(Prisoner, Guard);
+			}
+			else
+			{
+				FinishHim(Guard, Prisoner);
+			}
+		}
+	}
 		
 	return Plugin_Continue;
 }
@@ -2150,10 +2174,15 @@ stock void EndLR(int EndTimers = true)
 	PrisonerJumps = 0;
 	GunToss = false;
 	Bleed = false;
+	Race = false;
+	raceStartOrigin = NULL_VECTOR;
+	raceEndOrigin = NULL_VECTOR;
 	
 	Rambo = false;
 	
 	bDropBlock = false;
+	
+	GeneralTimer = 0;
 	
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -2768,7 +2797,8 @@ public void ShowFunMenu(int client)
 	AddMenuItem(hMenu, "", "Gun Toss");
 	AddMenuItem(hMenu, "", "Dodgeball");
 	AddMenuItem(hMenu, "", "Backstabs");
-		
+	AddMenuItem(hMenu, "", "Race");
+	
 	AddMenuItem(hMenu, "", "Freeday");
 	
 	AddMenuItem(hMenu, "", "Random");
@@ -2871,18 +2901,17 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				PrimWep = "weapon_knife"
 				PrimNum = CSWeapon_KNIFE;
 			}
-			/*
-			case 7:
-			{
-				DuelName = "Fun | Ring of Death";
-				HPamount = 100;
-				PrimWep = "weapon_knife";
-				PrimNum = CSWeapon_KNIFE;
-			}
-			*/
-			case 9: SetFreeday(client);
 			
-			case 10:
+			case 9:
+			{
+				DuelName = "Fun | Race";
+				HPamount = 100;
+				PrimNum = CSWeapon_NONE;
+			}
+			
+			case 10: SetFreeday(client);
+			
+			case 11:
 			{
 				Fun_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 7));
 			}
@@ -2890,7 +2919,10 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 		
 		if(item+1 <= 2)
 			ChooseSeeker(client); // Basicly reversing Guard and Prisoner.
-	
+		
+		else if(StrContains(DuelName, "Race", false) != -1)
+			ChooseRaceCoords(client);
+			
 		else if(item+1 < 9)
 			ChooseOpponent(client);
 		
@@ -2935,6 +2967,79 @@ public int Seeker_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 		BPAmmo = -1;
 		
 		ChooseOpponent(client);
+	}
+
+	hMenu = INVALID_HANDLE;
+}
+
+public void ChooseRaceCoords(int client)
+{
+	Handle hMenu = CreateMenu(Race_MenuHandler);
+
+	AddMenuItem(hMenu, "", "Start Position");
+	
+	AddMenuItem(hMenu, "", "End Position");
+	
+	AddMenuItem(hMenu, "", "Choose Opponent");
+	
+	SetMenuTitle(hMenu, "%s Choose race positions:", MENU_PREFIX);
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+}
+
+public int Race_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if(action == MenuAction_End)
+		CloseHandle(hMenu);
+	
+	if(action == MenuAction_Select)
+	{
+		if(!LastRequest(client))
+		{
+			hMenu = INVALID_HANDLE;
+			return;
+		}
+		
+		switch(item)
+		{
+			case 0:
+			{
+				GetEntPropVector(client, Prop_Data, "m_vecOrigin", raceStartOrigin)
+				
+				ChooseRaceCoords(client);
+			}	
+
+			case 1:
+			{
+				GetEntPropVector(client, Prop_Data, "m_vecOrigin", raceEndOrigin)
+				
+				ChooseRaceCoords(client);
+			}
+			
+			case 2:
+			{	
+				if(IsVectorEmpty(raceStartOrigin))
+				{
+					PrintToChat(client, "Error: No start position found!");
+					
+					ChooseRaceCoords(client);
+				}
+				else if(IsVectorEmpty(raceEndOrigin))
+				{
+					PrintToChat(client, "Error: No end position found!");
+					
+					ChooseRaceCoords(client);				
+				}
+				else if(GetVectorDistance(raceStartOrigin, raceEndOrigin) < 256.0)
+				{
+					PrintToChat(client, "Error: Start and End positions are too close!");
+					
+					ChooseRaceCoords(client);	
+				}
+				else
+					ChooseOpponent(client);
+			}
+		}
+
 	}
 
 	hMenu = INVALID_HANDLE;
@@ -3225,7 +3330,7 @@ public void ContinueStartDuel()
 		SetEntityHealth(Prisoner, 100);
 		
 		GeneralTimer = 60;
-		TIMER_COUNTDOWN = CreateTimer(1.0, ShowTimer, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+		TIMER_COUNTDOWN = CreateTimer(1.0, DecrementTimer, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	}
 	
 	else if(StrContains(DuelName, "Bleed") != -1)
@@ -3258,7 +3363,7 @@ public void ContinueStartDuel()
 		SetClientAmmo(Guard, weapon, 10000);
 		
 		GeneralTimer = 60;
-		TIMER_COUNTDOWN = CreateTimer(1.0, ShowTimer, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+		TIMER_COUNTDOWN = CreateTimer(1.0, DecrementTimer, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	}
 	
 	else if(StrContains(DuelName, "Shark") != -1)
@@ -3282,7 +3387,7 @@ public void ContinueStartDuel()
 		GeneralTimer = 60;
 		
 		SetConVarFloat(hcv_NoclipSpeed, 1.3);
-		TIMER_COUNTDOWN = CreateTimer(1.0, ShowTimer, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+		TIMER_COUNTDOWN = CreateTimer(1.0, DecrementTimer, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	}
 	
 	else if(StrContains(DuelName, "Backstabs") != -1)
@@ -3295,6 +3400,23 @@ public void ContinueStartDuel()
 		PrintToChatAll("%s \x07Stab! Stab! Stab! ", PREFIX);
 		PrintToChatAll("%s \x07Stab! Stab! Stab! ", PREFIX);
 		PrintToChatAll("%s \x07Stab! Stab! Stab! ", PREFIX);
+	}
+	
+	else if(StrContains(DuelName, "Race") != -1)
+	{
+		Race = true;
+		
+		TeleportEntity(Prisoner, raceStartOrigin, NULL_VECTOR, view_as<float>({0.0, 0.0, -0.1}));
+		TeleportEntity(Guard, raceStartOrigin, NULL_VECTOR, view_as<float>({0.0, 0.0, -0.1}));
+		
+		StripPlayerWeapons(Prisoner);
+		StripPlayerWeapons(Guard);
+		
+		GeneralTimer = 5;
+		
+		SetEntityMoveType(Prisoner, MOVETYPE_NONE);
+		SetEntityMoveType(Guard, MOVETYPE_NONE);
+		TIMER_COUNTDOWN = CreateTimer(1.0, DecrementTimer, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	}
 	
 	else if(StrContains(DuelName, "Gun Toss") != -1)
@@ -3479,24 +3601,66 @@ public Action BeaconPlayer(Handle hTimer, int client) // It is guaranteed that n
 	else if(!IsPlayerAlive(client))
 		return Plugin_Stop;
 	
-	float vec[3];
-	GetClientAbsOrigin(client, vec);
-	vec[2] += 10;
-        
-	int rgba[4] = {255, 255, 255, 255};
-	
-	for(int i=0;i < 3;i++)
+	if(Race)
 	{
-		rgba[i] = GetRandomInt(0, 255);
+		if(client == Prisoner) // Avoid sending twice. Man I am lazy...
+		{
+			float vec[3];
+			
+			vec = raceStartOrigin
+			
+			vec[2] += 10;
+		        
+			int rgba[4] = {255, 255, 255, 255};
+			
+			for(int i=0;i < 3;i++)
+			{
+				rgba[i] = GetRandomInt(0, 255);
+			}
+			
+			TE_SetupBeamRingPoint(vec, 10.0, 375.0, g_BeamSprite, g_HaloSprite, 0, 10, 0.6, 10.0, 0.5, rgba, 10, 0);
+	        	
+			TE_SendToAll();
+			
+			
+			
+			vec = raceEndOrigin
+			
+			vec[2] += 10;
+		        
+			rgba = {255, 255, 255, 255};
+			
+			for(int i=0;i < 3;i++)
+			{
+				rgba[i] = GetRandomInt(0, 255);
+			}
+			
+			TE_SetupBeamRingPoint(vec, 10.0, 375.0, g_BeamSprite, g_HaloSprite, 0, 10, 0.6, 10.0, 0.5, rgba, 10, 0);
+	        	
+			TE_SendToAll();
+		}
+	}
+	else
+	{
+		float vec[3];
+		GetClientAbsOrigin(client, vec);
+		vec[2] += 10;
+	        
+		int rgba[4] = {255, 255, 255, 255};
+		
+		for(int i=0;i < 3;i++)
+		{
+			rgba[i] = GetRandomInt(0, 255);
+		}
+		
+		TE_SetupBeamRingPoint(vec, 10.0, 375.0, g_BeamSprite, g_HaloSprite, 0, 10, 0.6, 10.0, 0.5, rgba, 10, 0);
+        	
+		TE_SendToAll();
+	        
+		GetClientEyePosition(client, vec);
+		//EmitAmbientSound(SOUND_BLIP, vec, client, SNDLEVEL_RAIDSIREN);
 	}
 	
-	TE_SetupBeamRingPoint(vec, 10.0, 375.0, g_BeamSprite, g_HaloSprite, 0, 10, 0.6, 10.0, 0.5, rgba, 10, 0);
-        
-	TE_SendToAll();
-        
-	GetClientEyePosition(client, vec);
-	//EmitAmbientSound(SOUND_BLIP, vec, client, SNDLEVEL_RAIDSIREN);
-
 	return Plugin_Continue;
 	
 }
@@ -4165,6 +4329,11 @@ public Action ShowToAll(Handle hTimer)
 			SetHudMessage(-1.0, -1.0, 1.0, 0, 50, 255);
 			ShowHudMessage(i, HUD_TIMER, "Time Left: %i", GeneralTimer);
 		}
+		else if(GeneralTimer > 0)
+		{
+			SetHudMessage(-1.0, -1.0, 1.0, 0, 50, 255);
+			ShowHudMessage(i, HUD_TIMER, "%i Seconds", GeneralTimer);			
+		}
 		if(ShowMessage[i] || isAuto)
 			ShowInfoMessage(i);
 	}
@@ -4465,11 +4634,24 @@ public void ShowReactionInfo(int client)
 		
 }	
 	
-public Action ShowTimer(Handle hTimer)
+public Action DecrementTimer(Handle hTimer)
 {		
 	if(GeneralTimer <= 0)
 	{
-		FinishHim(Prisoner, Guard);
+		bool HNS;
+		
+		if(StrContains(DuelName, "HNS") != -1 || StrContains(DuelName, "Night Crawler") != -1 || StrContains(DuelName, "Shark") != -1) HNS = true;
+		
+		if(HNS)
+			FinishHim(Prisoner, Guard);
+		
+		else
+		{
+			SetEntityMoveType(Prisoner, MOVETYPE_WALK);
+			SetEntityMoveType(Guard, MOVETYPE_WALK);
+		}
+		
+		TIMER_COUNTDOWN = INVALID_HANDLE;
 		return Plugin_Stop;
 	}
 	
@@ -5473,4 +5655,9 @@ stock Handle FindPluginByName(const char[] PluginName, bool Sensitivity=true, bo
 stock void SetEntityMaxHealth(int entity, int amount)
 {
 	SetEntProp(entity, Prop_Data, "m_iMaxHealth", amount);
+}
+
+stock bool IsVectorEmpty(float vec[3])
+{
+	return vec[0] == 0.0 && vec[1] == 0.0 && vec[2] == 0.0;
 }
