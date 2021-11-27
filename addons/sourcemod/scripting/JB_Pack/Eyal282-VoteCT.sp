@@ -33,12 +33,12 @@ enum enGame
 
 char GameInfo[Game_MAX][] =
 {
-	"First Writes\nRepeat the text on your screen",
-	"Random Number\nChoose a number between 1-300 and hope to be the closest answer to the chosen number",
-	"Combo Contest\nRepeat the moves that will appear in your screen to win",
-	"Random Player\nA random player will become CT automatically",
-	"Math Contest\nA very easy math question from the multiplication table",
-	"Election Day\nThe players will vote on who will become CT",
+	"First Writes {VOTE_COUNT}\nRepeat the text on your screen",
+	"Random Number {VOTE_COUNT}\nChoose a number between 1-300 and hope to be the closest answer to the chosen number",
+	"Combo Contest {VOTE_COUNT}\nRepeat the moves that will appear in your screen to win",
+	"Random Player {VOTE_COUNT}\nA random player will become CT automatically",
+	"Math Contest {VOTE_COUNT}\nA very easy math question from the multiplication table",
+	"Election Day {VOTE_COUNT}\nThe players will vote on who will become CT",
 	"You should not see this message."
 }
 
@@ -54,9 +54,11 @@ char GameTitle[Game_MAX][] =
 }
 
 float ExpireGraceTime = 0.0;
-
+	
+Handle hVoteCTMenu;
 bool VoteCTDisabled = false, VoteCTRunning;
 enGame ChosenGame;
+float VoteCTStart;
 float VoteCTTimeLeft;
 
 bool IsGodRound, AlreadyDoneGodRound;
@@ -74,6 +76,8 @@ int NumberSelected[MAXPLAYERS+1];
 bool WantsToBeCT[MAXPLAYERS+1];
 
 int ComboMoves[10], ComboProgress[MAXPLAYERS+1], LastButtons[MAXPLAYERS+1];
+
+int votedItem[MAXPLAYERS + 1];
 
 int ComboCount = 6;
 
@@ -371,7 +375,7 @@ public Action Timer_CheckVoteCT(Handle hTimer)
 		}
 		else
 		{
-			PrintCenterTextAll("Vote CT will start when T has 2 players");
+			PrintCenterTextAll("Vote CT will start when T has %i players", GetConVarInt(hcv_VoteCTMin));
 		}
 	}
 }
@@ -1120,86 +1124,163 @@ void StartVoteCT()
 		ComboProgress[i] = 0;
 		LastButtons[i] = 0;
 	}
+
+	VoteCTStart = GetGameTime();
 	
-	Handle hMenu = CreateMenu(VoteCT_VoteHandler);
-	SetMenuTitle(hMenu, "Choose how the CT will be chosen:");
+	BuildUpVoteCTMenu();
+	
+	VoteMenuToAll(hVoteCTMenu, 15);
+	
+	CreateTimer(1.0, Timer_DrawVoteCTMenu, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT)
+}
+
+public Action Timer_DrawVoteCTMenu(Handle hTimer)
+{
+	if(RoundToFloor((VoteCTStart + 15) - GetGameTime()) <= 0)
+		return Plugin_Stop;
+		
+	else if(!VoteCTRunning)
+		return Plugin_Stop;
+		
+	BuildUpVoteCTMenu();
+	
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(!IsClientInVotePool(i))
+			continue;
+			
+		RedrawClientVoteMenu(i, false);
+	}
+	
+	return Plugin_Continue;
+}
+
+void BuildUpVoteCTMenu()
+{
+	if(hVoteCTMenu == INVALID_HANDLE)
+		hVoteCTMenu = CreateMenu(VoteCT_VoteHandler);
+		
+	SetMenuTitle(hVoteCTMenu, "Choose how the CT will be chosen: [%i]", RoundFloat((VoteCTStart + 15) - GetGameTime()));
+	
+	RemoveAllMenuItems(hVoteCTMenu);
+	
+	int VoteList[16];
+	
+	VoteList = CalculateVotes();
+	
+	char TempFormat[128], replace[16];
 	
 	for(int i=0;i < sizeof(GameInfo)-1;i++)
 	{
-		AddMenuItem(hMenu, "", GameInfo[i]);
+		FormatEx(TempFormat, sizeof(TempFormat), "%s", GameInfo[i])	
+		
+		FormatEx(replace, sizeof(replace), "[%i]", VoteList[i]);
+		
+		ReplaceStringEx(TempFormat, sizeof(TempFormat), "{VOTE_COUNT}", replace); 
+		AddMenuItem(hVoteCTMenu, "", TempFormat);
 	}
 	
 	int Chosen = GetClientOfUserId(ChosenUserId);
 	
 	if(Chosen != 0)
 	{
-		char TempFormat[256];
-		Format(TempFormat, sizeof(TempFormat), "Extend current CT for %i rounds", GetConVarInt(hcv_MaxRounds));
-		AddMenuItem(hMenu, "", TempFormat);
+		Format(TempFormat, sizeof(TempFormat), "Extend current CT for %i rounds [%i]", GetConVarInt(hcv_MaxRounds), VoteList[sizeof(GameInfo)]);
+		AddMenuItem(hVoteCTMenu, "", TempFormat);
 	}
 	
-	SetMenuPagination(hMenu, MENU_NO_PAGINATION);
-
-	VoteMenuToAll(hMenu, 15);
+	SetMenuPagination(hVoteCTMenu, MENU_NO_PAGINATION);
 }
 
 public int VoteCT_VoteHandler(Handle hMenu, MenuAction action, int param1, int param2)
 {
 	if(action == MenuAction_End)
+	{
 		CloseHandle(hMenu);
-		
+		hVoteCTMenu = INVALID_HANDLE;
+	}
 	else if (action == MenuAction_VoteCancel)
 	{
-		EndVoteCT();
-		return;
+		if(param2 == VoteCancel_NoVotes)
+		{
+			CheckVoteCTResult();
+		}
 	}
 	else if (action == MenuAction_VoteEnd)
 	{
 		if(!VoteCTRunning)
 			return;
 			
-		ChosenGame = view_as<enGame>(param1);
+		CheckVoteCTResult();
+	}
+	else if (action == MenuAction_Select)
+	{
+			votedItem[param1] = param2;
+	}
+	
+}
+
+void CheckVoteCTResult()
+{
+	int VoteList[16];
+	
+	VoteList = CalculateVotes();
+	
+	ChosenGame = Game_MAX;
+	
+	for (int i = 0; i < view_as<int>(Game_MAX);i++)
+	{
+		if(VoteList[i] > 0 && VoteList[i] > VoteList[ChosenGame])
+			ChosenGame = view_as<enGame>(i);
+	}
+	
+	// 0 Votes.
+	if(ChosenGame == Game_MAX)
+	{
+		EndVoteCT();
+		return;
+	}
+	if(ChosenGame != Game_ExtendCT)
+	{
+		if(ChosenGame == Game_RandomNumber)
+			IntToString(GetRandomInt(1, 300), GameValue, sizeof(GameValue));
 		
-		if(ChosenGame != Game_ExtendCT)
+		else if(ChosenGame == Game_ComboContest)
 		{
-			if(ChosenGame == Game_RandomNumber)
-				IntToString(GetRandomInt(1, 300), GameValue, sizeof(GameValue));
-			
-			else if(ChosenGame == Game_ComboContest)
+			for(int i=1;i <= MaxClients;i++)
 			{
-				for(int i=1;i <= MaxClients;i++)
-				{
-					if(!IsClientInGame(i))
-						continue;
-						
-					if(!IsValidTeam(i))
-						continue;
-						
-					CS_RespawnPlayer(i);
-				}
+				if(!IsClientInGame(i))
+					continue;
+					
+				if(!IsValidTeam(i))
+					continue;
+					
+				CS_RespawnPlayer(i);
 			}
-			VoteCTTimeLeft = 15.0;
-				
-			StartGameTimer();
 		}
+		VoteCTTimeLeft = 15.0;
+			
+		StartGameTimer();
+	}
+	else
+	{
+		int Chosen = GetClientOfUserId(ChosenUserId);
+		
+		if(Chosen != 0)		
+		{
+			EndVoteCT();
+			
+			SetChosenCT(Chosen, true);
+			
+			PrintToChatAll("%s Vote results decided to extend the current CT's duration for \x07%i \x01more rounds. ", PREFIX, GetConVarInt(hcv_MaxRounds));
+		}	
 		else
 		{
-			int Chosen = GetClientOfUserId(ChosenUserId);
+			EndVoteCT();
 			
-			if(Chosen != 0)		
-			{
-				EndVoteCT();
-				
-				SetChosenCT(Chosen, true);
-				
-				PrintToChatAll("%s Vote results decided to extend the current CT's duration for \x07%i \x01more rounds. ", PREFIX, GetConVarInt(hcv_MaxRounds));
-			}	
-			else
-			{
-				EndVoteCT();
-				
-				StartVoteCT();
-			}
+			StartVoteCT();
 		}
 	}
 }
@@ -1666,13 +1747,17 @@ void EndVoteCT(Handle hTimer_Ignore = INVALID_HANDLE, bool MapStart = false)
 	VoteCTRunning = false;
 
 	for(int i=0;i < sizeof(WantsToBeCT);i++)
+	{
 		WantsToBeCT[i] = false;
+		votedItem[i] = -1;
+	}
 		
 	if(MapStart)
 	{
 		hTimer_StartGame = INVALID_HANDLE;
 		hTimer_FailGame = INVALID_HANDLE;
 		hTimer_GodRound = INVALID_HANDLE;
+		hVoteCTMenu = INVALID_HANDLE;
 	
 	}
 	else
@@ -1693,6 +1778,12 @@ void EndVoteCT(Handle hTimer_Ignore = INVALID_HANDLE, bool MapStart = false)
 		{
 			CloseHandle(hTimer_GodRound);
 			hTimer_GodRound = INVALID_HANDLE;
+		}	
+		
+		if(hVoteCTMenu != INVALID_HANDLE)
+		{
+			CancelMenu(hVoteCTMenu);
+			hVoteCTMenu = INVALID_HANDLE;
 		}	
 	}
 }
@@ -1861,4 +1952,22 @@ stock int GetPlayerCount()
 stock bool IsValidTeam(int client)
 {
 	return GetClientTeam(client) == CS_TEAM_CT || GetClientTeam(client) == CS_TEAM_T;
+}
+
+stock CalculateVotes()
+{
+	int arr[16];
+	
+	for (int i = 1; i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+		
+		else if(votedItem[i] == -1)
+			continue;
+			
+		arr[votedItem[i]]++;
+	}
+	
+	return arr;
 }
