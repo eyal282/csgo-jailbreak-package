@@ -1232,7 +1232,7 @@ void CheckVoteCTResult()
 	
 	for (int i = 0; i < view_as<int>(Game_MAX);i++)
 	{
-		if(VoteList[i] > 0 && VoteList[i] > VoteList[ChosenGame])
+		if(VoteList[i] > 0 && VoteList[i] > VoteList[ChosenGame] || (VoteList[i] == VoteList[ChosenGame] && GetRandomInt(0, 1) == 1))
 			ChosenGame = view_as<enGame>(i);
 	}
 	
