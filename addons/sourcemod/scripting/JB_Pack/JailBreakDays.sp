@@ -39,7 +39,7 @@ native int Gangs_AreClientsSameGang(int client, int otherClient);
 native int Gangs_TryDestroyGlow(int client);
 native float Gangs_GetFFDamageDecrease(int client);
 
-char BotName[] = "GlowX Bot";
+char BotName[] = "JBPack Bot";
 
 #define PLUGIN_VERSION "1.0"
 
@@ -300,7 +300,6 @@ public Action SDKEvent_WeaponCanUse(int client, int weapon)
 			if(StrEqual(Classname, "weapon_deagle"))
 				return Plugin_Continue;
 				
-			PrintToChat(client, Classname);
 			AcceptEntityInput(weapon, "Kill");
 			return Plugin_Handled;
 		}

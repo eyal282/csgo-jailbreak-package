@@ -144,6 +144,7 @@ int HPamount, BPAmmo, Vest;
 char PrimWep[32], SecWep[32];
 CSWeaponID PrimNum, SecNum;
 bool Zoom, HeadShot, Jump, Duck, TSeeker, Dodgeball, Ring, NoRecoil, Race;
+bool noBeacon;
 float raceStartOrigin[3], raceEndOrigin[3];
 char DuelName[100];
 bool LRStarted, LRAnnounced;
@@ -616,6 +617,51 @@ public void OnMapStart()
 	
 	Format(fullpath, sizeof(fullpath), "sound/%s", LR_SOUNDS_BACKSTAB);
 	AddFileToDownloadsTable(fullpath);
+	
+	CreateTimer(0.1, Timer_BeaconRacePositions, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public Action Timer_BeaconRacePositions(Handle hTimer)
+{
+	float vec[3];
+	int rgba[4];
+	
+	if(!IsVectorEmpty(raceStartOrigin))
+	{	
+		vec = raceStartOrigin
+		
+		vec[2] += 10;
+        	
+		rgba = {255, 255, 255, 255};
+		
+		for(int i=0;i < 3;i++)
+		{
+			rgba[i] = GetRandomInt(0, 255);
+		}
+		
+		TE_SetupBeamRingPoint(vec, 128.0, 129.0, g_BeamSprite, g_HaloSprite, 0, 10, 1.0, 10.0, 0.5, rgba, 5, 0);
+    		
+		TE_SendToAll();
+	}
+	
+	
+	if(!IsVectorEmpty(raceEndOrigin))
+	{	
+		vec = raceEndOrigin
+		
+		vec[2] += 10;
+	        
+		rgba = {255, 255, 255, 255};
+		
+		for(int i=0;i < 3;i++)
+		{
+			rgba[i] = GetRandomInt(0, 255);
+		}
+		
+		TE_SetupBeamRingPoint(vec, 128.0, 129.0, g_BeamSprite, g_HaloSprite, 0, 10, 1.0, 10.0, 0.5, rgba, 5, 0);
+	    	
+		TE_SendToAll();
+	}
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -2147,6 +2193,8 @@ stock void EndLR(int EndTimers = true)
 	Jump = true;
 	NoRecoil = false;
 	
+	noBeacon = false;
+	
 	if(EndTimers)
 		FinishTimers();
 	
@@ -2847,6 +2895,8 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				DuelName = "Fun | HNS";
 				SecWep = "weapon_knife";
 				SecNum = CSWeapon_KNIFE;
+				
+				noBeacon = true;
 			}
 			case 3:
 			{
@@ -2907,6 +2957,8 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				DuelName = "Fun | Race";
 				HPamount = 100;
 				PrimNum = CSWeapon_NONE;
+				
+				noBeacon = true;
 			}
 			
 			case 10: SetFreeday(client);
@@ -3538,7 +3590,7 @@ public void ContinueStartDuel()
 	NC = StrContains(DuelName, "Night Crawler") != -1 ? true : false;
 	TIMER_INFOMSG = CreateTimer(0.1, ShowToAll, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	
-	if(StrContains(DuelName, "HNS") == -1)
+	if(!noBeacon)
 	{
 		TIMER_BEACON[Prisoner] = CreateTimer(NC ? 7.5 : 1.0, BeaconPlayer, Prisoner, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 		TIMER_BEACON[Guard] = CreateTimer(1.0, BeaconPlayer, Guard, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
@@ -3600,66 +3652,23 @@ public Action BeaconPlayer(Handle hTimer, int client) // It is guaranteed that n
 		
 	else if(!IsPlayerAlive(client))
 		return Plugin_Stop;
+
+	float vec[3];
+	GetClientAbsOrigin(client, vec);
+	vec[2] += 10;
+        
+	int rgba[4] = {255, 255, 255, 255};
 	
-	if(Race)
+	for(int i=0;i < 3;i++)
 	{
-		if(client == Prisoner) // Avoid sending twice. Man I am lazy...
-		{
-			float vec[3];
-			
-			vec = raceStartOrigin
-			
-			vec[2] += 10;
-		        
-			int rgba[4] = {255, 255, 255, 255};
-			
-			for(int i=0;i < 3;i++)
-			{
-				rgba[i] = GetRandomInt(0, 255);
-			}
-			
-			TE_SetupBeamRingPoint(vec, 10.0, 375.0, g_BeamSprite, g_HaloSprite, 0, 10, 0.6, 10.0, 0.5, rgba, 10, 0);
-	        	
-			TE_SendToAll();
-			
-			
-			
-			vec = raceEndOrigin
-			
-			vec[2] += 10;
-		        
-			rgba = {255, 255, 255, 255};
-			
-			for(int i=0;i < 3;i++)
-			{
-				rgba[i] = GetRandomInt(0, 255);
-			}
-			
-			TE_SetupBeamRingPoint(vec, 10.0, 375.0, g_BeamSprite, g_HaloSprite, 0, 10, 0.6, 10.0, 0.5, rgba, 10, 0);
-	        	
-			TE_SendToAll();
-		}
+		rgba[i] = GetRandomInt(0, 255);
 	}
-	else
-	{
-		float vec[3];
-		GetClientAbsOrigin(client, vec);
-		vec[2] += 10;
-	        
-		int rgba[4] = {255, 255, 255, 255};
-		
-		for(int i=0;i < 3;i++)
-		{
-			rgba[i] = GetRandomInt(0, 255);
-		}
-		
-		TE_SetupBeamRingPoint(vec, 10.0, 375.0, g_BeamSprite, g_HaloSprite, 0, 10, 0.6, 10.0, 0.5, rgba, 10, 0);
-        	
-		TE_SendToAll();
-	        
-		GetClientEyePosition(client, vec);
-		//EmitAmbientSound(SOUND_BLIP, vec, client, SNDLEVEL_RAIDSIREN);
-	}
+	
+	TE_SetupBeamRingPoint(vec, 10.0, 375.0, g_BeamSprite, g_HaloSprite, 0, 10, 0.6, 10.0, 0.5, rgba, 10, 0);
+    	
+	TE_SendToAll();
+        
+	GetClientEyePosition(client, vec);
 	
 	return Plugin_Continue;
 	
