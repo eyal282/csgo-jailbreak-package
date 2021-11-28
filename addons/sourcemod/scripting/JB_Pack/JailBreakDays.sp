@@ -15,7 +15,10 @@ enum enDay
 	SCOUT_DAY,
 	KNIFE_DAY,
 	WAR_DAY,
-	SDEAGLE_DAY
+	SDEAGLE_DAY,
+	
+	
+	MAX_DAYS
 }
 
 char DayName[][] =
@@ -28,6 +31,17 @@ char DayName[][] =
 	"War Day",
 	"Super Deagle Day"
 };
+
+char DayCommand[][] =
+{
+	"NULL AND VOID",
+	"NULL AND VOID",
+	"sm_startfsday",
+	"sm_startscoutday",
+	"sm_startknifeday",
+	"sm_startwarday",
+	"sm_startsdeagleday"
+}
 
 native int Gangs_HasGang(int client);
 native int Gangs_GetClientGangName(int client, char[] GangName, int len);
@@ -61,6 +75,12 @@ Handle fw_OnDayStatus = INVALID_HANDLE;
 
 Handle hTimer_StartDay = INVALID_HANDLE;
 
+Handle hVoteDayMenu;
+
+float VoteDayStart;
+
+int votedItem[MAXPLAYERS + 1];
+
 enDay DayActive = NULL_DAY;
 
 char DayWeapon[64];
@@ -76,7 +96,7 @@ bool GlowRemoved;
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	CreateNative("JailBreakDays_IsDayActive", Native_IsDayActive);
-
+	CreateNative("JailBreakDays_StartVoteDay", Native_StartVoteDay);
 	return APLRes_Success;
 }
 
@@ -84,6 +104,122 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 public int Native_IsDayActive(Handle plugin, int numParams)
 {
 	return DayActive > LR_DAY;
+}
+
+public int Native_StartVoteDay(Handle plugin, int numParams)
+{
+	VoteDayStart = GetGameTime();
+	
+	BuildUpVoteDayMenu();
+	
+	VoteMenuToAll(hVoteDayMenu, 15);
+	
+	CreateTimer(1.0, Timer_DrawVoteDayMenu, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT)
+}
+
+public Action Timer_DrawVoteDayMenu(Handle hTimer)
+{
+	if(RoundToFloor((VoteDayStart + 15) - GetGameTime()) <= 0)
+		return Plugin_Stop;
+		
+	else if(!IsVoteInProgress())
+		return Plugin_Stop;
+		
+	BuildUpVoteDayMenu();
+	
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(!IsClientInVotePool(i))
+			continue;
+			
+		RedrawClientVoteMenu(i);
+	}
+	
+	return Plugin_Continue;
+}
+
+void BuildUpVoteDayMenu()
+{
+	if(hVoteDayMenu == INVALID_HANDLE)
+		hVoteDayMenu = CreateMenu(VoteDay_VoteHandler);
+		
+	SetMenuTitle(hVoteDayMenu, "Choose which day to play: [%i]", RoundFloat((VoteDayStart + 15) - GetGameTime()));
+	
+	RemoveAllMenuItems(hVoteDayMenu);
+	
+	int VoteList[16];
+	
+	VoteList = CalculateVotes();
+	
+	char TempFormat[128], replace[16];
+	
+	for (int i = view_as<int>(LR_DAY) + 1; i < view_as<int>(MAX_DAYS);i++)
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s {VOTE_COUNT}", DayName[i])	
+		
+		FormatEx(replace, sizeof(replace), "[%i]", VoteList[i]);
+		
+		ReplaceStringEx(TempFormat, sizeof(TempFormat), "{VOTE_COUNT}", replace); 
+		AddMenuItem(hVoteDayMenu, "", TempFormat);
+	}
+	
+	SetMenuPagination(hVoteDayMenu, MENU_NO_PAGINATION);
+}
+
+public int VoteDay_VoteHandler(Handle hMenu, MenuAction action, int param1, int param2)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hVoteDayMenu = INVALID_HANDLE;
+	}
+	else if (action == MenuAction_VoteCancel)
+	{
+		if(param2 == VoteCancel_NoVotes)
+		{
+			CheckVoteDayResult();
+		}
+	}
+	else if (action == MenuAction_VoteEnd)
+	{
+		CheckVoteDayResult();
+	}
+	else if (action == MenuAction_Select)
+	{
+		votedItem[param1] = param2 + view_as<int>(LR_DAY) + 1;
+	}
+}
+
+void CheckVoteDayResult()
+{
+	int VoteList[16];
+	
+	VoteList = CalculateVotes();
+	
+	DayActive = NULL_DAY;
+	
+	for (int i = view_as<int>(LR_DAY) + 1; i < view_as<int>(MAX_DAYS);i++)
+	{
+		// We actually allow zero votes as we must get a result.
+		if(/*VoteList[i] > 0 && */VoteList[i] > VoteList[DayActive] || (VoteList[i] == VoteList[DayActive] && GetRandomInt(0, 1) == 1))
+			DayActive = view_as<enDay>(i);
+	}
+	
+	
+	ServerCommand(DayCommand[DayActive]);
+	
+	EndVoteDay();
+}
+
+void EndVoteDay()
+{
+	for (int i = 0; i < sizeof(votedItem);i++)
+		votedItem[i] = -1;
+		
+	VoteDayStart = 0.0
 }
 
 public void OnPluginStart()
@@ -1267,4 +1403,22 @@ stock void StringToLower(char[] sSource)
 
 		sSource[i] = CharToLower(sSource[i]);
 	}
+}
+
+stock CalculateVotes()
+{
+	int arr[16];
+	
+	for (int i = 1; i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+		
+		else if(votedItem[i] == -1)
+			continue;
+			
+		arr[votedItem[i]]++;
+	}
+	
+	return arr;
 }

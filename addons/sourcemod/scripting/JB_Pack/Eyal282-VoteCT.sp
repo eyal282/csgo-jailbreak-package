@@ -13,6 +13,7 @@
 
 native bool IsPlayerBannedFromGuardsTeam(int client);
 native void LR_FinishTimers(Handle hTimer_Ignore = INVALID_HANDLE);
+native void JailBreakDays_StartVoteDay();
 
 #define MAX_INT 2147483647
 #define MAX_FLOAT 2147483647.0
@@ -27,7 +28,6 @@ enum enGame
 	Game_RandomPlayer,
 	Game_MathContest,
 	Game_ElectionDay,
-	Game_ExtendCT,
 	Game_MAX
 }
 
@@ -38,8 +38,7 @@ char GameInfo[Game_MAX][] =
 	"Combo Contest {VOTE_COUNT}\nRepeat the moves that will appear in your screen to win",
 	"Random Player {VOTE_COUNT}\nA random player will become CT automatically",
 	"Math Contest {VOTE_COUNT}\nA very easy math question from the multiplication table",
-	"Election Day {VOTE_COUNT}\nThe players will vote on who will become CT",
-	"You should not see this message."
+	"Election Day {VOTE_COUNT}\nThe players will vote on who will become CT"
 }
 
 char GameTitle[Game_MAX][] =
@@ -49,8 +48,7 @@ char GameTitle[Game_MAX][] =
 	"Combo Contest\nRepeat the moves before everybody else to become CT",
 	"Random Player\nWould you like to become CT?",
 	"Math Contest\nA very easy question from the multiplication table e.g. 9x3",
-	"Election Day\nWould you like to become CT?",
-	"You should not see this message."
+	"Election Day\nWould you like to become CT?"
 }
 
 float ExpireGraceTime = 0.0;
@@ -610,7 +608,7 @@ void StartVoteDay()
 {	
 	EndVoteCT();	
 	
-	if(IsVoteInProgress())
+	if(!IsNewVoteAllowed())
 		return;
 		
 	for(new i=1;i <= MaxClients;i++)
@@ -622,49 +620,8 @@ void StartVoteDay()
 		
 		CS_RespawnPlayer(i);
 	}
-	Handle hMenu = CreateMenu(VoteDay_MenuHandler);
-	SetMenuTitle(hMenu, "Choose which day to play:");
 	
-	AddMenuItem(hMenu, "", "FreeStyle Day");
-	AddMenuItem(hMenu, "", "Scout Day");
-	AddMenuItem(hMenu, "", "Knife Day");
-	AddMenuItem(hMenu, "", "Super Deagle Day");
-	AddMenuItem(hMenu, "", "War Day");
-
-	VoteMenuToAll(hMenu, 10);
-}
-
-public int VoteDay_MenuHandler(Handle hMenu, MenuAction action, int param1, int param2)
-{
-	if(action == MenuAction_End)
-		CloseHandle(hMenu);
-
-	else if (action == MenuAction_VoteCancel)
-	{
-		param1 = GetRandomInt(0, 4);
-		
-		switch(param1)
-		{
-			case 0: ServerCommand("sm_startfsday");
-			case 1: ServerCommand("sm_startscoutday");
-			case 2: ServerCommand("sm_startknifeday");
-			case 3: ServerCommand("sm_startsdeagleday");
-			case 4: ServerCommand("sm_startwarday");
-		}
-		
-		return;
-	}
-	else if (action == MenuAction_VoteEnd)
-	{			
-		switch(param1)
-		{
-			case 0: ServerCommand("sm_startfsday");
-			case 1: ServerCommand("sm_startscoutday");
-			case 2: ServerCommand("sm_startknifeday");
-			case 3: ServerCommand("sm_startsdeagleday");
-			case 4: ServerCommand("sm_startwarday");
-		}
-	}
+	JailBreakDays_StartVoteDay();
 }
 
 public Action Timer_CheckGodRound(Handle hTimer)
@@ -1001,7 +958,7 @@ public Action Command_DisableVoteCT(int client, int args)
 
 public Action Command_VoteCT(int client, int args)
 {
-	if(IsVoteInProgress())
+	if(!IsNewVoteAllowed())
 	{
 		EndVoteCT();
 		
@@ -1100,7 +1057,7 @@ public Action Command_GiveChosen(int client, int args)
 }
 void StartVoteCT()
 {
-	if(IsVoteInProgress())
+	if(!IsNewVoteAllowed())
 		return;
 		
 	Call_StartForward(fw_VoteCTStart);
@@ -1113,7 +1070,7 @@ void StartVoteCT()
 	
 	GameValue[0] = EOS;
 	VoteCTRunning = true;
-	ChosenGame = Game_ExtendCT;
+	ChosenGame = Game_MAX;
 	
 	RoundsLeft = GetConVarInt(hcv_MaxRounds);
 	
@@ -1152,7 +1109,7 @@ public Action Timer_DrawVoteCTMenu(Handle hTimer)
 		else if(!IsClientInVotePool(i))
 			continue;
 			
-		RedrawClientVoteMenu(i, false);
+		RedrawClientVoteMenu(i);
 	}
 	
 	return Plugin_Continue;
@@ -1180,14 +1137,6 @@ void BuildUpVoteCTMenu()
 		FormatEx(replace, sizeof(replace), "[%i]", VoteList[i]);
 		
 		ReplaceStringEx(TempFormat, sizeof(TempFormat), "{VOTE_COUNT}", replace); 
-		AddMenuItem(hVoteCTMenu, "", TempFormat);
-	}
-	
-	int Chosen = GetClientOfUserId(ChosenUserId);
-	
-	if(Chosen != 0)
-	{
-		Format(TempFormat, sizeof(TempFormat), "Extend current CT for %i rounds [%i]", GetConVarInt(hcv_MaxRounds), VoteList[sizeof(GameInfo)]);
 		AddMenuItem(hVoteCTMenu, "", TempFormat);
 	}
 	
@@ -1242,47 +1191,26 @@ void CheckVoteCTResult()
 		EndVoteCT();
 		return;
 	}
-	if(ChosenGame != Game_ExtendCT)
+	
+	if(ChosenGame == Game_RandomNumber)
+		IntToString(GetRandomInt(1, 300), GameValue, sizeof(GameValue));
+	
+	else if(ChosenGame == Game_ComboContest)
 	{
-		if(ChosenGame == Game_RandomNumber)
-			IntToString(GetRandomInt(1, 300), GameValue, sizeof(GameValue));
-		
-		else if(ChosenGame == Game_ComboContest)
+		for(int i=1;i <= MaxClients;i++)
 		{
-			for(int i=1;i <= MaxClients;i++)
-			{
-				if(!IsClientInGame(i))
-					continue;
-					
-				if(!IsValidTeam(i))
-					continue;
-					
-				CS_RespawnPlayer(i);
-			}
-		}
-		VoteCTTimeLeft = 15.0;
-			
-		StartGameTimer();
-	}
-	else
-	{
-		int Chosen = GetClientOfUserId(ChosenUserId);
-		
-		if(Chosen != 0)		
-		{
-			EndVoteCT();
-			
-			SetChosenCT(Chosen, true);
-			
-			PrintToChatAll("%s Vote results decided to extend the current CT's duration for \x07%i \x01more rounds. ", PREFIX, GetConVarInt(hcv_MaxRounds));
-		}	
-		else
-		{
-			EndVoteCT();
-			
-			StartVoteCT();
+			if(!IsClientInGame(i))
+				continue;
+				
+			if(!IsValidTeam(i))
+				continue;
+				
+			CS_RespawnPlayer(i);
 		}
 	}
+	VoteCTTimeLeft = 15.0;
+		
+	StartGameTimer();
 }
 
 void StartGameTimer()
