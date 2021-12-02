@@ -1153,7 +1153,7 @@ public int VoteCT_VoteHandler(Handle hMenu, MenuAction action, int param1, int p
 	}
 	else if (action == MenuAction_VoteCancel)
 	{
-		if(param2 == VoteCancel_NoVotes)
+		if(param1 == VoteCancel_NoVotes)
 		{
 			CheckVoteCTResult();
 		}

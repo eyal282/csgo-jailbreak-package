@@ -99,7 +99,8 @@ enum Entity_Flags
 
 #define SOUND_BLIP        "buttons/blip1.wav"
 
-int g_BeamSprite        = -1;
+int g_RedBeamSprite        = -1;
+int g_OrangeBeamSprite        = -1;
 int g_HaloSprite        = -1;
 
 Handle cpInfoMsg = INVALID_HANDLE;
@@ -128,8 +129,6 @@ const int HUD_TIMER = 2394744;
 char DodgeballModel[] = "models/chicken/chicken.mdl";
 //new const Float:DodgeballMins[3] = {-14.84, -11.21, 0.00};
 //new const Float:DodgeballMaxs[3] = {11.11, 10.55, 25.74};
-
-int RingBeamModel, RingHaloModel;
 
 Handle hcv_FirstNum = INVALID_HANDLE;
 Handle hcv_TimeMustBeginLR = INVALID_HANDLE;
@@ -586,10 +585,9 @@ public void OnConfigsExecuted()
 }
 public void OnMapStart()
 {
-	RingBeamModel = PrecacheModel("materials/sprites/laserbeam.vmt", true);
-	RingHaloModel = PrecacheModel("materials/sprites/glow01.vmt", true);
 	PrecacheSound(SOUND_BLIP, true);
-	g_BeamSprite = PrecacheModel("materials/sprites/bomb_planted_ring.vmt");
+	g_RedBeamSprite = PrecacheModel("materials/sprites/bomb_planted_ring.vmt");
+	g_OrangeBeamSprite = PrecacheModel("materials/sprites/bomb_dropped_ring.vmt");
 	g_HaloSprite = PrecacheModel("materials/sprites/halo.vtf");
 	PrecacheModel(DodgeballModel, true);
 	TIMER_COUNTDOWN = INVALID_HANDLE;
@@ -639,7 +637,7 @@ public Action Timer_BeaconRacePositions(Handle hTimer)
 			rgba[i] = GetRandomInt(0, 255);
 		}
 		
-		TE_SetupBeamRingPoint(vec, 128.0, 129.0, g_BeamSprite, g_HaloSprite, 0, 10, 1.0, 10.0, 0.5, rgba, 5, 0);
+		TE_SetupBeamRingPoint(vec, 128.0, 129.0, g_RedBeamSprite, g_HaloSprite, 0, 10, 0.2, 2.5, 0.5, rgba, 5, 0);
     		
 		TE_SendToAll();
 	}
@@ -658,7 +656,7 @@ public Action Timer_BeaconRacePositions(Handle hTimer)
 			rgba[i] = GetRandomInt(0, 255);
 		}
 		
-		TE_SetupBeamRingPoint(vec, 128.0, 129.0, g_BeamSprite, g_HaloSprite, 0, 10, 1.0, 10.0, 0.5, rgba, 5, 0);
+		TE_SetupBeamRingPoint(vec, 128.0, 129.0, g_OrangeBeamSprite, g_HaloSprite, 0, 10, 0.2, 2.5, 0.5, rgba, 5, 0);
 	    	
 		TE_SendToAll();
 	}
@@ -3664,7 +3662,7 @@ public Action BeaconPlayer(Handle hTimer, int client) // It is guaranteed that n
 		rgba[i] = GetRandomInt(0, 255);
 	}
 	
-	TE_SetupBeamRingPoint(vec, 10.0, 375.0, g_BeamSprite, g_HaloSprite, 0, 10, 0.6, 10.0, 0.5, rgba, 10, 0);
+	TE_SetupBeamRingPoint(vec, 10.0, 375.0, g_RedBeamSprite, g_HaloSprite, 0, 10, 0.6, 10.0, 0.5, rgba, 10, 0);
     	
 	TE_SendToAll();
         

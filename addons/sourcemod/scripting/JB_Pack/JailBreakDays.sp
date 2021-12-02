@@ -178,7 +178,7 @@ public int VoteDay_VoteHandler(Handle hMenu, MenuAction action, int param1, int 
 	}
 	else if (action == MenuAction_VoteCancel)
 	{
-		if(param2 == VoteCancel_NoVotes)
+		if(param1 == VoteCancel_NoVotes)
 		{
 			CheckVoteDayResult();
 		}
