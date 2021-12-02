@@ -9,7 +9,7 @@ Handle Team
 
 public Plugin myinfo = {
 	name = "Auto Join On Connect",
-	author = "xoxo^^",
+	author = "Author was lost by a thief :(",
 	description = "Auto Join On Connect",
 	version = "1.0",
 	url = ""

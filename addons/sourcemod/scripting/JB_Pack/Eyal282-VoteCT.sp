@@ -349,6 +349,7 @@ public Action Timer_CheckVoteCT(Handle hTimer)
 	
 	if((Chosen == 0 || GetClientTeam(Chosen) == CS_TEAM_T) && !VoteCTDisabled && !VoteCTRunning)
 	{
+		
 		if(GetValidPlayerCount() >= GetConVarInt(hcv_VoteCTMin))
 		{
 			Action CallReturn;
