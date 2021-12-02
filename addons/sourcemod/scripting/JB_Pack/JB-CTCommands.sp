@@ -147,6 +147,7 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 	SetEntityRenderColor(client, 255, 255, 255, 255);
 	
 	
+	
 	if(CKEnabled)
 		CreateTimer(0.2, AddHealthCT, GetEventInt(hEvent, "userid"));
 }

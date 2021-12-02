@@ -486,6 +486,8 @@ public Action Command_StartFSDay(int client, int args)
 
 public Action Command_StartScoutDay(int client, int args)
 {
+	ServerCommand("sm_silentstopck");
+	
 	StopDay(false);
 	
 	StartScoutDay();
