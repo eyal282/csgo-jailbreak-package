@@ -1131,7 +1131,7 @@ void BuildUpVoteCTMenu()
 	
 	char TempFormat[128], replace[16];
 	
-	for(int i=0;i < sizeof(GameInfo)-1;i++)
+	for(int i=0;i < sizeof(GameInfo);i++)
 	{
 		FormatEx(TempFormat, sizeof(TempFormat), "%s", GameInfo[i])	
 		
@@ -1658,7 +1658,7 @@ public void ShowComboMenu(int client)
 {
 	Handle hMenu = CreateMenu(dummyvalue_MenuHandler);
 	
-	SetMenuTitle(hMenu, GameInfo[Game_ComboContest]);
+	SetMenuTitle(hMenu, GameTitle[Game_ComboContest]);
 	
 	for(int i=0;i < ComboCount;i++)
 	{

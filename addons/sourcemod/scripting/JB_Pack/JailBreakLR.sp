@@ -1805,7 +1805,7 @@ public void BitchSlapBackwards(int victim, int weapon, float strength) // Stole 
 
 public Action Event_TakeDamageAlive(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
-	if(!LRStarted)
+	if(!LRStarted) 
 		return Plugin_Continue;
 	
 	else if(BypassBlockers)
@@ -2351,14 +2351,10 @@ public Action Command_LR(int client, int args)
 		EndLR(false);
 	
 		Handle hMenu = CreateMenu(LR_MenuHandler);
-
-		AddMenuItem(hMenu, "", "Shot4Shot Duels");
-		AddMenuItem(hMenu, "", "Custom War");
+	
 		AddMenuItem(hMenu, "", "Fun Duels");
 		AddMenuItem(hMenu, "", "Auto Duels");
-		AddMenuItem(hMenu, "", "RAMBO REBEL");
 		AddMenuItem(hMenu, "", "Random");
-		AddMenuItem(hMenu, "", "Random no Rambo Rebel");
 		
 		SetMenuTitle(hMenu, "%s Select your favorite duel!", MENU_PREFIX);
 		
@@ -2385,75 +2381,16 @@ public int LR_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 			hMenu = INVALID_HANDLE;
 			return;
 		}
-		int T;
-		
-		for(int i=1;i <= MaxClients;i++)
-		{
-			if(!IsClientInGame(i))
-				continue;
-				
-			if(GetClientTeam(i) == CS_TEAM_T)
-				T++;
-		}	
 		
 		switch(item + 1)
-		{
-			case 1: 
-			{
-				DuelName = "S4S";
-				ShowWeaponMenu(client);
-			}
+		{	
+			case 1: ShowFunMenu(client);
 			
-			case 2:
-			{
-				PrimWep = "weapon_m4a1";
-				PrimNum = CSWeapon_M4A1;
-				Zoom = true;
-				HeadShot = false;
-				BPAmmo = 10000;
-				HPamount = 1000;
-				Vest = 2;
-				DuelName = "S4S | M4A1";
-				ShowCustomMenu(client);
-			}
-			
-			case 3: ShowFunMenu(client);
-			
-			case 4: ShowAutoMenu(client);
-			
-			case 5:
-			{
-				if(LastRequest(client))
-				{
-					if(T >= 3)
-					{
-				
-						Prisoner = client;
-						DuelName = "RAMBO REBEL";
-						LRStarted = true;
-						Vest = 2;
-
-						//OpenAllCells();
-						FinishTimers();
-						StartRambo();
-						
-						// BAR COLOR!!!
-						PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
-						PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
-						PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
-					}
-					else
-						PrintToChat(client, "%s You can only start Rambo when there are \x073 \x01or more total terror.", PREFIX);
-				}
-			}
+			case 2: ShowAutoMenu(client);
 		
-			case 6:
+			case 3:
 			{
-				LR_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 4));
-			}
-			case 7:
-			{
-				LR_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 3));
+				LR_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 1));
 			}
 		}	
 		
@@ -2835,6 +2772,9 @@ public void ShowFunMenu(int client)
 {	
 	Handle hMenu = CreateMenu(Fun_MenuHandler);
 	
+	AddMenuItem(hMenu, "", "Shot4Shot Duels");
+	AddMenuItem(hMenu, "", "Custom War");
+	AddMenuItem(hMenu, "", "RAMBO REBEL");
 	AddMenuItem(hMenu, "", "Night Crawler ( Invisible )");
 	AddMenuItem(hMenu, "", "Hide'N'Seek");
 	AddMenuItem(hMenu, "", "Last Hit Bleeds");
@@ -2876,9 +2816,65 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 		Duck = true;
 		NoRecoil = false;
 		
+		int T;
+		
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+				
+			if(GetClientTeam(i) == CS_TEAM_T)
+				T++;
+		}	
+		
 		switch(item + 1) 
 		{
-			case 1:
+			case 1: 
+			{
+				DuelName = "S4S";
+				ShowWeaponMenu(client);
+			}
+			
+			case 2:
+			{
+				PrimWep = "weapon_m4a1";
+				PrimNum = CSWeapon_M4A1;
+				Zoom = true;
+				HeadShot = false;
+				BPAmmo = 10000;
+				HPamount = 1000;
+				Vest = 2;
+				DuelName = "S4S | M4A1";
+				ShowCustomMenu(client);
+			}
+			case 3:
+			{
+				// Avoid ChooseOpponent from triggering.
+				DuelName = "RAMBO REBEL";
+				
+				if(LastRequest(client))
+				{
+					if(T >= 3)
+					{
+				
+						Prisoner = client;
+						LRStarted = true;
+						Vest = 2;
+
+						//OpenAllCells();
+						FinishTimers();
+						StartRambo();
+						
+						// BAR COLOR!!!
+						PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
+						PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
+						PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
+					}
+					else
+						PrintToChat(client, "%s You can only start Rambo when there are \x073 \x01or more total terror.", PREFIX);
+				}
+			}
+			case 4:
 			{
 				DuelName = "Fun | Night Crawler";
 				PrimWep = "weapon_m4a1";
@@ -2888,7 +2884,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				BPAmmo = 10000;
 				HPamount = 100;
 			}
-			case 2:
+			case 5:
 			{
 				DuelName = "Fun | HNS";
 				SecWep = "weapon_knife";
@@ -2896,7 +2892,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				
 				noBeacon = true;
 			}
-			case 3:
+			case 6:
 			{
 				DuelName = "Fun | Last Hit Bleeds";
 				SecWep = "weapon_knife";
@@ -2904,7 +2900,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				
 				HPamount = 30000;
 			}			
-			case 4:
+			case 7:
 			{
 				DuelName = "Fun | Super Deagle";
 				HPamount = 500;
@@ -2912,7 +2908,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				PrimWep = "weapon_deagle";
 				PrimNum = CSWeapon_DEAGLE;
 			}
-			case 5:
+			case 8:
 			{
 				DuelName = "Fun | Negev No Recoil";
 				NoRecoil = true;
@@ -2921,7 +2917,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				PrimWep = "weapon_negev";
 				PrimNum = CSWeapon_NEGEV;
 			}
-			case 6:
+			case 9:
 			{
 				DuelName = "Fun | Gun Toss";
 				HPamount = 100;
@@ -2932,7 +2928,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				BPAmmo = 0;
 			}
 			
-			case 7:
+			case 10:
 			{
 				DuelName = "Fun | Dodgeball";
 				HPamount = 100;
@@ -2941,7 +2937,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				PrimNum = CSWeapon_DECOY;
 			}
 			
-			case 8:
+			case 11:
 			{
 				DuelName = "Fun | Backstabs";
 				HPamount = 100;
@@ -2950,7 +2946,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				PrimNum = CSWeapon_KNIFE;
 			}
 			
-			case 9:
+			case 12:
 			{
 				DuelName = "Fun | Race";
 				HPamount = 100;
@@ -2959,21 +2955,25 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				noBeacon = true;
 			}
 			
-			case 10: SetFreeday(client);
+			case 13: SetFreeday(client);
 			
-			case 11:
+			case 14:
 			{
-				Fun_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 7));
+				Fun_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 11));
 			}
 		}
 		
-		if(item+1 <= 2)
-			ChooseSeeker(client); // Basicly reversing Guard and Prisoner.
+		bool HNS;
+	
+		if(StrContains(DuelName, "HNS") != -1 || StrContains(DuelName, "Night Crawler") != -1 || StrContains(DuelName, "Shark") != -1) HNS = true;
+		
+		if(HNS)
+			ChooseSeeker(client); // Basically reversing Guard and Prisoner.
 		
 		else if(StrContains(DuelName, "Race", false) != -1)
 			ChooseRaceCoords(client);
 			
-		else if(item+1 < 9)
+		else if(item+1 < 13 && item+1 > 3)
 			ChooseOpponent(client);
 		
 	}
