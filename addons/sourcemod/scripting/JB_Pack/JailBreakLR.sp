@@ -637,7 +637,7 @@ public Action Timer_BeaconRacePositions(Handle hTimer)
 			rgba[i] = GetRandomInt(0, 255);
 		}
 		
-		TE_SetupBeamRingPoint(vec, 128.0, 129.0, g_RedBeamSprite, g_HaloSprite, 0, 10, 0.2, 2.5, 0.5, rgba, 5, 0);
+		TE_SetupBeamRingPoint(vec, 0.0, 128.0, g_RedBeamSprite, g_HaloSprite, 100, 0, 0.2, 2.5, 0.0, rgba, 0, 0);
     		
 		TE_SendToAll();
 	}
@@ -1891,6 +1891,9 @@ public void Event_TakeDamagePost(int victim, int attacker, int inflictor, float 
 		
 	else if(!Bleed)
 		return;
+		
+	else if(!IsPlayer(attacker) || attacker == victim)
+		return
 		
 	if(victim == Guard)
 		BleedTarget = Guard;
@@ -3346,6 +3349,11 @@ public void ContinueStartDuel()
 	SetEntityGlow(Guard, true, 128, 0, 128);
 	SetEntityGlow(Prisoner, true, 128, 0, 128);
 	
+	if(NoRecoil)
+	{
+		SendConVarValue(Guard, hcv_NoSpread, "1");
+		SendConVarValue(Prisoner, hcv_NoSpread, "1");
+	}
 	
 	if(StrContains(DuelName, "S4S") != -1)
 	{
@@ -3993,8 +4001,6 @@ public void Event_PlayerPreThink(int client)
 			SetEntPropFloat(ActiveWeapon, Prop_Send, "m_fAccuracyPenalty", 0.0);
 			
 		}
-		
-		SendConVarValue(client, hcv_NoSpread, "1");
 		
 		SetEntPropVector(client, Prop_Send, "m_aimPunchAngle", NULL_VECTOR);
 		SetEntPropVector(client, Prop_Send, "m_aimPunchAngleVel", NULL_VECTOR);
