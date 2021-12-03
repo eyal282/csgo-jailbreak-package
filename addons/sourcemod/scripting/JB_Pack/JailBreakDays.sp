@@ -12,6 +12,8 @@ enum enDay
 	NULL_DAY = 0,
 	LR_DAY,
 	FS_DAY,
+	ZEUS_DAY,
+	DODGEBALL_DAY,
 	SCOUT_DAY,
 	KNIFE_DAY,
 	WAR_DAY,
@@ -26,6 +28,8 @@ char DayName[][] =
 	"IF YOU SEE THIS MESSAGE CONTACT ADMIN!",
 	"IF YOU SEE THIS MESSAGE CONTACT ADMIN!",
 	"FreeStyle Day",
+	"Zeus Day",
+	"DodgeBall Day",
 	"Scout Day",
 	"Knife Day",
 	"War Day",
@@ -37,6 +41,8 @@ char DayCommand[][] =
 	"NULL AND VOID",
 	"NULL AND VOID",
 	"sm_startfsday",
+	"sm_startzeusday",
+	"sm_startdodgeballday",
 	"sm_startscoutday",
 	"sm_startknifeday",
 	"sm_startwarday",
@@ -70,6 +76,7 @@ bool IgnorePlayerDeaths;
 
 Handle hcv_TeammatesAreEnemies = INVALID_HANDLE;
 Handle hcv_IgnoreRoundWinConditions = INVALID_HANDLE;
+Handle hcv_TaserRechargeTime
 
 Handle fw_OnDayStatus = INVALID_HANDLE;
 
@@ -93,6 +100,10 @@ int Bot;
 
 bool GlowRemoved;
 
+bool BypassBlockers;
+
+char DodgeballModel[] = "models/chicken/chicken.mdl";
+
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	CreateNative("JailBreakDays_IsDayActive", Native_IsDayActive);
@@ -108,13 +119,7 @@ public int Native_IsDayActive(Handle plugin, int numParams)
 
 public int Native_StartVoteDay(Handle plugin, int numParams)
 {
-	VoteDayStart = GetGameTime();
-	
-	BuildUpVoteDayMenu();
-	
-	VoteMenuToAll(hVoteDayMenu, 15);
-	
-	CreateTimer(1.0, Timer_DrawVoteDayMenu, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT)
+	StartVoteDay();
 }
 
 public Action Timer_DrawVoteDayMenu(Handle hTimer)
@@ -224,7 +229,10 @@ void EndVoteDay()
 
 public void OnPluginStart()
 {
+	RegAdminCmd("sm_startvoteday", Command_StartVoteDay, ADMFLAG_ROOT);
 	RegAdminCmd("sm_startfsday", Command_StartFSDay, ADMFLAG_ROOT);
+	RegAdminCmd("sm_startzeusday", Command_StartZeusDay, ADMFLAG_ROOT);
+	RegAdminCmd("sm_startdodgeballday", Command_StartDodgeballDay, ADMFLAG_ROOT);
 	RegAdminCmd("sm_startscoutday", Command_StartScoutDay, ADMFLAG_ROOT);
 	RegAdminCmd("sm_startknifeday", Command_StartKnifeDay, ADMFLAG_ROOT);
 	RegAdminCmd("sm_startwarday", Command_StartWarDay, ADMFLAG_ROOT);
@@ -239,6 +247,7 @@ public void OnPluginStart()
 	
 	hcv_TeammatesAreEnemies = FindConVar("mp_teammates_are_enemies");
 	hcv_IgnoreRoundWinConditions = FindConVar("mp_ignore_round_win_conditions");
+	hcv_TaserRechargeTime = FindConVar("mp_taser_recharge_time");
 	
 	// Called when there's a need to inform plugins of day status. Not guaranteed to be the exact start or stop.
 	// public JailBreakDays_OnDayStatus(bool:DayActive)
@@ -257,19 +266,33 @@ public void OnPluginStart()
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
-	if(DayActive != SCOUT_DAY)
-		return Plugin_Continue;
-	
-	int wep = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-	
-	if(wep == -1)
-		return Plugin_Continue;
+	switch(DayActive)
+	{
+		case SCOUT_DAY:
+		{
+			int wep = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+			
+			if(wep == -1)
+				return Plugin_Continue;
+				
+			char Classname[64];
+			GetEdictClassname(wep, Classname, sizeof(Classname));
+			
+			if(StrEqual(Classname, "weapon_ssg08"))
+			{
+				//buttons &= ~IN_ATTACK2;
+				
+				SetEntPropFloat(wep, Prop_Send, "m_flNextSecondaryAttack", GetGameTime() + 1.0);
+			}
+		}
 		
-	char Classname[64];
-	GetEdictClassname(wep, Classname, sizeof(Classname));
+		case DODGEBALL_DAY:
+		{
+			buttons &= ~IN_ATTACK2;
+		}
+	}
 	
-	if(StrEqual(Classname, "weapon_ssg08"))
-		buttons &= ~IN_ATTACK2;
+	
 		
 	return Plugin_Continue;
 }
@@ -467,6 +490,24 @@ public Action SDKEvent_PostThinkPost(int client)
 	}
 }
 
+
+public Action Command_StartVoteDay(int client, int args)
+{
+	ServerCommand("sm_silentstopck");
+	
+	StopDay(false);
+	
+	ServerCommand("sm_stopvotect");
+	ServerCommand("sm_egr");
+	
+	StartVoteDay();
+	
+	PrintToChatAll("%s \x05%N \x01started \x07Vote Day! ", PREFIX, client, DayName[DayActive]);
+	
+	return Plugin_Handled;
+}
+
+
 public Action Command_StartFSDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
@@ -474,6 +515,41 @@ public Action Command_StartFSDay(int client, int args)
 	StopDay(false);
 	
 	StartFSDay();
+	
+	ServerCommand("sm_stopvotect");
+	ServerCommand("sm_egr");
+	
+	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	
+	return Plugin_Handled;
+}
+
+
+public Action Command_StartZeusDay(int client, int args)
+{
+	ServerCommand("sm_silentstopck");
+	
+	StopDay(false);
+	
+	StartZeusDay();
+	
+	ServerCommand("sm_stopvotect");
+	ServerCommand("sm_egr");
+	
+	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	
+	return Plugin_Handled;
+}
+
+
+
+public Action Command_StartDodgeballDay(int client, int args)
+{
+	ServerCommand("sm_silentstopck");
+	
+	StopDay(false);
+	
+	StartDodgeballDay();
 	
 	ServerCommand("sm_stopvotect");
 	ServerCommand("sm_egr");
@@ -558,6 +634,71 @@ public void StartFSDay()
 	
 	IgnorePlayerDeaths = true;
 	
+	DestroyAllWeapons()
+	
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(!IsValidTeam(i))
+			continue;
+		
+		ChangeClientTeam(i, CS_TEAM_T);
+		
+		CS_RespawnPlayer(i);
+	}	
+	
+	IgnorePlayerDeaths = false;
+	
+	DayCountDown = 10 + 1;
+	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+}
+
+public void StartZeusDay()
+{
+	SetConVarInt(hcv_TaserRechargeTime, 1);
+	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
+	
+	ServerCommand("sm_hardopen");
+
+	DayActive =	ZEUS_DAY;
+	
+	IgnorePlayerDeaths = true;
+	
+	DestroyAllWeapons()
+	
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(!IsValidTeam(i))
+			continue;
+		
+		ChangeClientTeam(i, CS_TEAM_T);
+		
+		CS_RespawnPlayer(i);
+	}	
+	
+	IgnorePlayerDeaths = false;
+	
+	DayCountDown = 10 + 1;
+	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+}
+
+public void StartDodgeballDay()
+{
+	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
+	
+	ServerCommand("sm_hardopen");
+
+	DayActive = DODGEBALL_DAY;
+	
+	IgnorePlayerDeaths = true;
+	
+	DestroyAllWeapons();
+	
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
@@ -585,21 +726,9 @@ public void StartScoutDay()
 	
 	ServerCommand("sm_hardopen");
 	
-	int Count = GetEntityCount();
-	
-	for(int i=MaxClients+1;i < Count;i++)
-	{
-		if(!IsValidEntity(i))
-			continue;
-			
-		char Classname[64];
-		GetEdictClassname(i, Classname, sizeof(Classname));
-		
-		if(StrEqual(Classname, "game_player_equip") || StrEqual(Classname, "player_weaponstrip") || StrContains(Classname, "weapon_") != -1)
-			AcceptEntityInput(i, "Kill");
-	}
-	
 	IgnorePlayerDeaths = true;
+
+	DestroyAllWeapons();
 	
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -628,21 +757,9 @@ public void StartKnifeDay()
 	
 	ServerCommand("sm_hardopen");
 	
-	int Count = GetEntityCount();
-	
-	for(int i=MaxClients+1;i < Count;i++)
-	{
-		if(!IsValidEntity(i))
-			continue;
-			
-		char Classname[64];
-		GetEdictClassname(i, Classname, sizeof(Classname));
-		
-		if(StrEqual(Classname, "game_player_equip") || StrEqual(Classname, "player_weaponstrip") || StrContains(Classname, "weapon_") != -1)
-			AcceptEntityInput(i, "Kill");
-	}
-	
 	IgnorePlayerDeaths = true;
+	
+	DestroyAllWeapons();
 	
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -670,22 +787,10 @@ public void StartSDeagleDay()
 	DayActive = SDEAGLE_DAY;
 	
 	ServerCommand("sm_hardopen");
-	
-	int Count = GetEntityCount();
-	
-	for(int i=MaxClients+1;i < Count;i++)
-	{
-		if(!IsValidEntity(i))
-			continue;
-			
-		char Classname[64];
-		GetEdictClassname(i, Classname, sizeof(Classname));
-		
-		if(StrEqual(Classname, "game_player_equip") || StrEqual(Classname, "player_weaponstrip") || StrContains(Classname, "weapon_") != -1)
-			AcceptEntityInput(i, "Kill");
-	}
 
 	IgnorePlayerDeaths = true;
+	
+	DestroyAllWeapons();
 	
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -712,6 +817,10 @@ void SelectWeaponWarDay()
 	if(IsVoteInProgress())
 		CancelVote();
 	
+	IgnorePlayerDeaths = true;
+	
+	DestroyAllWeapons();
+	
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
@@ -724,6 +833,8 @@ void SelectWeaponWarDay()
 		
 		CS_RespawnPlayer(i);
 	}	
+	
+	IgnorePlayerDeaths = false;
 	
 	Handle hMenu = CreateMenu(WarDayWeapon_VoteHandler);
 	SetMenuTitle(hMenu, "Choose which weapon will play:");
@@ -833,19 +944,7 @@ void StartWarDay()
 	
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 	
-	int Count = GetEntityCount();
-	
-	for(int i=MaxClients+1;i < Count;i++)
-	{
-		if(!IsValidEntity(i))
-			continue;
-			
-		char Classname[64];
-		GetEdictClassname(i, Classname, sizeof(Classname));
-		
-		if(StrEqual(Classname, "game_player_equip") || StrEqual(Classname, "player_weaponstrip") || StrContains(Classname, "weapon_") != -1)
-			AcceptEntityInput(i, "Kill");
-	}
+	DestroyAllWeapons();
 	
 	IgnorePlayerDeaths = true;
 	
@@ -888,7 +987,7 @@ public Action Timer_StartDay(Handle hTimer)
 	
 		hTimer_StartDay = INVALID_HANDLE;
 		
-		CreateBot();
+		//CreateBot();
 		
 		return Plugin_Stop;
 	}
@@ -898,6 +997,16 @@ public Action Timer_StartDay(Handle hTimer)
 	return Plugin_Continue;
 }
 
+stock void StartVoteDay()
+{
+	VoteDayStart = GetGameTime();
+	
+	BuildUpVoteDayMenu();
+	
+	VoteMenuToAll(hVoteDayMenu, 15);
+	
+	CreateTimer(1.0, Timer_DrawVoteDayMenu, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT)
+}
 stock void StopDay(bool Restart = true, bool ShouldKickBot = true)
 {
 	GlowRemoved = false;
@@ -911,6 +1020,7 @@ stock void StopDay(bool Restart = true, bool ShouldKickBot = true)
 	
 	SetConVarBool(hcv_TeammatesAreEnemies, false);
 	SetConVarBool(hcv_IgnoreRoundWinConditions, false);
+	ResetConVar(hcv_TaserRechargeTime);
 	
 	if(Restart)
 		ServerCommand("mp_restartgame 1");
@@ -1231,6 +1341,21 @@ public Action Timer_PlayerSpawn(Handle hTimer, int UserId)
 			GivePlayerItem(client, "weapon_knife");
 		}
 		
+		case ZEUS_DAY:
+		{
+			UC_StripPlayerWeapons(client);
+			
+			GivePlayerItem(client, "weapon_taser");
+		}
+		case DODGEBALL_DAY:
+		{
+			UC_StripPlayerWeapons(client);
+			
+			GivePlayerItem(client, "weapon_decoy");
+			
+			SetEntProp(client, Prop_Data, "m_CollisionGroup", 5);
+		}
+		
 		case SCOUT_DAY:
 		{
 			int LivingT = 0;
@@ -1275,6 +1400,97 @@ public Action Timer_PlayerSpawn(Handle hTimer, int UserId)
 	
 	SetEntityMaxHealth(client, GetEntityHealth(client));
 }
+
+
+public void OnEntityCreated(int entity, const char[] Classname)
+{	
+	if(StrEqual(Classname, "decoy_projectile"))
+    {
+		SDKHook(entity, SDKHook_SpawnPost, SpawnPost_Decoy)
+	}
+}
+
+public void SpawnPost_Decoy(int entity)
+{
+	SDKUnhook(entity, SDKHook_SpawnPost, SpawnPost_Decoy);
+	
+	if(DayActive != DODGEBALL_DAY)
+		return;
+		
+	else if(!IsValidEdict(entity))
+		return;
+	
+	int thrower = GetEntityOwner(entity);
+	
+	if(thrower == -1)
+		return;
+		
+	UC_StripPlayerWeapons(thrower);
+	GivePlayerItem(thrower, "weapon_decoy");
+	SetEntPropString(entity, Prop_Data, "m_iName", "Dodgeball");
+	RequestFrame(Decoy_FixAngles, entity);
+	SDKHook(entity, SDKHook_TouchPost, Event_DecoyTouch);
+	RequestFrame(Decoy_Chicken, entity);
+} 
+
+public void Decoy_Chicken(int entity)
+{
+	SetEntityModel(entity, DodgeballModel);
+} 
+
+public void Event_DecoyTouch(int decoy, int toucher)
+{
+	char Classname[50];
+	GetEdictClassname(toucher, Classname, sizeof(Classname));
+	if(!IsPlayer(toucher))
+	{
+		int SolidFlags = GetEntProp(toucher, Prop_Send, "m_usSolidFlags")
+		
+		if(!(SolidFlags & 0x0004)) // Buy zone and shit..
+		{
+			if(StrEqual(Classname, "func_breakable"))
+			{
+				AcceptEntityInput(decoy, "Kill");
+				return;
+			}	
+			SetEntPropString(decoy, Prop_Data, "m_iName", "Dodgeball NoKill");
+		}
+
+	}	
+	else
+	{
+		char TargetName[50];
+		GetEntPropString(decoy, Prop_Data, "m_iName", TargetName, sizeof(TargetName));
+		
+		if(StrContains(TargetName, "NoKill", false) != -1)
+			return;
+
+		int thrower = GetEntityOwner(decoy);
+		
+		if(thrower == toucher)
+			return;
+
+		FinishHim(toucher, thrower);
+		AcceptEntityInput(decoy, "Kill");
+	}
+}
+
+
+public void Decoy_FixAngles(int entity)
+{
+	if(!IsValidEntity(entity))
+		return;
+	
+	float Angles[3];
+	GetEntPropVector(entity, Prop_Data, "m_angRotation", Angles);
+	
+	Angles[2] = 0.0;
+	Angles[0] = 0.0;
+	SetEntPropVector(entity, Prop_Data, "m_angRotation", Angles);
+	
+	RequestFrame(Decoy_FixAngles, entity);
+}
+
 stock int GetAliveTeamCount(int Team)
 {
 	int count = 0;
@@ -1423,4 +1639,94 @@ stock CalculateVotes()
 	}
 	
 	return arr;
+}
+
+// Destroys all weapons and their creator entities.
+stock DestroyAllWeapons()
+{
+	int Count = GetEntityCount();
+	
+	for(int i=MaxClients+1;i < Count;i++)
+	{
+		if(!IsValidEntity(i))
+			continue;
+			
+		char Classname[64];
+		GetEdictClassname(i, Classname, sizeof(Classname));
+		
+		if(StrEqual(Classname, "game_player_equip") || StrEqual(Classname, "player_weaponstrip") || StrContains(Classname, "weapon_") != -1)
+			AcceptEntityInput(i, "Kill");
+	}
+}
+
+
+stock void FinishHim(int victim, int attacker)
+{
+	if(!IsClientInGame(victim) || !IsClientInGame(attacker))
+		return;
+	
+	BypassBlockers = true;
+	
+	int inflictor = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
+	SetEntityHealth(victim, 100);
+	SetClientGodmode(victim);
+	SetClientNoclip(victim);
+	SDKHooks_TakeDamage(victim, inflictor, attacker, 32767.0, DMG_SLASH);
+	
+	BypassBlockers = false;
+	
+	
+}
+
+
+stock bool FindPlayerWeapon(int attacker, char[] buffer, int length)
+{
+	int weapon = -1;
+	
+	weapon = GetEntPropEnt(attacker, Prop_Data, "m_hActiveWeapon");
+	
+	if(weapon != -1)
+	{
+		GetEdictClassname(weapon, buffer, length);
+		return true;
+	}
+		
+	Format(buffer, length, "weapon_knife");
+	return false;
+}
+
+stock bool IsPlayer(int client)
+{
+	if(client <= 0)
+		return false;
+		
+	else if(client > MaxClients)
+		return false;
+		
+	return true;
+}
+
+stock int GetEntityOwner(int entity)
+{
+	return GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+}
+
+
+stock void SetClientGodmode(int client, bool godmode = false)
+{
+	if(godmode)
+		SetEntProp(client, Prop_Data, "m_takedamage", 0, 1);
+		
+	else
+		SetEntProp(client, Prop_Data, "m_takedamage", 2, 1);
+}
+
+stock void SetClientNoclip(int client, bool noclip = false)
+{
+	if(noclip)
+	{
+		 SetEntProp(client, Prop_Send, "movetype", MOVETYPE_NOCLIP, 1);	
+	}	 
+	else
+		 SetEntProp(client, Prop_Send, "movetype", 1, 1);
 }

@@ -19,7 +19,8 @@ enum struct enCvarList
 // Cvar, Value
 enCvarList cvarList[] = 
 {
-	{ "sm_vote_delay", "5" }
+	{ "sm_vote_delay", "0" },
+	{ "uc_party_mode", "0" }
 }
 public void OnMapStart( ) {
 	CreateTimer(5.0, Timer_ExecuteConfig, _, TIMER_FLAG_NO_MAPCHANGE);
