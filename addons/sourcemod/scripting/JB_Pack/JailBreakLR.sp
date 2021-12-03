@@ -186,6 +186,7 @@ int BleedTarget
 
 bool bDropBlock, PrisonerThrown, GuardThrown;
 
+float LastHoldReload[MAXPLAYERS+1];
 
 const float BeamRadius = 350.0;
 const float BeamWidth = 10.0;
@@ -883,7 +884,29 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	
 	else if(!LRPart(client))
 		return Plugin_Continue;
+
+	if(!(buttons & IN_RELOAD))
+		LastHoldReload[client] = 0.0;
+	
+	else if(LastHoldReload[client] == 0.0)
+		LastHoldReload[client] = GetGameTime();
 		
+		
+	bool HNS;
+	
+	if(StrContains(DuelName, "HNS") != -1 || StrContains(DuelName, "Night Crawler") != -1 || StrContains(DuelName, "Shark") != -1) HNS = true;
+	
+	if(!HNS && !Rambo && !Dodgeball && LastHoldReload[Guard] != 0.0 && LastHoldReload[Prisoner] != 0.0)
+	{
+		if(GetGameTime() - LastHoldReload[Guard] > 5.0 && GetGameTime() - LastHoldReload[Prisoner] > 5.0)
+		{
+			float Origin[3];
+			
+			GetEntPropVector(Prisoner, Prop_Data, "m_vecOrigin", Origin);
+			
+			TeleportEntity(Guard, Origin, NULL_VECTOR, NULL_VECTOR);
+		}
+	}
 	if(!Duck)
 		buttons &= ~IN_DUCK;
 		
@@ -3493,6 +3516,8 @@ public void ContinueStartDuel()
 		DroppedDeagle[Guard] = false;
 		
 		TIMER_100MILISECONDS = CreateTimer(0.1, DisallowGunTossPickup, _, TIMER_FLAG_NO_MAPCHANGE);
+		
+		PrintToChatAll("Tip: Mutually holding R makes Guard teleport to Prisoner")
 	}
 	
 	else if(StrContains(DuelName, "Shoot The Bomb") != -1)

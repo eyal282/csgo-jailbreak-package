@@ -1173,7 +1173,7 @@ public int VoteCT_VoteHandler(Handle hMenu, MenuAction action, int param1, int p
 	}
 	else if (action == MenuAction_Select)
 	{
-			votedItem[param1] = param2;
+		votedItem[param1] = param2;
 	}
 	
 }
@@ -1581,6 +1581,11 @@ void StartGame(Handle hTimer_Ignore)
 				return;
 			}
 			
+			for(int i=1;i <= MaxClients;i++)
+			{
+				votedItem[i] = -1;
+			}
+			
 			ElectionDayStart = GetGameTime();
 	
 			BuildUpElectionDayMenu();
@@ -1621,7 +1626,7 @@ void BuildUpElectionDayMenu()
 	if(hElectionDayMenu == INVALID_HANDLE)
 		hElectionDayMenu = CreateMenu(ElectionDay_VoteHandler);
 		
-	SetMenuTitle(hElectionDayMenu, "Choose who will become CT: [%i]", RoundFloat((VoteCTStart + 20) - GetGameTime()));
+	SetMenuTitle(hElectionDayMenu, "Choose who will become CT: [%i]", RoundFloat((ElectionDayStart + 20) - GetGameTime()));
 	
 	RemoveAllMenuItems(hElectionDayMenu);
 	
@@ -1632,9 +1637,7 @@ void BuildUpElectionDayMenu()
 	char TempFormat[128];
 	
 	for(int i=1;i <= MaxClients;i++)
-	{
-		votedItem[i] = -1;
-		
+	{	
 		if(!IsClientInGame(i))
 			continue;
 			
@@ -1658,7 +1661,7 @@ public int ElectionDay_VoteHandler(Handle hMenu, MenuAction action, int param1, 
 	if(action == MenuAction_End)
 	{
 		CloseHandle(hMenu);
-		hVoteCTMenu = INVALID_HANDLE;
+		hElectionDayMenu = INVALID_HANDLE;
 	}
 	else if (action == MenuAction_VoteCancel)
 	{
@@ -1677,7 +1680,16 @@ public int ElectionDay_VoteHandler(Handle hMenu, MenuAction action, int param1, 
 	}
 	else if (action == MenuAction_Select)
 	{
-		votedItem[param1] = param2;
+		char sUserId[11];
+		GetMenuItem(hMenu, param2, sUserId, sizeof(sUserId));
+		
+		int target = GetClientOfUserId(StringToInt(sUserId));
+		
+		if(target == 0)
+			votedItem[param1] = -1;
+			
+		else
+			votedItem[param1] = target;
 	}
 }
 
