@@ -59,6 +59,9 @@ enGame ChosenGame;
 float VoteCTStart;
 float VoteCTTimeLeft;
 
+Handle hElectionDayMenu;
+float ElectionDayStart;
+
 bool IsGodRound, AlreadyDoneGodRound;
 
 int GodRoundTimeLeft;
@@ -389,6 +392,8 @@ public void OnClientConnected(int client)
 
 public void OnClientDisconnect(int client)
 {
+	WantsToBeCT[client] = false;
+	votedItem[client] = -1;
 	if(GetClientOfUserId(ChosenUserId) == client)
 	{
 		ServerCommand("mp_restartgame 1");
@@ -1125,7 +1130,7 @@ void BuildUpVoteCTMenu()
 	
 	RemoveAllMenuItems(hVoteCTMenu);
 	
-	int VoteList[16];
+	int VoteList[MAXPLAYERS+1];
 	
 	VoteList = CalculateVotes();
 	
@@ -1175,7 +1180,7 @@ public int VoteCT_VoteHandler(Handle hMenu, MenuAction action, int param1, int p
 
 void CheckVoteCTResult()
 {
-	int VoteList[16];
+	int VoteList[MAXPLAYERS+1];
 	
 	VoteList = CalculateVotes();
 	
@@ -1576,70 +1581,141 @@ void StartGame(Handle hTimer_Ignore)
 				return;
 			}
 			
-			Handle hMenu = CreateMenu(ElectionDay_VoteHandler);
+			ElectionDayStart = GetGameTime();
+	
+			BuildUpElectionDayMenu();
 			
-			for(int i=1;i <= MaxClients;i++)
-			{
-				if(!IsClientInGame(i))
-					continue;
-					
-				else if(!WantsToBeCT[i])
-					continue;
-				
-				char Name[64], sUserId[11];
-				GetClientName(i, Name, sizeof(Name));
-				IntToString(GetClientUserId(i), sUserId, sizeof(sUserId));
-				
-				AddMenuItem(hMenu, sUserId, Name);
-
-			}
+			VoteMenuToAll(hElectionDayMenu, 20);
 			
-			SetMenuTitle(hMenu, "Choose the candidate who you want to be CT:");
-			VoteMenuToAll(hMenu, 20);
+			CreateTimer(1.0, Timer_DrawElectionDayMenu, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT)
 		}
 	}
+}
+
+public Action Timer_DrawElectionDayMenu(Handle hTimer)
+{
+	if(RoundToFloor((ElectionDayStart + 20) - GetGameTime()) <= 0)
+		return Plugin_Stop;
+		
+	else if(!VoteCTRunning)
+		return Plugin_Stop;
+		
+	BuildUpElectionDayMenu();
+	
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(!IsClientInVotePool(i))
+			continue;
+			
+		RedrawClientVoteMenu(i);
+	}
+	
+	return Plugin_Continue;
+}
+
+void BuildUpElectionDayMenu()
+{
+	if(hElectionDayMenu == INVALID_HANDLE)
+		hElectionDayMenu = CreateMenu(ElectionDay_VoteHandler);
+		
+	SetMenuTitle(hElectionDayMenu, "Choose who will become CT: [%i]", RoundFloat((VoteCTStart + 20) - GetGameTime()));
+	
+	RemoveAllMenuItems(hElectionDayMenu);
+	
+	int VoteList[MAXPLAYERS+1];
+	
+	VoteList = CalculateVotes();
+	
+	char TempFormat[128];
+	
+	for(int i=1;i <= MaxClients;i++)
+	{
+		votedItem[i] = -1;
+		
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(!WantsToBeCT[i])
+			continue;
+		
+		char Name[64], sUserId[11];
+		GetClientName(i, Name, sizeof(Name));
+		FormatEx(TempFormat, sizeof(TempFormat), "%s [%i]", Name, VoteList[i]);
+		IntToString(GetClientUserId(i), sUserId, sizeof(sUserId));
+		
+		AddMenuItem(hElectionDayMenu, sUserId, TempFormat);
+
+	}
+	
+	SetMenuPagination(hElectionDayMenu, MENU_NO_PAGINATION);
 }
 
 public int ElectionDay_VoteHandler(Handle hMenu, MenuAction action, int param1, int param2)
 {
 	if(action == MenuAction_End)
+	{
 		CloseHandle(hMenu);
-
+		hVoteCTMenu = INVALID_HANDLE;
+	}
 	else if (action == MenuAction_VoteCancel)
+	{
+		if(param1 == VoteCancel_NoVotes)
+		{
+		
+			CheckElectionDayResult();
+		}
+	}
+	else if (action == MenuAction_VoteEnd)
+	{
+		if(!VoteCTRunning)
+			return;
+			
+		CheckElectionDayResult();
+	}
+	else if (action == MenuAction_Select)
+	{
+		votedItem[param1] = param2;
+	}
+}
+
+void CheckElectionDayResult()
+{
+	int VoteList[MAXPLAYERS+1];
+	
+	VoteList = CalculateVotes();
+	
+	int winner = 0;
+	
+	for (int i = 1; i <= MaxClients+1;i++)
+	{
+		if(!WantsToBeCT[i])
+			continue;
+			
+		else if(VoteList[i] > 0 && (VoteList[i] > VoteList[ChosenGame] || (VoteList[i] == VoteList[ChosenGame] && GetRandomInt(0, 1) == 1) ))
+			winner = i;
+	}
+	
+	// 0 Votes.
+	if(winner == 0)
 	{
 		EndVoteCT();
 		
 		SetChosenCT(0);
 		
 		// BAR COLOR
-		PrintToChatAll(" \x01No votes were casted at \x07all, \x01not even someone voting for \x05himself \x01:D");
+		PrintToChatAll(" \x01No votes were casted at \x07all, \x01not even someone voting for \x05himself...");
 		
 		return;
 	}
-	else if (action == MenuAction_VoteEnd)
-	{			
-		char sUserId[11];
-		GetMenuItem(hMenu, param1, sUserId, sizeof(sUserId));
-		
-		int winner = GetClientOfUserId(StringToInt(sUserId));
-		
-		EndVoteCT();
-		
-		if(winner == 0)
-		{
-			
-			SetChosenCT(0);
-			
-			// BAR COLOR
-			PrintToChatAll(" \x01The winner left the \x05server! \x01Picking another \x07game... ");
-			
-			return;
-		}
-		
-		PrintToChatAll("%s \x05%N \x01was elected in \x07Election Day! \x01He becomes CT. ", PREFIX, winner);
-		
-		SetChosenCT(winner);
-	}
+	
+	EndVoteCT();
+	
+	PrintToChatAll("%s \x05%N \x01was elected in \x07Election Day! \x01He becomes CT. ", PREFIX, winner);
+	
+	SetChosenCT(winner);
 }
 
 public Action Timer_FailGame(Handle hTimer)
@@ -1886,7 +1962,7 @@ stock bool IsValidTeam(int client)
 
 stock CalculateVotes()
 {
-	int arr[16];
+	int arr[MAXPLAYERS+1];
 	
 	for (int i = 1; i <= MaxClients;i++)
 	{
