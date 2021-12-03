@@ -49,6 +49,22 @@ char DayCommand[][] =
 	"sm_startsdeagleday"
 }
 
+
+enum struct enWeapon
+{
+	char classname[64];
+	char nickname[256];
+}
+
+enWeapon WarDayWeapons[] =
+{
+	{ "weapon_ak47", "AK-47" },
+	{ "weapon_awp", "AWP" },
+	{ "weapon_m4a1", "M4A4" },
+	{ "weapon_sg556", "SG-553" },
+	{ "weapon_aug", "AUG" },
+	{ "weapon_scar20", "SCAR-20" }
+}
 native int Gangs_HasGang(int client);
 native int Gangs_GetClientGangName(int client, char[] GangName, int len);
 native int Gangs_PrintToChatGang(char[] GangName, char[] format, any ...);
@@ -83,6 +99,9 @@ Handle fw_OnDayStatus = INVALID_HANDLE;
 Handle hTimer_StartDay = INVALID_HANDLE;
 
 Handle hVoteDayMenu;
+
+Handle hVoteWeaponMenu;
+Handle hVoteHSMenu;
 
 float VoteDayStart;
 
@@ -817,6 +836,9 @@ void SelectWeaponWarDay()
 	if(IsVoteInProgress())
 		CancelVote();
 	
+	DayActive = WAR_DAY;
+	
+	ServerCommand("sm_hardopen");
 	IgnorePlayerDeaths = true;
 	
 	DestroyAllWeapons();
@@ -834,52 +856,111 @@ void SelectWeaponWarDay()
 		CS_RespawnPlayer(i);
 	}	
 	
+	
 	IgnorePlayerDeaths = false;
 	
-	Handle hMenu = CreateMenu(WarDayWeapon_VoteHandler);
-	SetMenuTitle(hMenu, "Choose which weapon will play:");
+	VoteDayStart = GetGameTime();
 	
-	AddMenuItem(hMenu, "weapon_ak47", "AK-47");
-	AddMenuItem(hMenu, "weapon_awp", "AWP");
-	AddMenuItem(hMenu, "weapon_m4a1", "M4A4");
-	AddMenuItem(hMenu, "weapon_sg556", "SG-553");
-	AddMenuItem(hMenu, "weapon_aug", "AUG");
-	AddMenuItem(hMenu, "weapon_scar20", "Scar20");
-
-	VoteMenuToAll(hMenu, 10);
+	BuildUpVoteWeaponMenu();
 	
-	DayActive = WAR_DAY;
+	VoteMenuToAll(hVoteWeaponMenu, 15);
+	
+	CreateTimer(1.0, Timer_DrawVoteWeaponMenu, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT)
 }
 
 
-public int WarDayWeapon_VoteHandler(Handle hMenu, MenuAction action, int param1, int param2)
+public Action Timer_DrawVoteWeaponMenu(Handle hTimer)
+{
+	if(RoundToFloor((VoteDayStart + 15) - GetGameTime()) <= 0)
+		return Plugin_Stop;
+		
+	else if(!IsVoteInProgress())
+		return Plugin_Stop;
+		
+	BuildUpVoteWeaponMenu();
+	
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(!IsClientInVotePool(i))
+			continue;
+			
+		RedrawClientVoteMenu(i);
+	}
+	
+	return Plugin_Continue;
+}
+
+void BuildUpVoteWeaponMenu()
+{
+	if(hVoteWeaponMenu == INVALID_HANDLE)
+		hVoteWeaponMenu = CreateMenu(VoteWeapon_VoteHandler);
+
+	SetMenuTitle(hVoteWeaponMenu, "Choose which weapon will play: [%i]", RoundFloat((VoteDayStart + 15) - GetGameTime()));
+	
+	RemoveAllMenuItems(hVoteWeaponMenu);
+	int VoteList[16];
+	
+	VoteList = CalculateVotes();
+	
+	char TempFormat[128];
+	
+	for (int i = 0; i < sizeof(WarDayWeapons);i++)
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s [%i]", WarDayWeapons[i].nickname, VoteList[i])	 
+		AddMenuItem(hVoteWeaponMenu, "", TempFormat);
+	}	
+	
+	SetMenuPagination(hVoteWeaponMenu, MENU_NO_PAGINATION);
+}
+
+public int VoteWeapon_VoteHandler(Handle hMenu, MenuAction action, int param1, int param2)
 {
 	if(action == MenuAction_End)
+	{
 		CloseHandle(hMenu);
-
+		hVoteWeaponMenu = INVALID_HANDLE;
+	}
 	else if (action == MenuAction_VoteCancel)
 	{
-		param1 = GetRandomInt(0, 5); // 5 = (Amount of items - 1)
-		
-		char WeaponTitle[64];
-		GetMenuItem(hMenu, param1, DayWeapon, sizeof(DayWeapon), _, WeaponTitle, sizeof(WeaponTitle));
-		
-		PrintToChatAll("%s The winning weapon is \x07%s", PREFIX, WeaponTitle);
-
-		SelectHSWarDay();
-		
-		return;
+		if(param1 == VoteCancel_NoVotes)
+		{
+			CheckVoteWeaponResult();
+		}
 	}
 	else if (action == MenuAction_VoteEnd)
-	{			
-	
-		char WeaponTitle[64];
-		GetMenuItem(hMenu, param1, DayWeapon, sizeof(DayWeapon), _, WeaponTitle, sizeof(WeaponTitle));
-		
-		PrintToChatAll("%s The winning weapon is \x07%s", PREFIX, WeaponTitle);
-		
-		SelectHSWarDay();
+	{
+		CheckVoteWeaponResult();
 	}
+	else if (action == MenuAction_Select)
+	{
+		votedItem[param1] = param2;
+	}
+}
+
+void CheckVoteWeaponResult()
+{
+	int VoteList[16];
+	
+	VoteList = CalculateVotes();
+	
+	int winnerWeapon = 0;
+	
+	for (int i = 0; i < sizeof(WarDayWeapons);i++)
+	{
+		// We actually allow zero votes as we must get a result.
+		if(/*VoteList[i] > 0 && */VoteList[i] > VoteList[winnerWeapon] || (VoteList[i] == VoteList[winnerWeapon] && GetRandomInt(0, 1) == 1))
+			winnerWeapon = i;
+	}
+	
+	
+	FormatEx(DayWeapon, sizeof(DayWeapon), WarDayWeapons[winnerWeapon].classname);
+	
+	PrintToChatAll("%s The winning weapon is \x07%s", PREFIX, WarDayWeapons[winnerWeapon].nickname);
+
+	SelectHSWarDay();
 }
 
 void SelectHSWarDay()
@@ -892,51 +973,105 @@ void SelectHSWarDay()
 		return;
 	}	
 	
-	Handle hMenu = CreateMenu(WarDayHS_VoteHandler);
+	VoteDayStart = GetGameTime();
 	
-	// Prefix
-	SetMenuTitle(hMenu, "Should HeadShot Only rules apply?");
+	BuildUpVoteHSMenu();
 	
-	AddMenuItem(hMenu, "", "Yes");
-	AddMenuItem(hMenu, "", "No");
-
-	VoteMenuToAll(hMenu, 10);
+	VoteMenuToAll(hVoteHSMenu, 15);
+	
+	CreateTimer(1.0, Timer_DrawVoteHSMenu, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT)
 }
 
+
+public Action Timer_DrawVoteHSMenu(Handle hTimer)
+{
+	if(RoundToFloor((VoteDayStart + 15) - GetGameTime()) <= 0)
+		return Plugin_Stop;
+		
+	else if(!IsVoteInProgress())
+		return Plugin_Stop;
+		
+	BuildUpVoteHSMenu();
+	
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(!IsClientInVotePool(i))
+			continue;
+			
+		RedrawClientVoteMenu(i);
+	}
+	
+	return Plugin_Continue;
+}
+
+void BuildUpVoteHSMenu()
+{
+	if(hVoteHSMenu == INVALID_HANDLE)
+		hVoteHSMenu = CreateMenu(WarDayHS_VoteHandler);
+
+	SetMenuTitle(hVoteHSMenu, "Should HeadShot Only rules apply? [%i]", RoundFloat((VoteDayStart + 15) - GetGameTime()));
+	
+	
+	RemoveAllMenuItems(hVoteHSMenu);
+	int VoteList[16];
+	
+	VoteList = CalculateVotes();
+	
+	char TempFormat[128];
+	
+	FormatEx(TempFormat, sizeof(TempFormat), "Yes [%i]", VoteList[0])	 
+	AddMenuItem(hVoteHSMenu, "", TempFormat);
+	
+	FormatEx(TempFormat, sizeof(TempFormat), "No [%i]", VoteList[1])	 
+	AddMenuItem(hVoteHSMenu, "", TempFormat);
+	
+	SetMenuPagination(hVoteHSMenu, MENU_NO_PAGINATION);
+}
 
 public int WarDayHS_VoteHandler(Handle hMenu, MenuAction action, int param1, int param2)
 {
 	if(action == MenuAction_End)
+	{
 		CloseHandle(hMenu);
-
+		hVoteHSMenu = INVALID_HANDLE;
+	}
 	else if (action == MenuAction_VoteCancel)
 	{
-		if(DayActive != WAR_DAY)
-			return;
-			
-		param1 = GetRandomInt(0, 1);
-		
-		DayHSOnly = !param1;
-		
-		PrintToChatAll("%s HS Only is \x07%sactive!", PREFIX, DayHSOnly ? "" : "not ");
-		
-		StartWarDay();
-		
-		return;
+		if(param1 == VoteCancel_NoVotes)
+		{
+			CheckVoteHSResult();
+		}
 	}
 	else if (action == MenuAction_VoteEnd)
-	{		
-		if(DayActive != WAR_DAY)
-			return;
-			
-		DayHSOnly = !param1;
-		
-
-		PrintToChatAll("%s HS Only is \x07%sactive!", PREFIX, DayHSOnly ? "" : "not ");
-		
-		StartWarDay();
+	{
+		CheckVoteHSResult();
+	}
+	else if (action == MenuAction_Select)
+	{
+		votedItem[param1] = param2;
 	}
 }
+
+void CheckVoteHSResult()
+{
+	int VoteList[16];
+	
+	VoteList = CalculateVotes();
+	
+	if(VoteList[0] > VoteList[1] || (VoteList[0] == VoteList[1] && GetRandomInt(0, 1) == 1))
+		DayHSOnly = true;
+		
+	else
+		DayHSOnly = false;
+	
+	PrintToChatAll("%s HS Only is \x07%sactive!", PREFIX, DayHSOnly ? "" : "not ");
+	
+	StartWarDay();
+}
+
 
 void StartWarDay()
 {

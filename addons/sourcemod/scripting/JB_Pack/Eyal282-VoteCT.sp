@@ -1294,9 +1294,10 @@ public Action Timer_StartGame(Handle hTimer)
 			
 					SetMenuTitle(hMenu, GameTitle[ChosenGame]);
 					
-					AddMenuItem(hMenu, "", "Yes");
-					Format(TempFormat, sizeof(TempFormat), "No\nThe Random Player will be selected in %.1f seconds.", VoteCTTimeLeft);
+					FormatEx(TempFormat, sizeof(TempFormat), "Yes%s", WantsToBeCT[i] ? " ☆" : "");
+					AddMenuItem(hMenu, "", TempFormat);
 					
+					FormatEx(TempFormat, sizeof(TempFormat), "No%s\nThe Random Player will be selected in %.1f seconds.", !WantsToBeCT[i] ? " ☆" : "", VoteCTTimeLeft);
 					AddMenuItem(hMenu, "", TempFormat);
 				
 					DisplayMenu(hMenu, i, 1);
@@ -1321,9 +1322,10 @@ public Action Timer_StartGame(Handle hTimer)
 			
 					SetMenuTitle(hMenu, GameTitle[ChosenGame]);
 					
-					AddMenuItem(hMenu, "", "Yes");
-					Format(TempFormat, sizeof(TempFormat), "No\nThe Elections will be held in %.1f seconds.", VoteCTTimeLeft);
+					FormatEx(TempFormat, sizeof(TempFormat), "Yes%s", WantsToBeCT[i] ? " ☆" : "");
+					AddMenuItem(hMenu, "", TempFormat);
 					
+					FormatEx(TempFormat, sizeof(TempFormat), "No%s\nThe Random Player will be selected in %.1f seconds.", !WantsToBeCT[i] ? " ☆" : "", VoteCTTimeLeft);
 					AddMenuItem(hMenu, "", TempFormat);
 				
 					DisplayMenu(hMenu, i, 1);
