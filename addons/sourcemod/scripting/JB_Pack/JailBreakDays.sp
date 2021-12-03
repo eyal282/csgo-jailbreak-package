@@ -65,6 +65,8 @@ enWeapon WarDayWeapons[] =
 	{ "weapon_aug", "AUG" },
 	{ "weapon_scar20", "SCAR-20" }
 }
+
+native void Eyal282_VoteCT_StopVoteCT();
 native int Gangs_HasGang(int client);
 native int Gangs_GetClientGangName(int client, char[] GangName, int len);
 native int Gangs_PrintToChatGang(char[] GangName, char[] format, any ...);
@@ -102,6 +104,7 @@ Handle hVoteDayMenu;
 
 Handle hVoteWeaponMenu;
 Handle hVoteHSMenu;
+Handle hVoteBackstabMenu;
 
 float VoteDayStart;
 
@@ -231,7 +234,6 @@ void CheckVoteDayResult()
 		if(/*VoteList[i] > 0 && */VoteList[i] > VoteList[DayActive] || (VoteList[i] == VoteList[DayActive] && GetRandomInt(0, 1) == 1))
 			DayActive = view_as<enDay>(i);
 	}
-	
 	
 	ServerCommand(DayCommand[DayActive]);
 	
@@ -410,11 +412,13 @@ public Action SDKEvent_TraceAttack(int victim, int &attacker, int &inflictor, fl
 	else if(!DayHSOnly)
 		return Plugin_Continue;
 	
-	else if(hitgroup == 1)
-		return Plugin_Continue;
-		
-	damage = 0.0;
-	return Plugin_Changed;
+	else if((hitgroup != 1 && DayActive != KNIFE_DAY) || (damage < 69 && DayActive == KNIFE_DAY))
+	{
+		damage = 0.0;
+		return Plugin_Changed;
+	}
+	
+	return Plugin_Continue;
 }
 public Action CS_OnCSWeaponDrop(int client, int weapon)
 {
@@ -514,9 +518,8 @@ public Action Command_StartVoteDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
-	StopDay(false);
-	
-	ServerCommand("sm_stopvotect");
+	StopDay(false);	
+	Eyal282_VoteCT_StopVoteCT();
 	ServerCommand("sm_egr");
 	
 	StartVoteDay();
@@ -532,11 +535,10 @@ public Action Command_StartFSDay(int client, int args)
 	ServerCommand("sm_silentstopck");
 	
 	StopDay(false);
+	Eyal282_VoteCT_StopVoteCT();
+	ServerCommand("sm_egr");
 	
 	StartFSDay();
-	
-	ServerCommand("sm_stopvotect");
-	ServerCommand("sm_egr");
 	
 	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 	
@@ -549,11 +551,10 @@ public Action Command_StartZeusDay(int client, int args)
 	ServerCommand("sm_silentstopck");
 	
 	StopDay(false);
-	
-	StartZeusDay();
-	
-	ServerCommand("sm_stopvotect");
+	Eyal282_VoteCT_StopVoteCT();
 	ServerCommand("sm_egr");
+		
+	StartZeusDay();
 	
 	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 	
@@ -567,11 +568,10 @@ public Action Command_StartDodgeballDay(int client, int args)
 	ServerCommand("sm_silentstopck");
 	
 	StopDay(false);
+	Eyal282_VoteCT_StopVoteCT();
+	ServerCommand("sm_egr");
 	
 	StartDodgeballDay();
-	
-	ServerCommand("sm_stopvotect");
-	ServerCommand("sm_egr");
 	
 	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 	
@@ -584,11 +584,10 @@ public Action Command_StartScoutDay(int client, int args)
 	ServerCommand("sm_silentstopck");
 	
 	StopDay(false);
+	Eyal282_VoteCT_StopVoteCT();
+	ServerCommand("sm_egr");
 	
 	StartScoutDay();
-	
-	ServerCommand("sm_stopvotect");
-	ServerCommand("sm_egr");
 	
 	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 	
@@ -599,26 +598,132 @@ public Action Command_StartKnifeDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
-	StopDay(false);
-	
-	StartKnifeDay();
-	
-	ServerCommand("sm_stopvotect");
+	Eyal282_VoteCT_StopVoteCT();
 	ServerCommand("sm_egr");
-	
+		
+	SelectHSKnifeDay();
+
 	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 	
 	return Plugin_Handled;
+}
+
+
+void SelectHSKnifeDay()
+{
+	if(IsVoteInProgress())
+	{
+		ServerCommand("mp_restartgame 1");
+		
+		PrintToChatAll("%s Error couldn't start vote for \x07Backstab \x01only, contact \x05Eyal282!", PREFIX);
+		return;
+	}	
+	
+	VoteDayStart = GetGameTime();
+	
+	BuildUpVoteHSKnifeMenu();
+	
+	VoteMenuToAll(hVoteBackstabMenu, 15);
+	
+	CreateTimer(1.0, Timer_DrawVoteHSKnifeMenu, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT)
+}
+
+
+public Action Timer_DrawVoteHSKnifeMenu(Handle hTimer)
+{
+	if(RoundToFloor((VoteDayStart + 15) - GetGameTime()) <= 0)
+		return Plugin_Stop;
+		
+	else if(!IsVoteInProgress())
+		return Plugin_Stop;
+		
+	BuildUpVoteHSKnifeMenu();
+	
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(!IsClientInVotePool(i))
+			continue;
+			
+		RedrawClientVoteMenu(i);
+	}
+	
+	return Plugin_Continue;
+}
+
+void BuildUpVoteHSKnifeMenu()
+{
+	if(hVoteBackstabMenu == INVALID_HANDLE)
+		hVoteBackstabMenu = CreateMenu(KnifeDayHS_VoteHandler);
+
+	SetMenuTitle(hVoteBackstabMenu, "Should Backstab Only rules apply? [%i]", RoundFloat((VoteDayStart + 15) - GetGameTime()));
+	
+	
+	RemoveAllMenuItems(hVoteBackstabMenu);
+	int VoteList[16];
+	
+	VoteList = CalculateVotes();
+	
+	char TempFormat[128];
+	
+	FormatEx(TempFormat, sizeof(TempFormat), "Yes [%i]", VoteList[0])	 
+	AddMenuItem(hVoteBackstabMenu, "", TempFormat);
+	
+	FormatEx(TempFormat, sizeof(TempFormat), "No [%i]", VoteList[1])	 
+	AddMenuItem(hVoteBackstabMenu, "", TempFormat);
+	
+	SetMenuPagination(hVoteBackstabMenu, MENU_NO_PAGINATION);
+}
+
+public int KnifeDayHS_VoteHandler(Handle hMenu, MenuAction action, int param1, int param2)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hVoteBackstabMenu = INVALID_HANDLE;
+	}
+	else if (action == MenuAction_VoteCancel)
+	{
+		if(param1 == VoteCancel_NoVotes)
+		{
+			CheckVoteHSResult();
+		}
+	}
+	else if (action == MenuAction_VoteEnd)
+	{
+		CheckVoteHSKnifeResult();
+	}
+	else if (action == MenuAction_Select)
+	{
+		votedItem[param1] = param2;
+	}
+}
+
+void CheckVoteHSKnifeResult()
+{
+	int VoteList[16];
+	
+	VoteList = CalculateVotes();
+	
+	if(VoteList[0] > VoteList[1] || (VoteList[0] == VoteList[1] && GetRandomInt(0, 1) == 1))
+		DayHSOnly = true;
+		
+	else
+		DayHSOnly = false;
+	
+	PrintToChatAll("%s Backstab Only is \x07%sactive!", PREFIX, DayHSOnly ? "" : "not ");
+	
+	StartKnifeDay();
 }
 
 public Action Command_StartWarDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
-	ServerCommand("sm_stopvotect");
+	Eyal282_VoteCT_StopVoteCT();
 	ServerCommand("sm_egr");
-	
-	StopDay(false);
 	
 	SelectWeaponWarDay();
 	
@@ -632,11 +737,10 @@ public Action Command_StartSDeagleDay(int client, int args)
 	ServerCommand("sm_silentstopck");
 	
 	StopDay(false);
+	Eyal282_VoteCT_StopVoteCT();
+	ServerCommand("sm_egr");
 	
 	StartSDeagleDay();
-	
-	ServerCommand("sm_stopvotect");
-	ServerCommand("sm_egr");
 	
 	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 	

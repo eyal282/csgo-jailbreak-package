@@ -168,6 +168,7 @@ native bool SmartOpen_OpenCells(bool forced, bool isolation);
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
+	CreateNative("Eyal282_VoteCT_StopVoteCT", Native_StopVoteCT);
 	CreateNative("Eyal282_VoteCT_IsChosen", Native_IsChosen);
 	CreateNative("Eyal282_VoteCT_GetChosenUserId", Native_GetChosenUserId);
 	CreateNative("Eyal282_VoteCT_IsGodRound", Native_IsGodRound);
@@ -175,6 +176,12 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("Eyal282_VoteCT_SetChosen", Native_SetChosen);
 	 
 	return APLRes_Success;
+}
+
+
+public int Native_StopVoteCT(Handle plugin, int numParams)
+{
+	EndVoteCT();
 }
 
 public int Native_IsChosen(Handle plugin, int numParams)
