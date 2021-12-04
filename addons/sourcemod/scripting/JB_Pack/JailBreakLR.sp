@@ -138,6 +138,7 @@ Handle hcv_svCheats = INVALID_HANDLE;
 
 // GENERAL LR //
 char LRArguments[MAXPLAYERS + 1][64];
+char SavedLRArguments[MAXPLAYERS + 1][64];
 int Prisoner, Guard, FreeDayUID = -1, ChokeTimer, GeneralTimer;
 int PrisonerPrim, PrisonerSec, GuardPrim, GuardSec//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;
 int HPamount, BPAmmo, Vest;
@@ -2379,6 +2380,8 @@ public Action Command_LR(int client, int args)
 	{
 		EndLR(false);
 		
+		FormatEx(SavedLRArguments[client], sizeof(SavedLRArguments[]), "");
+		
 		CanSetHealth[client] = false;
 		
 		if(LRArguments[client][0] != EOS)
@@ -2425,6 +2428,13 @@ public int LR_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 			hMenu = INVALID_HANDLE;
 			return;
 		}
+		
+		char sDigit[2];
+		
+		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+	
+		
+		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
 		
 		switch(item + 1)
 		{	
@@ -2517,6 +2527,13 @@ public int Weapons_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 		{
 			Type = 1;
 		}
+		
+		char sDigit[2];
+		
+		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		
+		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
+		
 		switch(item + 1)
 		{
 			case 1:
@@ -2667,6 +2684,13 @@ public int Custom_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 			hMenu = INVALID_HANDLE;
 			return;
 		}
+		
+		char sDigit[2];
+		
+		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		
+		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
+		
 		switch(item+1)
 		{
 			case 1:
@@ -2790,6 +2814,12 @@ public int Rules_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 		if(!LastRequest(client))
 			return;
 		
+		char sDigit[2];
+		
+		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		
+		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
+		
 		switch(item+1)
 		{
 			case 1:
@@ -2849,7 +2879,6 @@ public int Rules_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 		}
 		
 		if( ( Type == 0 && item + 1 != 5 ) || ( Type == 1 && item + 1 != 7 ) ) ChooseRules(client); // This is to return to rules menu except when player decides to begin the duel.
-		
 	}
 
 	hMenu = INVALID_HANDLE;
@@ -2926,6 +2955,12 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 			if(GetClientTeam(i) == CS_TEAM_T)
 				T++;
 		}	
+		
+		char sDigit[2];
+		
+		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		
+		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
 		
 		switch(item + 1) 
 		{
@@ -3075,7 +3110,6 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 			
 		else if(item+1 < 13 && item+1 > 3)
 			ChooseOpponent(client);
-		
 	}
 	
 	hMenu = INVALID_HANDLE;
@@ -3121,6 +3155,13 @@ public int Seeker_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 			hMenu = INVALID_HANDLE;
 			return;
 		}
+		
+		char sDigit[2];
+		
+		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		
+		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
+		
 		if(item == 2)
 			item = GetRandomInt(0, 1);
 			
@@ -3255,6 +3296,12 @@ public int Auto_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 		EndLR(false);
 		HPamount = GetMaxHealthValue();
 		
+		char sDigit[2];
+		
+		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		
+		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
+		
 		switch(item+1)
 		{
 			case 1: DuelName = "Auto | First Writes";
@@ -3355,6 +3402,13 @@ public int Opponent_MenuHandler(Handle hMenu, MenuAction action, int client, int
 		
 		if(LastRequest(client) && target != 0)
 		{
+			char sDigit[2];
+			
+			FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		
+			
+			StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
+			
 			Guard = target;			
 			
 			Prisoner = client;
@@ -3617,6 +3671,8 @@ public void ContinueStartDuel()
 		SetEntityMoveType(Prisoner, MOVETYPE_NONE);
 		SetEntityMoveType(Guard, MOVETYPE_NONE);
 		TIMER_COUNTDOWN = CreateTimer(1.0, DecrementTimer, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+		
+		FormatEx(SavedLRArguments[Prisoner], sizeof(SavedLRArguments[]), "");
 	}
 	
 	else if(StrContains(DuelName, "Gun Toss") != -1)
@@ -3756,6 +3812,8 @@ public void ContinueStartDuel()
 	//set_task(NC ? 7.5 : 1.0, "Beacon", BEACON_TASKID);
 	
 	//Teleport();
+	
+	PrintToChat(Prisoner, "LR Sequence: !lr %s", SavedLRArguments[Prisoner]);
 }
 
 public void DeleteAllGuns()
