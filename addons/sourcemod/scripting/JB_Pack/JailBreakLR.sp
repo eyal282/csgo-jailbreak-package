@@ -137,6 +137,7 @@ Handle hcv_NoSpread = INVALID_HANDLE;
 Handle hcv_svCheats = INVALID_HANDLE;
 
 // GENERAL LR //
+char LRArguments[MAXPLAYERS + 1][64];
 int Prisoner, Guard, FreeDayUID = -1, ChokeTimer, GeneralTimer;
 int PrisonerPrim, PrisonerSec, GuardPrim, GuardSec//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;
 int HPamount, BPAmmo, Vest;
@@ -270,13 +271,6 @@ bool g_bLRSound;
 
 public void OnPluginStart() 
 {		
-	/*
-	if(GetTime() > 1561075200)
-	{
-		SetFailState("Time's up");
-		return;
-	}
-	*/
 	//RegConsoleCmd("LRManage_TOrigin", Command_TOrigin);
 	//RegConsoleCmd("LRManage_CTOrigin", Command_CTOrigin);
 	//RegConsoleCmd("LRManage_DuelName", Command_DuelName);
@@ -2349,6 +2343,15 @@ void FinishTimers(Handle hTimer_Ignore = INVALID_HANDLE)
 
 public Action Command_LR(int client, int args)
 {
+	if(args > 0)
+	{
+		char ArgString[64];
+		
+		// This is to remove every character from the string. 
+		GetCmdArgString(ArgString, sizeof(ArgString));
+		int iArgString = StringToInt(ArgString);
+		IntToString(iArgString, LRArguments[client], sizeof(LRArguments[]));
+	}		
 	if(GetClientTeam(client) == CS_TEAM_CT)
 	{
 		int LastT, count;
@@ -2375,20 +2378,35 @@ public Action Command_LR(int client, int args)
 	if(LastRequest(client))
 	{
 		EndLR(false);
-	
-		Handle hMenu = CreateMenu(LR_MenuHandler);
-	
-		AddMenuItem(hMenu, "", "Fun Duels");
-		AddMenuItem(hMenu, "", "Auto Duels");
-		AddMenuItem(hMenu, "", "Random");
 		
-		SetMenuTitle(hMenu, "%s Select your favorite duel!", MENU_PREFIX);
-		
-		SetMenuPagination(hMenu, MENU_NO_PAGINATION);
-		SetMenuExitButton(hMenu, true);
-		
-		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 		CanSetHealth[client] = false;
+		
+		if(LRArguments[client][0] != EOS)
+		{
+			char sDigit[2];
+			
+			FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
+			int item = StringToInt(sDigit) - 1;
+
+			ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
+		
+			LR_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, item)
+		}
+		else
+		{
+			Handle hMenu = CreateMenu(LR_MenuHandler);
+		
+			AddMenuItem(hMenu, "", "Fun Duels");
+			AddMenuItem(hMenu, "", "Auto Duels");
+			AddMenuItem(hMenu, "", "Random");
+			
+			SetMenuTitle(hMenu, "%s Select your favorite duel!", MENU_PREFIX);
+			
+			SetMenuPagination(hMenu, MENU_NO_PAGINATION);
+			SetMenuExitButton(hMenu, true);
+				
+			DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+		}
 	}
 	
 	return Plugin_Handled;
@@ -2437,28 +2455,42 @@ public void ShowWeaponMenu(int client)
 	}
 	char TempFormat[100];
 	
-	Handle hMenu = CreateMenu(Weapons_MenuHandler);
-
-	AddMenuItem(hMenu, "", "Glock-18");
-	AddMenuItem(hMenu, "", "USP");
-	AddMenuItem(hMenu, "", "Dual Berretas");
-	AddMenuItem(hMenu, "", "P250");
-	AddMenuItem(hMenu, "", "Fiveseven");
-	AddMenuItem(hMenu, "", "Tec-9");
-	AddMenuItem(hMenu, "", "Deagle");
-	AddMenuItem(hMenu, "", "Revolver");
-	
-	if(StrContains(DuelName, "Custom") != -1)
+	if(LRArguments[client][0] != EOS)
 	{
-		AddMenuItem(hMenu, "", "HE Grenade");
-		AddMenuItem(hMenu, "", "Knife");
+		char sDigit[2];
+		
+		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
+		int item = StringToInt(sDigit) - 1;
+
+		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
+		
+		Weapons_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, item)
 	}
+	else
+	{
+		Handle hMenu = CreateMenu(Weapons_MenuHandler);
 	
-	AddMenuItem(hMenu, "", "Random");
-	
-	Format(TempFormat, sizeof(TempFormat), "[Last Request] %s:", Type == 0 ? "Shot4Shot" : "Custom Duel");
-	SetMenuTitle(hMenu, TempFormat);
-	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+		AddMenuItem(hMenu, "", "Glock-18");
+		AddMenuItem(hMenu, "", "USP");
+		AddMenuItem(hMenu, "", "Dual Berretas");
+		AddMenuItem(hMenu, "", "P250");
+		AddMenuItem(hMenu, "", "Fiveseven");
+		AddMenuItem(hMenu, "", "Tec-9");
+		AddMenuItem(hMenu, "", "Deagle");
+		AddMenuItem(hMenu, "", "Revolver");
+		
+		if(StrContains(DuelName, "Custom") != -1)
+		{
+			AddMenuItem(hMenu, "", "HE Grenade");
+			AddMenuItem(hMenu, "", "Knife");
+		}
+		
+		AddMenuItem(hMenu, "", "Random");
+		
+		Format(TempFormat, sizeof(TempFormat), "[Last Request] %s:", Type == 0 ? "Shot4Shot" : "Custom Duel");
+		SetMenuTitle(hMenu, TempFormat);
+		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	}
 }
 
 public int Weapons_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -2585,27 +2617,42 @@ public int Weapons_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 }
 
 public void ShowCustomMenu(int client)
-{
-	char TempFormat[100], WeaponName[50];
-	
-	Handle hMenu = CreateMenu(Custom_MenuHandler);
-
-	Format(TempFormat, sizeof(TempFormat), "Health: %i", HPamount);
-	AddMenuItem(hMenu, "", TempFormat);
-	
-	Format(WeaponName, sizeof(WeaponName), DuelName);
-	ReplaceString(WeaponName, sizeof(WeaponName), "S4S | ", "");
-	
-	Format(TempFormat, sizeof(TempFormat), "Weapon: %s", WeaponName);
-	AddMenuItem(hMenu, "", TempFormat);
-	
-	AddMenuItem(hMenu, "", "Random Health");
-	
-	AddMenuItem(hMenu, "", "Begin duel!");
-	
-	SetMenuTitle(hMenu, "%s Custom Duel:", MENU_PREFIX);
-	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+{	
 	CanSetHealth[client] = true;
+	
+	if(LRArguments[client][0] != EOS)
+	{
+		char sDigit[2];
+			
+		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
+		int item = StringToInt(sDigit) - 1;
+
+		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
+		
+		Custom_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, item)
+	}
+	else
+	{
+		char TempFormat[100], WeaponName[50];
+		
+		Handle hMenu = CreateMenu(Custom_MenuHandler);
+	
+		Format(TempFormat, sizeof(TempFormat), "Health: %i", HPamount);
+		AddMenuItem(hMenu, "", TempFormat);
+		
+		Format(WeaponName, sizeof(WeaponName), DuelName);
+		ReplaceString(WeaponName, sizeof(WeaponName), "S4S | ", "");
+		
+		Format(TempFormat, sizeof(TempFormat), "Weapon: %s", WeaponName);
+		AddMenuItem(hMenu, "", TempFormat);
+		
+		AddMenuItem(hMenu, "", "Random Health");
+		
+		AddMenuItem(hMenu, "", "Begin duel!");
+		
+		SetMenuTitle(hMenu, "%s Custom Duel:", MENU_PREFIX);
+		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	}
 }
 
 public int Custom_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -2659,52 +2706,65 @@ public int Custom_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 
 public void ChooseRules(int client)
 {
+	if(LRArguments[client][0] != EOS)
+	{
+		char sDigit[2];
+			
+		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
+		int item = StringToInt(sDigit) - 1;
+
+		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
 		
-	int Type; // S4S = 0, Custom = 1
-	
-	if(StrContains(DuelName, "S4S") != -1)
-	{
-		Type = 0;
+		Rules_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, item)
 	}
-	else if(StrContains(DuelName, "Custom") != -1)
+	else
 	{
-		Type = 1;
-	}
-
-	char TempFormat[100];
+		int Type; // S4S = 0, Custom = 1
+		
+		if(StrContains(DuelName, "S4S") != -1)
+		{
+			Type = 0;
+		}
+		else if(StrContains(DuelName, "Custom") != -1)
+		{
+			Type = 1;
+		}
 	
-	Handle hMenu = CreateMenu(Rules_MenuHandler);
-	
-	Format(TempFormat, sizeof(TempFormat), "%s: %sllowed", PrimNum == CSWeapon_KNIFE ? "Right Stab" : "Zoom", Zoom ? "A" : "Disa");
-	AddMenuItem(hMenu, "", TempFormat);
-	
-	switch(Vest)
-	{
-		case 0: Format(TempFormat, sizeof(TempFormat), "Vest: Nothing");
-		case 1: Format(TempFormat, sizeof(TempFormat), "Vest: Yes");
-		default: Format(TempFormat, sizeof(TempFormat), "Vest: And Helmet");
-	}
-	AddMenuItem(hMenu, "", TempFormat);
-	
-
-	Format(TempFormat, sizeof(TempFormat), "%s: %s", PrimNum == CSWeapon_KNIFE ? "Backstab" : "Headshot", !HeadShot ? "Free" : "Only");
-	AddMenuItem(hMenu, "", TempFormat);
-	
-	if(Type == 1)
-	{
-		Format(TempFormat, sizeof(TempFormat), "Jump: %sllowed", Jump ? "A" : "Disa");
+		char TempFormat[100];
+		
+		Handle hMenu = CreateMenu(Rules_MenuHandler);
+		
+		Format(TempFormat, sizeof(TempFormat), "%s: %sllowed", PrimNum == CSWeapon_KNIFE ? "Right Stab" : "Zoom", Zoom ? "A" : "Disa");
 		AddMenuItem(hMenu, "", TempFormat);
 		
-		Format(TempFormat, sizeof(TempFormat), "Duck: %sllowed", Duck ? "A" : "Disa");
+		switch(Vest)
+		{
+			case 0: Format(TempFormat, sizeof(TempFormat), "Vest: Nothing");
+			case 1: Format(TempFormat, sizeof(TempFormat), "Vest: Yes");
+			default: Format(TempFormat, sizeof(TempFormat), "Vest: And Helmet");
+		}
 		AddMenuItem(hMenu, "", TempFormat);
+		
+	
+		Format(TempFormat, sizeof(TempFormat), "%s: %s", PrimNum == CSWeapon_KNIFE ? "Backstab" : "Headshot", !HeadShot ? "Free" : "Only");
+		AddMenuItem(hMenu, "", TempFormat);
+		
+		if(Type == 1)
+		{
+			Format(TempFormat, sizeof(TempFormat), "Jump: %sllowed", Jump ? "A" : "Disa");
+			AddMenuItem(hMenu, "", TempFormat);
+			
+			Format(TempFormat, sizeof(TempFormat), "Duck: %sllowed", Duck ? "A" : "Disa");
+			AddMenuItem(hMenu, "", TempFormat);
+		}
+		
+		AddMenuItem(hMenu, "", "Random Rules");
+		
+		AddMenuItem(hMenu, "", "Select Opponent");
+		
+		SetMenuTitle(hMenu, "%s Select battle rules:", MENU_PREFIX);
+		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 	}
-	
-	AddMenuItem(hMenu, "", "Random Rules");
-	
-	AddMenuItem(hMenu, "", "Select Opponent");
-	
-	SetMenuTitle(hMenu, "%s Select battle rules:", MENU_PREFIX);
-	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
 public int Rules_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -2796,27 +2856,41 @@ public int Rules_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 }
 public void ShowFunMenu(int client)
 {	
-	Handle hMenu = CreateMenu(Fun_MenuHandler);
-	
-	AddMenuItem(hMenu, "", "Shot4Shot Duels");
-	AddMenuItem(hMenu, "", "Custom War");
-	AddMenuItem(hMenu, "", "RAMBO REBEL");
-	AddMenuItem(hMenu, "", "Night Crawler ( Invisible )");
-	AddMenuItem(hMenu, "", "Hide'N'Seek");
-	AddMenuItem(hMenu, "", "Last Hit Bleeds");
-	AddMenuItem(hMenu, "", "Super Deagle");
-	AddMenuItem(hMenu, "", "Negev No Spread");
-	AddMenuItem(hMenu, "", "Gun Toss");
-	AddMenuItem(hMenu, "", "Dodgeball");
-	AddMenuItem(hMenu, "", "Backstabs");
-	AddMenuItem(hMenu, "", "Race");
-	
-	AddMenuItem(hMenu, "", "Freeday");
-	
-	AddMenuItem(hMenu, "", "Random");
-	
-	SetMenuTitle(hMenu, "%s Fun Duels:", MENU_PREFIX);
-	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	if(LRArguments[client][0] != EOS)
+	{
+		char sDigit[2];
+			
+		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
+		int item = StringToInt(sDigit) - 1;
+
+		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
+		
+		Fun_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, item)
+	}
+	else
+	{
+		Handle hMenu = CreateMenu(Fun_MenuHandler);
+		
+		AddMenuItem(hMenu, "", "Shot4Shot Duels");
+		AddMenuItem(hMenu, "", "Custom War");
+		AddMenuItem(hMenu, "", "RAMBO REBEL");
+		AddMenuItem(hMenu, "", "Night Crawler ( Invisible )");
+		AddMenuItem(hMenu, "", "Hide'N'Seek");
+		AddMenuItem(hMenu, "", "Last Hit Bleeds");
+		AddMenuItem(hMenu, "", "Super Deagle");
+		AddMenuItem(hMenu, "", "Negev No Spread");
+		AddMenuItem(hMenu, "", "Gun Toss");
+		AddMenuItem(hMenu, "", "Dodgeball");
+		AddMenuItem(hMenu, "", "Backstabs");
+		AddMenuItem(hMenu, "", "Race");
+		
+		AddMenuItem(hMenu, "", "Freeday");
+		
+		AddMenuItem(hMenu, "", "Random");
+		
+		SetMenuTitle(hMenu, "%s Fun Duels:", MENU_PREFIX);
+		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	}
 }
 
 public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -3009,16 +3083,30 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 
 public void ChooseSeeker(int client)
 {
-	Handle hMenu = CreateMenu(Seeker_MenuHandler);
+	if(LRArguments[client][0] != EOS)
+	{
+		char sDigit[2];
+			
+		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
+		int item = StringToInt(sDigit) - 1;
 
-	AddMenuItem(hMenu, "", "You");
+		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
+		
+		Seeker_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, item)
+	}
+	else
+	{
+		Handle hMenu = CreateMenu(Seeker_MenuHandler);
 	
-	AddMenuItem(hMenu, "", "Guard");
-	
-	AddMenuItem(hMenu, "", "Random");
-	
-	SetMenuTitle(hMenu, "%s Choose who will seek:", MENU_PREFIX);
-	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+		AddMenuItem(hMenu, "", "You");
+		
+		AddMenuItem(hMenu, "", "Guard");
+		
+		AddMenuItem(hMenu, "", "Random");
+		
+		SetMenuTitle(hMenu, "%s Choose who will seek:", MENU_PREFIX);
+		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	}
 }
 
 public int Seeker_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -3123,19 +3211,33 @@ public int Race_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 
 public void ShowAutoMenu(int client)
 {
-	Handle hMenu = CreateMenu(Auto_MenuHandler);
+	if(LRArguments[client][0] != EOS)
+	{
+		char sDigit[2];
+			
+		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
+		int item = StringToInt(sDigit) - 1;
 
-	AddMenuItem(hMenu, "", "First Writes");
-	AddMenuItem(hMenu, "", "Combo Contest");
-	AddMenuItem(hMenu, "", "Math Contest");
-	AddMenuItem(hMenu, "", "Opposite Contest");
-	AddMenuItem(hMenu, "", "Type Stages Contest");
-	AddMenuItem(hMenu, "", "Most Jumps");
-	//AddMenuItem(hMenu, "", "Spray");
-	AddMenuItem(hMenu, "", "Random");
+		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
+		
+		Auto_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, item)
+	}
+	else
+	{
+		Handle hMenu = CreateMenu(Auto_MenuHandler);
 	
-	SetMenuTitle(hMenu, "%s Automatic Contests:", MENU_PREFIX);
-	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+		AddMenuItem(hMenu, "", "First Writes");
+		AddMenuItem(hMenu, "", "Combo Contest");
+		AddMenuItem(hMenu, "", "Math Contest");
+		AddMenuItem(hMenu, "", "Opposite Contest");
+		AddMenuItem(hMenu, "", "Type Stages Contest");
+		AddMenuItem(hMenu, "", "Most Jumps");
+		//AddMenuItem(hMenu, "", "Spray");
+		AddMenuItem(hMenu, "", "Random");
+		
+		SetMenuTitle(hMenu, "%s Automatic Contests:", MENU_PREFIX);
+		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	}
 }
 
 public int Auto_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -3214,7 +3316,24 @@ public void ChooseOpponent(int client)
 	}
 	
 	SetMenuTitle(hMenu, "%s Select a Guard to battle against.", MENU_PREFIX);
-	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	
+	if(LRArguments[client][0] != EOS)
+	{
+		char sDigit[2];
+			
+		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
+		int item = StringToInt(sDigit) - 1;
+		
+		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
+		
+		Opponent_MenuHandler(hMenu, MenuAction_Select, client, item)
+		
+		CloseHandle(hMenu);
+	}
+	else
+	{
+		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	}
 }
 
 public int Opponent_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
