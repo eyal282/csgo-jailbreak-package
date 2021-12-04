@@ -1715,7 +1715,7 @@ void CheckElectionDayResult()
 		if(!WantsToBeCT[i])
 			continue;
 			
-		else if(VoteList[i] > 0 && (VoteList[i] > VoteList[ChosenGame] || (VoteList[i] == VoteList[ChosenGame] && GetRandomInt(0, 1) == 1) ))
+		else if(VoteList[i] > 0 && (VoteList[i] > VoteList[winner] || (VoteList[i] == VoteList[winner] && GetRandomInt(0, 1) == 1) ))
 			winner = i;
 	}
 	

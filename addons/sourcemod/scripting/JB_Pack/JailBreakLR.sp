@@ -138,7 +138,9 @@ Handle hcv_svCheats = INVALID_HANDLE;
 
 // GENERAL LR //
 char LRArguments[MAXPLAYERS + 1][64];
+char LRHealthArgument[MAXPLAYERS + 1][64];
 char SavedLRArguments[MAXPLAYERS + 1][64];
+char SavedLRHealthArgument[MAXPLAYERS + 1][64];
 int Prisoner, Guard, FreeDayUID = -1, ChokeTimer, GeneralTimer;
 int PrisonerPrim, PrisonerSec, GuardPrim, GuardSec//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;
 int HPamount, BPAmmo, Vest;
@@ -266,6 +268,12 @@ char FWwords[][] =
 {
 	"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
 	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+};
+
+int EnglishLetters[] =
+{
+	'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
 };
 
 bool g_bLRSound;
@@ -633,7 +641,7 @@ public Action Timer_BeaconRacePositions(Handle hTimer)
 			rgba[i] = GetRandomInt(0, 255);
 		}
 		
-		TE_SetupBeamRingPoint(vec, 0.0, 128.0, g_RedBeamSprite, g_HaloSprite, 100, 0, 0.2, 2.5, 0.0, rgba, 0, 0);
+		TE_SetupBeamRingPoint(vec, 128.0, 129.0, g_OrangeBeamSprite, g_HaloSprite, 0, 10, 0.2, 2.5, 0.5, rgba, 5, 0);
     		
 		TE_SendToAll();
 	}
@@ -652,7 +660,7 @@ public Action Timer_BeaconRacePositions(Handle hTimer)
 			rgba[i] = GetRandomInt(0, 255);
 		}
 		
-		TE_SetupBeamRingPoint(vec, 128.0, 129.0, g_OrangeBeamSprite, g_HaloSprite, 0, 10, 0.2, 2.5, 0.5, rgba, 5, 0);
+		TE_SetupBeamRingPoint(vec, 0.0, 128.0, g_RedBeamSprite, g_HaloSprite, 100, 0, 0.2, 2.5, 0.0, rgba, 0, 0);
 	    	
 		TE_SendToAll();
 	}
@@ -993,6 +1001,8 @@ public Action Listener_Say(int client, const char[] command, int args)
 				{
 					HPamount = Health;
 				}
+				
+				IntToString(HPamount, SavedLRHealthArgument[client], sizeof(SavedLRHealthArgument[]))				
 				
 				ShowCustomMenu(client);
 			}
@@ -2346,12 +2356,14 @@ public Action Command_LR(int client, int args)
 {
 	if(args > 0)
 	{
-		char ArgString[64];
+		char Args[2][64];
 		
 		// This is to remove every character from the string. 
-		GetCmdArgString(ArgString, sizeof(ArgString));
-		int iArgString = StringToInt(ArgString);
-		IntToString(iArgString, LRArguments[client], sizeof(LRArguments[]));
+		GetCmdArg(1, LRArguments[client], sizeof(LRArguments[]));
+		
+		GetCmdArg(2, Args[1], sizeof(Args[]));
+		int iArg = StringToInt(Args[1]);
+		IntToString(iArg, LRHealthArgument[client], sizeof(LRHealthArgument[]));
 	}		
 	if(GetClientTeam(client) == CS_TEAM_CT)
 	{
@@ -2386,10 +2398,10 @@ public Action Command_LR(int client, int args)
 		
 		if(LRArguments[client][0] != EOS)
 		{
-			char sDigit[2];
+			char sDigit[16];
 			
 			FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
-			int item = StringToInt(sDigit) - 1;
+			int item = LR_GetItemFromString(sDigit);
 
 			ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
 		
@@ -2429,9 +2441,13 @@ public int LR_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 			return;
 		}
 		
-		char sDigit[2];
+		char sDigit[16];
 		
-		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		if(item >= 9)
+			FormatEx(sDigit, sizeof(sDigit), "%c", EnglishLetters[item - 9]);			
+		
+		else		
+			FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
 	
 		
 		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
@@ -2467,10 +2483,10 @@ public void ShowWeaponMenu(int client)
 	
 	if(LRArguments[client][0] != EOS)
 	{
-		char sDigit[2];
+		char sDigit[16];
 		
 		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
-		int item = StringToInt(sDigit) - 1;
+		int item = LR_GetItemFromString(sDigit);
 
 		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
 		
@@ -2528,9 +2544,13 @@ public int Weapons_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 			Type = 1;
 		}
 		
-		char sDigit[2];
+		char sDigit[16];
 		
-		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		if(item >= 9)
+			FormatEx(sDigit, sizeof(sDigit), "%c", EnglishLetters[item - 9]);			
+		
+		else		
+			FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
 		
 		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
 		
@@ -2637,12 +2657,16 @@ public void ShowCustomMenu(int client)
 {	
 	CanSetHealth[client] = true;
 	
+	if(LRHealthArgument[client][0] != EOS)
+		HPamount = StringToInt(LRHealthArgument[client]);
+	
 	if(LRArguments[client][0] != EOS)
 	{
-		char sDigit[2];
+		char sDigit[16];
 			
 		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
-		int item = StringToInt(sDigit) - 1;
+		
+		int item = LR_GetItemFromString(sDigit);
 
 		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
 		
@@ -2687,7 +2711,11 @@ public int Custom_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 		
 		char sDigit[2];
 		
-		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		if(item >= 9)
+			FormatEx(sDigit, sizeof(sDigit), "%c", EnglishLetters[item - 9]);			
+		
+		else		
+			FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
 		
 		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
 		
@@ -2732,10 +2760,10 @@ public void ChooseRules(int client)
 {
 	if(LRArguments[client][0] != EOS)
 	{
-		char sDigit[2];
+		char sDigit[16];
 			
 		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
-		int item = StringToInt(sDigit) - 1;
+		int item = LR_GetItemFromString(sDigit);
 
 		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
 		
@@ -2814,9 +2842,13 @@ public int Rules_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 		if(!LastRequest(client))
 			return;
 		
-		char sDigit[2];
+		char sDigit[16];
 		
-		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		if(item >= 9)
+			FormatEx(sDigit, sizeof(sDigit), "%c", EnglishLetters[item - 9]);			
+		
+		else		
+			FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
 		
 		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
 		
@@ -2880,20 +2912,18 @@ public int Rules_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 		
 		if( ( Type == 0 && item + 1 != 5 ) || ( Type == 1 && item + 1 != 7 ) ) ChooseRules(client); // This is to return to rules menu except when player decides to begin the duel.
 	}
-
-	hMenu = INVALID_HANDLE;
 }
 public void ShowFunMenu(int client)
 {	
 	if(LRArguments[client][0] != EOS)
 	{
-		char sDigit[2];
+		char sDigit[16];
 			
 		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
-		int item = StringToInt(sDigit) - 1;
-
-		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
+		int item = LR_GetItemFromString(sDigit);
 		
+		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
+	
 		Fun_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, item)
 	}
 	else
@@ -2956,9 +2986,15 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				T++;
 		}	
 		
-		char sDigit[2];
+		char sDigit[16];
 		
-		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		if(item >= 9)
+			FormatEx(sDigit, sizeof(sDigit), "%c", EnglishLetters[item - 9]);			
+		
+		else		
+			FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+			
+		PrintToChat(client, sDigit);
 		
 		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
 		
@@ -3119,10 +3155,10 @@ public void ChooseSeeker(int client)
 {
 	if(LRArguments[client][0] != EOS)
 	{
-		char sDigit[2];
+		char sDigit[16];
 			
 		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
-		int item = StringToInt(sDigit) - 1;
+		int item = LR_GetItemFromString(sDigit);
 
 		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
 		
@@ -3156,9 +3192,13 @@ public int Seeker_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 			return;
 		}
 		
-		char sDigit[2];
+		char sDigit[16];
 		
-		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		if(item >= 9)
+			FormatEx(sDigit, sizeof(sDigit), "%c", EnglishLetters[item - 9]);			
+		
+		else		
+			FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
 		
 		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
 		
@@ -3254,10 +3294,10 @@ public void ShowAutoMenu(int client)
 {
 	if(LRArguments[client][0] != EOS)
 	{
-		char sDigit[2];
+		char sDigit[16];
 			
 		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
-		int item = StringToInt(sDigit) - 1;
+		int item = LR_GetItemFromString(sDigit);
 
 		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
 		
@@ -3296,9 +3336,13 @@ public int Auto_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 		EndLR(false);
 		HPamount = GetMaxHealthValue();
 		
-		char sDigit[2];
+		char sDigit[16];
 		
-		FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+		if(item >= 9)
+			FormatEx(sDigit, sizeof(sDigit), "%c", EnglishLetters[item - 9]);			
+		
+		else		
+			FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
 		
 		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
 		
@@ -3366,10 +3410,10 @@ public void ChooseOpponent(int client)
 	
 	if(LRArguments[client][0] != EOS)
 	{
-		char sDigit[2];
+		char sDigit[16];
 			
 		FormatEx(sDigit, sizeof(sDigit), "%c", LRArguments[client][0]);
-		int item = StringToInt(sDigit) - 1;
+		int item = LR_GetItemFromString(sDigit);
 		
 		ReplaceStringEx(LRArguments[client], sizeof(LRArguments[]), sDigit, "");
 		
@@ -3402,9 +3446,13 @@ public int Opponent_MenuHandler(Handle hMenu, MenuAction action, int client, int
 		
 		if(LastRequest(client) && target != 0)
 		{
-			char sDigit[2];
+			char sDigit[16];
 			
-			FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
+			if(item >= 9)
+				FormatEx(sDigit, sizeof(sDigit), "%c", EnglishLetters[item - 9]);			
+			
+			else		
+				FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
 		
 			
 			StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
@@ -3813,7 +3861,7 @@ public void ContinueStartDuel()
 	
 	//Teleport();
 	
-	PrintToChat(Prisoner, "LR Sequence: !lr %s", SavedLRArguments[Prisoner]);
+	PrintToChat(Prisoner, "LR Sequence: !lr %s %s", SavedLRArguments[Prisoner], SavedLRHealthArgument[Prisoner][0] == EOS ? "" : SavedLRHealthArgument[Prisoner]);
 }
 
 public void DeleteAllGuns()
@@ -5875,4 +5923,23 @@ stock void SetEntityMaxHealth(int entity, int amount)
 stock bool IsVectorEmpty(float vec[3])
 {
 	return vec[0] == 0.0 && vec[1] == 0.0 && vec[2] == 0.0;
+}
+
+stock int LR_GetItemFromString(const char[] sDigit)
+{
+	if(IsCharNumeric(sDigit[0]))
+		return StringToInt(sDigit) - 1;
+		
+	else
+	{
+		for (int i = 0; i < sizeof(EnglishLetters);i++)
+		{
+			if(sDigit[0] == EnglishLetters[i])
+				return 9 + i;
+		}
+	}
+	
+	return 0;
+	
+
 }
