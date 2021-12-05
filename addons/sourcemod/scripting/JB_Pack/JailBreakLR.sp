@@ -2657,7 +2657,7 @@ public void ShowCustomMenu(int client)
 {	
 	CanSetHealth[client] = true;
 	
-	if(LRHealthArgument[client][0] != EOS)
+	if(LRHealthArgument[client][0] != EOS && StringToInt(LRHealthArgument[client]) > 0)
 		HPamount = StringToInt(LRHealthArgument[client]);
 	
 	if(LRArguments[client][0] != EOS)
@@ -3014,6 +3014,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				HeadShot = false;
 				BPAmmo = 10000;
 				HPamount = 1000;
+				SavedLRHealthArgument[client] = "1000";
 				Vest = 2;
 				DuelName = "S4S | M4A1";
 				ShowCustomMenu(client);

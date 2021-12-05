@@ -1332,7 +1332,7 @@ public Action Timer_StartGame(Handle hTimer)
 					FormatEx(TempFormat, sizeof(TempFormat), "Yes%s", WantsToBeCT[i] ? " ☆" : "");
 					AddMenuItem(hMenu, "", TempFormat);
 					
-					FormatEx(TempFormat, sizeof(TempFormat), "No%s\nThe Random Player will be selected in %.1f seconds.", !WantsToBeCT[i] ? " ☆" : "", VoteCTTimeLeft);
+					FormatEx(TempFormat, sizeof(TempFormat), "No%s\nThe Elections will be held in %.1f seconds.", !WantsToBeCT[i] ? " ☆" : "", VoteCTTimeLeft);
 					AddMenuItem(hMenu, "", TempFormat);
 				
 					DisplayMenu(hMenu, i, 1);
