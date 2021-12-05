@@ -63,7 +63,6 @@ public Action AssignTeam( Handle timer, any client ) {
 				{
 					ChangeClientTeam( client, 2 )
 				}
-				CS_RespawnPlayer(client);
 							
 			}
 			
