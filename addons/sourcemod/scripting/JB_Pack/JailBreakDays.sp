@@ -1883,6 +1883,9 @@ stock CalculateVotes()
 // Destroys all weapons and their creator entities.
 stock DestroyAllWeapons()
 {
+	if(DayActive == FS_DAY)
+		return;
+		
 	int Count = GetEntityCount();
 	
 	for(int i=MaxClients+1;i < Count;i++)
