@@ -1105,9 +1105,10 @@ public Action SetGlow(Handle hTimer, int UserId)
 }
 
 public Action Command_InfoMsg(int client, int args)
-{
+{	
+	bool val = ShowMessage[client];
 	
-	ShowMessage[client] = SetClientInfoMessage(client, !GetClientInfoMessage(client));
+	ShowMessage[client] = SetClientInfoMessage(client, !val);
 	PrintToChat(client, "%s \x01Your info message status is now \x07%sabled.", PREFIX, ShowMessage[client] ? "En" : "Dis");
 }
 
