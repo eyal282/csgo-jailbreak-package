@@ -27,6 +27,9 @@ native void Gangs_GiveGangCredits(const char[] GangName, int amount);
 //#define LR_SOUNDS_S4S "adp_lrsounds/lr_shot4shot.mp3"
 #define LR_SOUNDS_BACKSTAB "adp_lrsounds/lr_start.mp3"
 
+#define MENU_SELECT_SOUND	"buttons/button14.wav"
+#define MENU_EXIT_SOUND	"buttons/combine_button7.wav"
+
 //#pragma semicolon 1
 
 enum enCallingMethod
@@ -589,6 +592,9 @@ public void OnConfigsExecuted()
 }
 public void OnMapStart()
 {
+	PrecacheSound(MENU_SELECT_SOUND);
+	PrecacheSound(MENU_EXIT_SOUND);
+	
 	PrecacheSound(SOUND_BLIP, true);
 	g_RedBeamSprite = PrecacheModel("materials/sprites/bomb_planted_ring.vmt");
 	g_OrangeBeamSprite = PrecacheModel("materials/sprites/bomb_dropped_ring.vmt");
@@ -973,8 +979,6 @@ public Action Command_C4(int client, int args)
 		
 	return Plugin_Handled;
 }
-
- 
 public Action Listener_Say(int client, const char[] command, int args)
 {
 	if(CanSetHealth[client])
@@ -4842,30 +4846,66 @@ void ShowInfoMessage(int client)
 		ShowReactionInfo(client);
 		return;
 	}
+
+	Handle hStyleRadio = GetMenuStyleHandle(MenuStyle_Radio);
 	
-	Handle hMenu = CreateMenu(InfoMessage_MenuHandler);
+	Handle hPanel = CreatePanel(hStyleRadio);
 	
-	AddMenuItem(hMenu, "", "Exit Forever");
+	SetPanelCurrentKey(hPanel, 9)
+	DrawPanelItem(hPanel, "Exit Forever");
+	
+	SetPanelKeys(hPanel, (1<<0)|(1<<1)|(1<<2)|(1<<3)|(1<<4)|(1<<8));
+	
+	char TempFormat[512];
+	
 	
 	if(!Rambo)
-		SetMenuTitle(hMenu, "%s!\n \n%N HP: %i\n\n%N HP: %i\n \nRules:\n\n%s is %sabled\n%s Only is %sabled\nDuck is %sabled\nJump is %sabled\n \n",
+		FormatEx(TempFormat, sizeof(TempFormat), "%s!\n \n%N HP: %i\n\n%N HP: %i\n \nRules:\n\n%s is %sabled\n%s Only is %sabled\nDuck is %sabled\nJump is %sabled\n \n",
 		DuelName, Prisoner, GetEntityHealth(Prisoner), Guard, GetEntityHealth(Guard), PrimNum == CSWeapon_KNIFE ? "Right stab" : "Zoom", Zoom ? "En" : "Dis", PrimNum == CSWeapon_KNIFE ? "Backstab" : "Headshot", HeadShot ? "En" : "Dis", Duck ? "En" : "Dis", Jump ? "En" : "Dis");
 
 	else
-		SetMenuTitle(hMenu, "%N VS Guard - RAMBO REBEL!\n%N Health: %i", Prisoner, Prisoner, GetEntityHealth(Prisoner));
+		FormatEx(TempFormat, sizeof(TempFormat), "%N VS Guard - RAMBO REBEL!\n%N Health: %i", Prisoner, Prisoner, GetEntityHealth(Prisoner));
 		
-	DisplayMenu(hMenu, client, 1);
+	SetPanelTitle(hPanel, TempFormat, false);
+		
+	SendPanelToClient(hPanel, client, PanelHandler_InfoMessage, 1);
+	
+	CloseHandle(hPanel);
 }
 
-public int InfoMessage_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
-{
+public int PanelHandler_InfoMessage(Handle hPanel, MenuAction action, int client, int item)
+{	
 	if(action == MenuAction_End)
-		CloseHandle(hMenu);
-	
+	{
+		CloseHandle(hPanel);
+		
+		return;
+	}
 	else if(action == MenuAction_Select)
 	{
-		if(item == 0)
+		if(item <= 5)
+		{
+			
+			// Nasty hack that ignores double nades ( molotov and flashbang for example ) but I'll live for now...
+			int weapon = GetPlayerWeaponSlot(client, item - 1);
+			
+			if(weapon != -1)
+			{
+				char Classname[64];
+				
+				GetEdictClassname(weapon, Classname, sizeof(Classname));
+				
+				FakeClientCommand(client, "use %s", Classname);
+				
+			}
+			
+			ShowInfoMessage(client);
+		}
+		if(item == 9)
+		{
 			ShowMessage[client] = false;
+			EmitSoundToClient(client, MENU_EXIT_SOUND); // Fauken panels...
+		}
 	}
 }
 	
