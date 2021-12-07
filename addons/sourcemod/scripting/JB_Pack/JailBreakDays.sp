@@ -352,6 +352,10 @@ public void OnClientPutInServer(int client)
 	SDKHook(client, SDKHook_PostThinkPost, SDKEvent_PostThinkPost);
 	SDKHook(client, SDKHook_OnTakeDamage, SDKEvent_OnTakeDamage);
 	SDKHook(client, SDKHook_TraceAttack, SDKEvent_TraceAttack);
+	
+	if(AreClientCookiesCached(client))
+		ShowMessage[client] = GetClientInfoMessage(client);
+			
 }
 
 public Action SDKEvent_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
@@ -1261,6 +1265,8 @@ public Action Timer_InfoMessage(Handle hTimer)
 		CloseHandle(hTimer_InfoMessage);
 		
 		hTimer_InfoMessage = INVALID_HANDLE;
+		
+		return Plugin_Stop;
 	}
 	
 	for (int i = 1; i <= MaxClients;i++)
@@ -1268,14 +1274,19 @@ public Action Timer_InfoMessage(Handle hTimer)
 		if(!IsClientInGame(i))
 			continue;
 		
-		else if(!GetClientInfoMessage(i))
+		else if(!ShowMessage[i])
 			continue;
 			
 		ShowInfoMessage(i);
 	}
+	
+	return Plugin_Continue;
 }
 void ShowInfoMessage(int client)
 {
+	if(DayActive <= LR_DAY)
+		return;
+		
 	Handle hStyleRadio = GetMenuStyleHandle(MenuStyle_Radio);
 	
 	Handle hPanel = CreatePanel(hStyleRadio);
