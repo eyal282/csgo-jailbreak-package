@@ -1,11 +1,15 @@
 #include <sourcemod>
 #include <sdkhooks>
 #include <sdktools>
+#include <clientprefs>
 #include <cstrike>
 #include <eyal-jailbreak>
 
 #define semicolon 1
 #define newdecls required
+
+#define MENU_SELECT_SOUND	"buttons/button14.wav"
+#define MENU_EXIT_SOUND	"buttons/combine_button7.wav"
 
 enum enDay
 {
@@ -94,11 +98,12 @@ bool IgnorePlayerDeaths;
 
 Handle hcv_TeammatesAreEnemies = INVALID_HANDLE;
 Handle hcv_IgnoreRoundWinConditions = INVALID_HANDLE;
-Handle hcv_TaserRechargeTime
+Handle hcv_TaserRechargeTime = INVALID_HANDLE;
 
 Handle fw_OnDayStatus = INVALID_HANDLE;
 
 Handle hTimer_StartDay = INVALID_HANDLE;
+Handle hTimer_InfoMessage = INVALID_HANDLE;
 
 Handle hVoteDayMenu;
 
@@ -109,6 +114,8 @@ Handle hVoteBackstabMenu;
 float VoteDayStart;
 
 int votedItem[MAXPLAYERS + 1];
+
+bool ShowMessage[MAXPLAYERS + 1];
 
 enDay DayActive = NULL_DAY;
 
@@ -284,6 +291,10 @@ public void OnPluginStart()
 	}
 }
 
+public void OnClientCookiesCached(int client)
+{
+	ShowMessage[client] = GetClientInfoMessage(client);
+}
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
@@ -321,6 +332,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 public void OnMapStart()
 {
 	hTimer_StartDay = INVALID_HANDLE;
+	hTimer_InfoMessage = INVALID_HANDLE;
 }
 
 public void OnClientDisconnect(int client)
@@ -1226,7 +1238,12 @@ public Action Timer_StartDay(Handle hTimer)
 	
 		hTimer_StartDay = INVALID_HANDLE;
 		
-		//CreateBot();
+		for(int i=1;i <= MaxClients;i++)
+		{
+			ShowMessage[i] = true;
+		}
+		
+		hTimer_InfoMessage = CreateTimer(0.1, Timer_InfoMessage, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 		
 		return Plugin_Stop;
 	}
@@ -1236,6 +1253,110 @@ public Action Timer_StartDay(Handle hTimer)
 	return Plugin_Continue;
 }
 
+
+public Action Timer_InfoMessage(Handle hTimer)
+{
+	if(DayActive <= LR_DAY)
+	{
+		CloseHandle(hTimer_InfoMessage);
+		
+		hTimer_InfoMessage = INVALID_HANDLE;
+	}
+	
+	for (int i = 1; i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+		
+		else if(!GetClientInfoMessage(i))
+			continue;
+			
+		ShowInfoMessage(i);
+	}
+}
+void ShowInfoMessage(int client)
+{
+	Handle hStyleRadio = GetMenuStyleHandle(MenuStyle_Radio);
+	
+	Handle hPanel = CreatePanel(hStyleRadio);
+	
+	SetPanelCurrentKey(hPanel, 9)
+	DrawPanelItem(hPanel, "Exit Forever");
+	
+	SetPanelKeys(hPanel, (1<<0)|(1<<1)|(1<<2)|(1<<3)|(1<<4)|(1<<8));
+	
+	char TempFormat[2048];
+	char PlayerFormat[1024];
+	
+	int count = 0;
+	
+	for (int i = 1; i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(GetClientTeam(i) != CS_TEAM_T)
+			continue;
+			
+		else if(!IsPlayerAlive(i))
+			continue;
+			
+		Format(PlayerFormat, sizeof(PlayerFormat), "%s%N [%i HP]%s", PlayerFormat, i, GetEntityHealth(i), count % 2 == 1 ? "\n" : " | ")
+		
+		count++;
+	}
+	
+	PlayerFormat[strlen(PlayerFormat) - 2] = EOS;
+	
+	FormatEx(TempFormat, sizeof(TempFormat), "%s!\n\n%s",
+	DayName[DayActive], PlayerFormat);
+
+		
+	SetPanelTitle(hPanel, TempFormat, false);
+		
+	SendPanelToClient(hPanel, client, PanelHandler_InfoMessage, 1);
+	
+	CloseHandle(hPanel);
+}
+
+
+public int PanelHandler_InfoMessage(Handle hPanel, MenuAction action, int client, int item)
+{	
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hPanel);
+		
+		return;
+	}
+	else if(action == MenuAction_Select)
+	{
+		if(item <= 5)
+		{
+			
+			// Nasty hack that ignores double nades ( molotov and flashbang for example ) but I'll live for now...
+			int weapon = GetPlayerWeaponSlot(client, item - 1);
+			
+			if(weapon != -1)
+			{
+				char Classname[64];
+				
+				GetEdictClassname(weapon, Classname, sizeof(Classname));
+				
+				FakeClientCommand(client, "use %s", Classname);
+				
+			}
+			
+			ShowInfoMessage(client);
+		}
+		if(item == 9)
+		{
+			ShowMessage[client] = false;
+			EmitSoundToClient(client, MENU_EXIT_SOUND); // Fauken panels...
+		}
+	}
+}
+	
+	
 stock void StartVoteDay()
 {
 	VoteDayStart = GetGameTime();
@@ -1971,4 +2092,38 @@ stock void SetClientNoclip(int client, bool noclip = false)
 	}	 
 	else
 		 SetEntProp(client, Prop_Send, "movetype", 1, 1);
+}
+
+stock bool GetClientInfoMessage(int client)
+{
+	Handle cpInfoMsg = FindClientCookie("LastRequest_InfoMessage");
+	
+	if(cpInfoMsg == INVALID_HANDLE)
+		return false;
+		
+	char strInfoMessage[50];
+	GetClientCookie(client, cpInfoMsg, strInfoMessage, sizeof(strInfoMessage));
+	
+	if(strInfoMessage[0] == EOS)
+	{
+		SetClientInfoMessage(client, true);
+		return true;
+	}
+	
+	return view_as<bool>(StringToInt(strInfoMessage));
+}
+
+stock bool SetClientInfoMessage(int client, bool value)
+{
+	Handle cpInfoMsg = FindClientCookie("LastRequest_InfoMessage");
+	
+	if(cpInfoMsg == INVALID_HANDLE)
+		return false;
+		
+	char strInfoMessage[50];
+	
+	IntToString(view_as<int>(value), strInfoMessage, sizeof(strInfoMessage));
+	SetClientCookie(client, cpInfoMsg, strInfoMessage);
+	
+	return value;
 }
