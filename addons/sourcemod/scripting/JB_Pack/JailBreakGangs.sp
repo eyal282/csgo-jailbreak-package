@@ -5,6 +5,7 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <dhooks>
+#include <smlib>
 #include <eyal-jailbreak>
 
 
@@ -57,7 +58,7 @@ int GangColors[][] =
    {145, 127, 162} // d סגל גל בהיר
 }
 
-Handle dbGangs = INVALID_HANDLE;
+Database dbGangs;
 
 Handle hcv_HonorPerKill = INVALID_HANDLE;
 
@@ -140,7 +141,7 @@ public void OnPluginStart()
 		
 	dbFullConnected = false;
 	
-	dbGangs = INVALID_HANDLE;
+	dbGangs = null;
 	
 	ConnectDatabase();
 	
@@ -558,18 +559,18 @@ public void OnClientSettingsChanged(int client)
 public void ConnectDatabase()
 {
 	char error[256];
-	Handle hndl = INVALID_HANDLE;
-	if((hndl = SQLite_UseDatabase("JB_Gangs", error, sizeof(error))) == INVALID_HANDLE)
+	Database hndl;
+	if((hndl = SQLite_UseDatabase("JB_Gangs", error, sizeof(error))) == null)
 		SetFailState(error);
 
 	else
 	{
 		dbGangs = hndl;
 		
-		SQL_TQuery(dbGangs, SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Members (GangName VARCHAR(32) NOT NULL, AuthId VARCHAR(32) NOT NULL UNIQUE, GangRank INT(20) NOT NULL, GangDonated INT(20) NOT NULL, LastName VARCHAR(32) NOT NULL, GangInviter VARCHAR(32) NOT NULL, GangJoinDate INT(20) NOT NULL, LastConnect INT(20) NOT NULL)", 0, DBPrio_High);
-		SQL_TQuery(dbGangs, SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Gangs (GangName VARCHAR(32) NOT NULL UNIQUE, GangTag VARCHAR(10) NOT NULL UNIQUE, GangMotd VARCHAR(100) NOT NULL, GangHonor INT(20) NOT NULL, GangHealthPerkT INT(20) NOT NULL, GangSpeedPerkT INT(20) NOT NULL, GangNadePerkT INT(20) NOT NULL, GangHealthPerkCT INT(20) NOT NULL, GangSpeedPerkCT INT(20) NOT NULL, GangGetHonorPerk INT(20) NOT NULL, GangSizePerk INT(20) NOT NULL, GangFFPerk INT(11) NOT NULL, GangMinRankInvite INT(11) NOT NULL, GangMinRankKick INT(11) NOT NULL, GangMinRankPromote INT(11) NOT NULL, GangMinRankUpgrade INT(11), GangMinRankMOTD INT(11) NOT NULL)", 1, DBPrio_High);
-		SQL_TQuery(dbGangs, SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Honor (AuthId VARCHAR(32) NOT NULL UNIQUE, Honor INT(11) NOT NULL)", 2, DBPrio_High);
-		SQL_TQuery(dbGangs, SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_upgradelogs (GangName VARCHAR(32) NOT NULL, AuthId VARCHAR(32) NOT NULL, Perk VARCHAR(32) NOT NULL, BValue INT NOT NULL, AValue INT NOT NULL, timestamp INT NOT NULL)", 3, DBPrio_High); 
+		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Members (GangName VARCHAR(32) NOT NULL, AuthId VARCHAR(32) NOT NULL UNIQUE, GangRank INT(20) NOT NULL, GangDonated INT(20) NOT NULL, LastName VARCHAR(32) NOT NULL, GangInviter VARCHAR(32) NOT NULL, GangJoinDate INT(20) NOT NULL, LastConnect INT(20) NOT NULL)", 0, DBPrio_High);
+		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Gangs (GangName VARCHAR(32) NOT NULL UNIQUE, GangTag VARCHAR(10) NOT NULL UNIQUE, GangMotd VARCHAR(100) NOT NULL, GangHonor INT(20) NOT NULL, GangHealthPerkT INT(20) NOT NULL, GangSpeedPerkT INT(20) NOT NULL, GangNadePerkT INT(20) NOT NULL, GangHealthPerkCT INT(20) NOT NULL, GangSpeedPerkCT INT(20) NOT NULL, GangGetHonorPerk INT(20) NOT NULL, GangSizePerk INT(20) NOT NULL, GangFFPerk INT(11) NOT NULL, GangMinRankInvite INT(11) NOT NULL, GangMinRankKick INT(11) NOT NULL, GangMinRankPromote INT(11) NOT NULL, GangMinRankUpgrade INT(11), GangMinRankMOTD INT(11) NOT NULL)", 1, DBPrio_High);
+		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Honor (AuthId VARCHAR(32) NOT NULL UNIQUE, Honor INT(11) NOT NULL)", 2, DBPrio_High);
+		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_upgradelogs (GangName VARCHAR(32) NOT NULL, AuthId VARCHAR(32) NOT NULL, Perk VARCHAR(32) NOT NULL, BValue INT NOT NULL, AValue INT NOT NULL, timestamp INT NOT NULL)", 3, DBPrio_High); 
 		
 		dbFullConnected = true;
 		
@@ -586,14 +587,14 @@ public void ConnectDatabase()
 	}
 }
 
-public void SQLCB_Error(Handle owner, Handle hndl, const char[] Error, int QueryUniqueID) 
+public void SQLCB_Error(Handle owner, DBResultSet hndl, const char[] Error, int QueryUniqueID) 
 { 
     /* If something fucked up. */ 
 	if (hndl == null) 
 		SetFailState("%s --> %i", Error, QueryUniqueID); 
 } 
 
-public void SQLCB_ErrorIgnore(Handle owner, Handle hndl, const char[] Error, int Data) 
+public void SQLCB_ErrorIgnore(Handle owner, DBResultSet hndl, const char[] Error, int Data) 
 { 
 } 
 
@@ -678,21 +679,21 @@ void LoadClientGang(int client, int LowPrio = false)
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE AuthId = '%s'", AuthId);
 
 	if(!LowPrio)
-		SQL_TQuery(dbGangs, SQLCB_LoadClientGang, sQuery, GetClientUserId(client));
+		dbGangs.Query(SQLCB_LoadClientGang, sQuery, GetClientUserId(client));
 	
 	else
-		SQL_TQuery(dbGangs, SQLCB_LoadClientGang, sQuery, GetClientUserId(client), DBPrio_Low);
+		dbGangs.Query(SQLCB_LoadClientGang, sQuery, GetClientUserId(client), DBPrio_Low);
 		
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Honor WHERE AuthId = '%s'", AuthId);
 	
 	if(!LowPrio)
-		SQL_TQuery(dbGangs, SQLCB_LoadClientHonor, sQuery, GetClientUserId(client));
+		dbGangs.Query(SQLCB_LoadClientHonor, sQuery, GetClientUserId(client));
 	
 	else
-		SQL_TQuery(dbGangs, SQLCB_LoadClientHonor, sQuery, GetClientUserId(client), DBPrio_Low);
+		dbGangs.Query(SQLCB_LoadClientHonor, sQuery, GetClientUserId(client), DBPrio_Low);
 }	
 
-public void SQLCB_LoadClientGang(Handle owner, Handle hndl, char[] error, any data)
+public void SQLCB_LoadClientGang(Handle owner, DBResultSet hndl, char[] error, any data)
 {
 	if(hndl == null)
 	{
@@ -713,8 +714,8 @@ public void SQLCB_LoadClientGang(Handle owner, Handle hndl, char[] error, any da
 			SQL_FetchRow(hndl);
 			
 			
-			SQL_FetchString(hndl, 0, ClientGang[client], sizeof(ClientGang[]));
-			ClientRank[client] = SQL_FetchInt(hndl, 2);
+			SQL_FetchStringByName(hndl, "GangName", ClientGang[client], sizeof(ClientGang[]));
+			ClientRank[client] = SQL_FetchIntByName(hndl, "GangRank");
 			
 			for(int i=1;i <= MaxClients;i++)
 			{
@@ -760,7 +761,7 @@ public void SQLCB_LoadClientGang(Handle owner, Handle hndl, char[] error, any da
 			}
 			char sQuery[256];
 			SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Gangs WHERE GangName = '%s'", ClientGang[client]);
-			SQL_TQuery(dbGangs, SQLCB_LoadGangByClient, sQuery, GetClientUserId(client), DBPrio_High);
+			dbGangs.Query(SQLCB_LoadGangByClient, sQuery, GetClientUserId(client), DBPrio_High);
 		}
 		else
 		{
@@ -772,7 +773,7 @@ public void SQLCB_LoadClientGang(Handle owner, Handle hndl, char[] error, any da
 	}
 }
 
-public void SQLCB_LoadGangByClient(Handle owner, Handle hndl, char[] error, any data)
+public void SQLCB_LoadGangByClient(Handle owner, DBResultSet hndl, char[] error, any data)
 {
 	if(hndl == null)
 	{
@@ -790,7 +791,7 @@ public void SQLCB_LoadGangByClient(Handle owner, Handle hndl, char[] error, any 
 		{
 			SQL_FetchRow(hndl);
 			
-			SQL_FetchString(hndl, 0, ClientGang[client], sizeof(ClientGang[]));
+			SQL_FetchStringByName(hndl, "GangName", ClientGang[client], sizeof(ClientGang[]));
 			SQL_FetchString(hndl, 1, ClientTag[client], sizeof(ClientTag[]));
 			SQL_FetchString(hndl, 2, ClientMotd[client], sizeof(ClientMotd[]));
 			ClientGangHonor[client] = SQL_FetchInt(hndl, 3);
@@ -800,12 +801,12 @@ public void SQLCB_LoadGangByClient(Handle owner, Handle hndl, char[] error, any 
 			ClientHealthPerkCT[client] = SQL_FetchInt(hndl, 7);
 			ClientGetHonorPerk[client] = SQL_FetchInt(hndl, 8);
 			ClientGangSizePerk[client] = SQL_FetchInt(hndl, 9);
+			ClientFriendlyFirePerk[client] = SQL_FetchInt(hndl, 15);
 			ClientAccessInvite[client] = SQL_FetchInt(hndl, 10);
 			ClientAccessKick[client] = SQL_FetchInt(hndl, 11);
 			ClientAccessPromote[client] = SQL_FetchInt(hndl, 12);
 			ClientAccessUpgrade[client] = SQL_FetchInt(hndl, 13);
 			ClientAccessMOTD[client] = SQL_FetchInt(hndl, 14);
-			ClientFriendlyFirePerk[client] = SQL_FetchInt(hndl, 15);
 			
 			int Smallest = ClientAccessInvite[client];
 			
@@ -838,7 +839,7 @@ public void SQLCB_LoadGangByClient(Handle owner, Handle hndl, char[] error, any 
 			char sQuery[256];
 			SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangName = '%s'", ClientGang[client]);
 			
-			SQL_TQuery(dbGangs, SQLCB_CheckMemberCount, sQuery, GetClientUserId(client));
+			dbGangs.Query(SQLCB_CheckMemberCount, sQuery, GetClientUserId(client));
 		}
 		else // Gang was deleted
 		{
@@ -859,7 +860,7 @@ public void SQLCB_LoadGangByClient(Handle owner, Handle hndl, char[] error, any 
 }
 
 
-public void SQLCB_LoadClientHonor(Handle owner, Handle hndl, char[] error, any data)
+public void SQLCB_LoadClientHonor(Handle owner, DBResultSet hndl, char[] error, any data)
 {
 	if(hndl == null)
 		SetFailState(error);
@@ -886,7 +887,7 @@ public void SQLCB_LoadClientHonor(Handle owner, Handle hndl, char[] error, any d
 			char sQuery[256];
 			SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "INSERT OR IGNORE INTO GangSystem_Honor (AuthId, Honor) VALUES ('%s', 0)", AuthId);
 			
-			SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 4);
+			dbGangs.Query(SQLCB_Error, sQuery, 4);
 			ClientHonor[client] = 0;
 		}
 	}
@@ -904,7 +905,7 @@ stock void KickAuthIdFromGang(const char[] AuthId, const char[] GangName)
 {
 	char sQuery[256];
 	Format(sQuery, sizeof(sQuery), "DELETE FROM GangSystem_Members WHERE AuthId = '%s' AND GangName = '%s'", AuthId, GangName);
-	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 5);
+	dbGangs.Query(SQLCB_Error, sQuery, 5);
 	
 	UpdateInGameAuthId(AuthId);
 }
@@ -983,7 +984,7 @@ public Action Command_MotdGang(int client, int args)
 	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangMotd = '%s' WHERE GangName = '%s'", Args, ClientGang[client]);
 	
-	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 6);
+	dbGangs.Query(SQLCB_Error, sQuery, 6);
 	
 	PrintToChat(client, "%s The gang's motd has been changed to \x07%s", PREFIX, Args);
 	
@@ -1192,7 +1193,7 @@ public Action Command_DisbandGang(int client, int args)
 	
 	WritePackString(DP, ClientGang[client]);
 	
-	SQL_TQuery(dbGangs, SQLCB_GangDisbanded, sQuery, DP);
+	dbGangs.Query(SQLCB_GangDisbanded, sQuery, DP);
 	
 	GangAttemptDisband[client] = false;
 	return Plugin_Handled;
@@ -1245,7 +1246,7 @@ public Action Command_StepDown(int client, int args)
 	return Plugin_Handled;
 }
 
-public void SQLCB_GangDisbanded(Handle owner, Handle hndl, char[] error, Handle DP)
+public void SQLCB_GangDisbanded(Handle owner, DBResultSet hndl, char[] error, Handle DP)
 {
 	char GangName[32];
 	ResetPack(DP);
@@ -1477,11 +1478,11 @@ void ShowTopGangsMenu(int client)
 {
 	char sQuery[1024];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT GangName, (%!s) as net_worth FROM GangSystem_Gangs ORDER BY net_worth DESC", NET_WORTH_ORDER_BY_FORMULA);
-	SQL_TQuery(dbGangs, SQLCB_ShowTopGangsMenu, sQuery, GetClientUserId(client));
+	dbGangs.Query(SQLCB_ShowTopGangsMenu, sQuery, GetClientUserId(client));
 }
 
 
-public void SQLCB_ShowTopGangsMenu(Handle owner, Handle hndl, char[] error, int UserId)
+public void SQLCB_ShowTopGangsMenu(Handle owner, DBResultSet hndl, char[] error, int UserId)
 {
 	if(hndl == null)
 	{
@@ -1792,7 +1793,7 @@ public int ActionAccessSetRank_MenuHandler(Handle hMenu, MenuAction action, int 
 		
 		char sQuery[256];
 		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET '%s' = %i WHERE GangName = '%s'", ColumnName, TrueRank, ClientGang[client]);
-		SQL_TQuery(dbGangs, SQLCB_UpdateGang, sQuery, DP);
+		dbGangs.Query(SQLCB_UpdateGang, sQuery, DP);
 	}
 }
 void ShowUpgradeMenu(int client)
@@ -1876,10 +1877,10 @@ void LoadClientGang_TryUpgrade(int client, int item, int upgradecost)
 	WritePackCell(DP, GetClientUserId(client));
 	WritePackCell(DP, item);
 	WritePackCell(DP, upgradecost);
-	SQL_TQuery(dbGangs, SQLCB_LoadClientGang_TryUpgrade, sQuery, DP, DBPrio_High);
+	dbGangs.Query(SQLCB_LoadClientGang_TryUpgrade, sQuery, DP, DBPrio_High);
 }	
 
-public void SQLCB_LoadClientGang_TryUpgrade(Handle owner, Handle hndl, char[] error, Handle DP)
+public void SQLCB_LoadClientGang_TryUpgrade(Handle owner, DBResultSet hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 	{
@@ -1900,12 +1901,12 @@ public void SQLCB_LoadClientGang_TryUpgrade(Handle owner, Handle hndl, char[] er
 		{
 			SQL_FetchRow(hndl);
 			
-			SQL_FetchString(hndl, 0, ClientGang[client], sizeof(ClientGang[]));
-			ClientRank[client] = SQL_FetchInt(hndl, 2);
+			SQL_FetchStringByName(hndl, "GangName", ClientGang[client], sizeof(ClientGang[]));
+			ClientRank[client] = SQL_FetchIntByName(hndl, "GangRank");
 			
 			char sQuery[256];
 			SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Gangs WHERE GangName = '%s'", ClientGang[client]);
-			SQL_TQuery(dbGangs, SQLCB_LoadGangByClient_TryUpgrade, sQuery, DP, DBPrio_High);
+			dbGangs.Query(SQLCB_LoadGangByClient_TryUpgrade, sQuery, DP, DBPrio_High);
 		}
 		else
 		{
@@ -1915,7 +1916,7 @@ public void SQLCB_LoadClientGang_TryUpgrade(Handle owner, Handle hndl, char[] er
 	}
 }
 
-public void SQLCB_LoadGangByClient_TryUpgrade(Handle owner, Handle hndl, char[] error, Handle DP)
+public void SQLCB_LoadGangByClient_TryUpgrade(Handle owner, DBResultSet hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 	{
@@ -1939,7 +1940,7 @@ public void SQLCB_LoadGangByClient_TryUpgrade(Handle owner, Handle hndl, char[] 
 		{
 			SQL_FetchRow(hndl);
 			
-			SQL_FetchString(hndl, 0, ClientGang[client], sizeof(ClientGang[]));
+			SQL_FetchStringByName(hndl, "GangName", ClientGang[client], sizeof(ClientGang[]));
 			SQL_FetchString(hndl, 1, ClientTag[client], sizeof(ClientTag[]));
 			SQL_FetchString(hndl, 2, ClientMotd[client], sizeof(ClientMotd[]));
 			ClientGangHonor[client] = SQL_FetchInt(hndl, 3);
@@ -1989,24 +1990,24 @@ void TryUpgradePerk(int client, int item, int upgradecost) // Safety accomplishe
 	GetClientAuthId(client, AuthId_Engine, steamid, sizeof(steamid));
 	
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "INSERT INTO GangSystem_upgradelogs (GangName, AuthId, Perk, BValue, AValue, timestamp) VALUES ('%s', '%s', '%s', %i, %i, %i)", ClientGang[client], steamid, PerkName, PerkToUse, PerkToUse+1, GetTime());
-	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 7, DBPrio_High);
+	dbGangs.Query(SQLCB_Error, sQuery, 7, DBPrio_High);
 	
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangHonor = GangHonor - %i WHERE GangName = '%s'", upgradecost, ClientGang[client]);
 	
 	Handle DP = CreateDataPack(), DP2 = CreateDataPack();
 	
 	WritePackString(DP, ClientGang[client]);
-	SQL_TQuery(dbGangs, SQLCB_UpdateGang, sQuery, DP);
+	dbGangs.Query(SQLCB_UpdateGang, sQuery, DP);
 	
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET %s = %s + 1 WHERE GangName = '%s'", PerkName, PerkName, ClientGang[client]);
 	WritePackString(DP2, ClientGang[client]);
-	SQL_TQuery(dbGangs, SQLCB_UpdateGang, sQuery, DP2);
+	dbGangs.Query(SQLCB_UpdateGang, sQuery, DP2);
 	
 	PrintToChatGang(ClientGang[client], "%s \x05%N \x01has upgraded the gang perk \x07%s!", PREFIX, client, PerkNick);
 
 }
 
-public void SQLCB_UpdateGang(Handle owner, Handle hndl, char[] error, Handle DP)
+public void SQLCB_UpdateGang(Handle owner, DBResultSet hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 		SetFailState(error);
@@ -2037,10 +2038,10 @@ void ShowPromoteMenu(int client)
 {
 	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangName = '%s' ORDER BY LastConnect DESC", ClientGang[client]); 
-	SQL_TQuery(dbGangs, SQLCB_ShowPromoteMenu, sQuery, GetClientUserId(client));
+	dbGangs.Query(SQLCB_ShowPromoteMenu, sQuery, GetClientUserId(client));
 }
 
-public void SQLCB_ShowPromoteMenu(Handle owner, Handle hndl, char[] error, int UserId)
+public void SQLCB_ShowPromoteMenu(Handle owner, DBResultSet hndl, char[] error, int UserId)
 {
 	if(hndl == null)
 	{
@@ -2195,10 +2196,10 @@ void ShowKickMenu(int client)
 {
 	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangName = '%s' ORDER BY LastConnect DESC", ClientGang[client]); 
-	SQL_TQuery(dbGangs, SQLCB_ShowKickMenu, sQuery, GetClientUserId(client));
+	dbGangs.Query(SQLCB_ShowKickMenu, sQuery, GetClientUserId(client));
 }
 
-public void SQLCB_ShowKickMenu(Handle owner, Handle hndl, char[] error, int UserId)
+public void SQLCB_ShowKickMenu(Handle owner, DBResultSet hndl, char[] error, int UserId)
 {
 	if(hndl == null)
 	{
@@ -2415,11 +2416,11 @@ void ShowMembersMenu(int client)
 {
 	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangName = '%s' ORDER BY LastConnect DESC", ClientGang[client]); 
-	SQL_TQuery(dbGangs, SQLCB_ShowMembersMenu, sQuery, GetClientUserId(client));
+	dbGangs.Query(SQLCB_ShowMembersMenu, sQuery, GetClientUserId(client));
 }
 
 
-public void SQLCB_ShowMembersMenu(Handle owner, Handle hndl, char[] error, int UserId)
+public void SQLCB_ShowMembersMenu(Handle owner, DBResultSet hndl, char[] error, int UserId)
 {
 	if(hndl == null)
 	{
@@ -2495,11 +2496,11 @@ void TryCreateGang(int client, const char[] GangName, const char[] GangTag)
 	
 	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Gangs WHERE lower(GangName) = lower('%s') OR lower(GangTag) = lower('%s')", GangName, GangTag);
-	SQL_TQuery(dbGangs, SQLCB_CreateGang_CheckTakenNameOrTag, sQuery, DP);
+	dbGangs.Query(SQLCB_CreateGang_CheckTakenNameOrTag, sQuery, DP);
 }
 
 
-public void SQLCB_CreateGang_CheckTakenNameOrTag(Handle owner, Handle hndl, char[] error, Handle DP)
+public void SQLCB_CreateGang_CheckTakenNameOrTag(Handle owner, DBResultSet hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 	{
@@ -2571,7 +2572,7 @@ void CreateGang(int client, const char[] GangName, const char[] GangTag)
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "DELETE FROM GangSystem_Members WHERE GangName = '%s'", GangName); // Just in case.
-	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 8, DBPrio_High);
+	dbGangs.Query(SQLCB_Error, sQuery, 8, DBPrio_High);
 	
 	Handle DP = CreateDataPack();
 	
@@ -2579,12 +2580,12 @@ void CreateGang(int client, const char[] GangName, const char[] GangTag)
 	WritePackString(DP, GangName);
 	
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Gangs (GangName, GangTag, GangMotd, GangHonor, GangHealthPerkT, GangCooldownPerk, GangNadePerkT, GangHealthPerkCT, GangGetHonorPerk, GangSizePerk) VALUES ('%s', '%s', '', 0, 0, 0, 0, 0, 0, 0)", GangName, GangTag);
-	SQL_TQuery(dbGangs, SQLCB_GangCreated, sQuery, DP);
+	dbGangs.Query(SQLCB_GangCreated, sQuery, DP);
 	
 	GiveClientHonor(client, -1 * GANG_COSTCREATE);
 }
 
-public void SQLCB_GangCreated(Handle owner, Handle hndl, char[] error, Handle DP)
+public void SQLCB_GangCreated(Handle owner, DBResultSet hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 		SetFailState(error);
@@ -2620,11 +2621,11 @@ stock void AddAuthIdToGang(const char[] AuthId, const char[] AuthIdInviter, cons
 	WritePackString(DP, AuthIdInviter);
 	WritePackString(DP, GangName);
 	WritePackCell(DP, GangRank);
-	SQL_TQuery(dbGangs, SQLCB_AuthIdAddToGang_CheckSize, sQuery, DP);
+	dbGangs.Query(SQLCB_AuthIdAddToGang_CheckSize, sQuery, DP);
 
 }
 
-public void SQLCB_AuthIdAddToGang_CheckSize(Handle owner, Handle hndl, char[] error, Handle DP)
+public void SQLCB_AuthIdAddToGang_CheckSize(Handle owner, DBResultSet hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 		SetFailState(error);
@@ -2645,7 +2646,7 @@ public void SQLCB_AuthIdAddToGang_CheckSize(Handle owner, Handle hndl, char[] er
 		
 		char sQuery[256];
 		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangName = '%s'", GangName);
-		SQL_TQuery(dbGangs, SQLCB_AuthIdAddToGang_CheckMemberCount, sQuery, DP);
+		dbGangs.Query(SQLCB_AuthIdAddToGang_CheckMemberCount, sQuery, DP);
 	}
 	else
 	{	
@@ -2655,7 +2656,7 @@ public void SQLCB_AuthIdAddToGang_CheckSize(Handle owner, Handle hndl, char[] er
 }
 
 // This callback is used to get someone's member count
-public void SQLCB_CheckMemberCount(Handle owner, Handle hndl, char[] error, int UserId)
+public void SQLCB_CheckMemberCount(Handle owner, DBResultSet hndl, char[] error, int UserId)
 {
 	int MemberCount = SQL_GetRowCount(hndl);
 	
@@ -2668,7 +2669,7 @@ public void SQLCB_CheckMemberCount(Handle owner, Handle hndl, char[] error, int 
 	
 }
 
-public void SQLCB_AuthIdAddToGang_CheckMemberCount(Handle owner, Handle hndl, char[] error, Handle DP)
+public void SQLCB_AuthIdAddToGang_CheckMemberCount(Handle owner, DBResultSet hndl, char[] error, Handle DP)
 {
 	
 	int MemberCount = SQL_GetRowCount(hndl);
@@ -2698,9 +2699,9 @@ public void FinishAddAuthIdToGang(const char[] GangName, const char[] AuthId, in
 	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Members (GangName, AuthId, GangRank, GangInviter, GangDonated, LastName, GangJoinDate, LastConnect) VALUES ('%s', '%s', %i, '%s', 0, '', %i, %i)", GangName, AuthId, GangRank, AuthIdInviter, GetTime(), GetTime());
 
-	SQL_TQuery(dbGangs, SQLCB_AuthIdAddedToGang, sQuery, DP);
+	dbGangs.Query(SQLCB_AuthIdAddedToGang, sQuery, DP);
 }
-public void SQLCB_AuthIdAddedToGang(Handle owner, Handle hndl, char[] error, Handle DP)
+public void SQLCB_AuthIdAddedToGang(Handle owner, DBResultSet hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 	{
@@ -2771,14 +2772,14 @@ stock void StoreAuthIdLastInfo(const char[] AuthId, const char[] Name)
 	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Members SET LastName = '%s', LastConnect = %i WHERE AuthId = '%s'", Name, GetTime(), AuthId);
 	
-	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 9, DBPrio_Low);
+	dbGangs.Query(SQLCB_Error, sQuery, 9, DBPrio_Low);
 }
 
 stock void SetAuthIdRank(const char[] AuthId, const char[] GangName, int Rank = RANK_MEMBER)
 {
 	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Members SET GangRank = %i WHERE AuthId = '%s' AND GangName = '%s'", Rank, AuthId, GangName);
-	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 10);
+	dbGangs.Query(SQLCB_Error, sQuery, 10);
 	
 	UpdateInGameAuthId(AuthId);
 }
@@ -2801,18 +2802,18 @@ stock void DonateToGang(int client, int amount)
 	
 	WritePackString(DP, ClientGang[client]);
 	
-	SQL_TQuery(dbGangs, SQLCB_GangDonated, sQuery, DP);
+	dbGangs.Query(SQLCB_GangDonated, sQuery, DP);
 	
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Members SET GangDonated = GangDonated + %i WHERE AuthId = '%s'", amount, AuthId);
 	
-	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 11);
+	dbGangs.Query(SQLCB_Error, sQuery, 11);
 	
 	GiveClientHonor(client, -1 * amount);
 	
 	PrintToChatGang(ClientGang[client], "%s \x05%N \x01has donated \x07%i \x01to the gang!", PREFIX, client, amount);
 }
 
-public void SQLCB_GangDonated(Handle owner, Handle hndl, char[] error, Handle DP)
+public void SQLCB_GangDonated(Handle owner, DBResultSet hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 	{
@@ -3083,7 +3084,7 @@ public int Native_AddClientDonations(Handle plugin, int numParams)
 	
 	WritePackString(DP, ClientGang[client]);
 	
-	SQL_TQuery(dbGangs, SQLCB_GangDonated, sQuery, DP);
+	dbGangs.Query(SQLCB_GangDonated, sQuery, DP);
 }
 
 public int Native_GiveGangHonor(Handle plugin, int numParams)
@@ -3100,7 +3101,7 @@ public int Native_GiveGangHonor(Handle plugin, int numParams)
 	
 	WritePackString(DP, GangName);
 	
-	SQL_TQuery(dbGangs, SQLCB_GiveGangHonor, sQuery, DP);    
+	dbGangs.Query(SQLCB_GiveGangHonor, sQuery, DP);    
 }
 
 public any Native_GetFFDamageDecrease(Handle plugin, int numParams)
@@ -3109,7 +3110,7 @@ public any Native_GetFFDamageDecrease(Handle plugin, int numParams)
 	return float(ClientFriendlyFirePerk[client] * GANG_FRIENDLYFIREINCREASE) / 100.0;
 }
 
-public void SQLCB_GiveGangHonor(Handle owner, Handle hndl, char[] error, Handle DP)
+public void SQLCB_GiveGangHonor(Handle owner, DBResultSet hndl, char[] error, Handle DP)
 {
 	if(hndl == null)
 	{
@@ -3223,5 +3224,5 @@ stock void GiveClientHonor(int client, int amount)
 	
 	ClientHonor[client] += amount;
 	
-	SQL_TQuery(dbGangs, SQLCB_Error, sQuery, 12);
+	dbGangs.Query(SQLCB_Error, sQuery, 12);
 }
