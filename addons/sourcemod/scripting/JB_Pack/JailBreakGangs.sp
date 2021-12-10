@@ -7,11 +7,6 @@
 #include <dhooks>
 #include <eyal-jailbreak>
 
-#undef REQUIRE_PLUGIN
-#tryinclude <updater>
-#define REQUIRE_PLUGIN
-
-#define UPDATE_URL "https://raw.githubusercontent.com/eyal282/SourceMod-GameData-Updater/master/Offsets/PlayerMaxSpeed/updatefile.txt"
 
 #define EF_BONEMERGE                (1 << 0)
 #define EF_NOSHADOW                 (1 << 4)
@@ -74,9 +69,9 @@ Handle hcv_HonorPerKill = INVALID_HANDLE;
 #define GANG_HEALTHMAX 5
 #define GANG_HEALTHINCREASE 2
 
-#define GANG_SPEEDCOST 8000
-#define GANG_SPEEDMAX 8
-#define GANG_SPEEDINCREASE 3.5
+#define GANG_COOLDOWNCOST 20000
+#define GANG_COOLDOWNMAX 10
+#define GANG_COOLDOWNINCREASE 2 
 
 #define GANG_NADECOST 5000
 #define GANG_NADEMAX 10
@@ -111,7 +106,7 @@ int ClientRank[MAXPLAYERS+1], ClientGangHonor[MAXPLAYERS+1], ClientHonor[MAXPLAY
 bool ClientLoadedFromDb[MAXPLAYERS + 1];
 char ClientGang[MAXPLAYERS+1][32], ClientMotd[MAXPLAYERS+1][32], ClientTag[MAXPLAYERS+1][32];
 
-int ClientHealthPerkT[MAXPLAYERS+1], ClientSpeedPerkT[MAXPLAYERS+1], ClientNadePerkT[MAXPLAYERS+1], ClientHealthPerkCT[MAXPLAYERS+1], ClientSpeedPerkCT[MAXPLAYERS+1], ClientGetHonorPerk[MAXPLAYERS+1], ClientGangSizePerk[MAXPLAYERS+1], ClientFriendlyFirePerk[MAXPLAYERS+1];
+int ClientHealthPerkT[MAXPLAYERS+1], ClientCooldownPerk[MAXPLAYERS+1], ClientNadePerkT[MAXPLAYERS+1], ClientHealthPerkCT[MAXPLAYERS+1], ClientGetHonorPerk[MAXPLAYERS+1], ClientGangSizePerk[MAXPLAYERS+1], ClientFriendlyFirePerk[MAXPLAYERS+1];
 
 // ClientAccessManage basically means if the client can either invite, kick, upgrade, promote or MOTD.
 int ClientAccessManage[MAXPLAYERS+1], ClientAccessInvite[MAXPLAYERS+1], ClientAccessKick[MAXPLAYERS+1], ClientAccessPromote[MAXPLAYERS+1], ClientAccessUpgrade[MAXPLAYERS+1], ClientAccessMOTD[MAXPLAYERS+1];
@@ -127,6 +122,8 @@ int ClientActionEdit[MAXPLAYERS + 1];
 
 bool CachedSpawn[MAXPLAYERS + 1], CanGetHonor[MAXPLAYERS+1];
 
+Handle DHook_PlayerMaxSpeed;
+
 public Plugin myinfo =
 {
     name = "JB Gangs",
@@ -139,7 +136,7 @@ public Plugin myinfo =
 public void OnPluginStart()
 {	
 
-	Format(NET_WORTH_ORDER_BY_FORMULA, sizeof(NET_WORTH_ORDER_BY_FORMULA), "%i + GangHonor + GangHealthPerkT*0.5*%i*(GangHealthPerkT+1) + GangHealthPerkCT*0.5*%i*(GangHealthPerkCT+1) + GangSpeedPerkT*0.5*%i*(GangSpeedPerkT+1) + GangSpeedPerkCT*0.5*%i*(GangSpeedPerkCT+1) + GangNadePerkT*0.5*%i*(GangNadePerkT+1) + GangGetHonorPerk*0.5*%i*(GangGetHonorPerk+1) + GangSizePerk*0.5*%i*(GangSizePerk+1) + GangFFPerk*0.5*%i*(GangFFPerk+1)", GANG_COSTCREATE, GANG_HEALTHCOST, GANG_HEALTHCOST, GANG_SPEEDCOST, GANG_SPEEDCOST, GANG_NADECOST, GANG_GETCREDITSCOST, GANG_SIZECOST, GANG_FRIENDLYFIRECOST);
+	Format(NET_WORTH_ORDER_BY_FORMULA, sizeof(NET_WORTH_ORDER_BY_FORMULA), "%i + GangHonor + GangHealthPerkT*0.5*%i*(GangHealthPerkT+1) + GangHealthPerkCT*0.5*%i*(GangHealthPerkCT+1) + GangCooldownPerk*0.5*%i*(GangCooldownPerk+1) + GangNadePerkT*0.5*%i*(GangNadePerkT+1) + GangGetHonorPerk*0.5*%i*(GangGetHonorPerk+1) + GangSizePerk*0.5*%i*(GangSizePerk+1) + GangFFPerk*0.5*%i*(GangFFPerk+1)", GANG_COSTCREATE, GANG_HEALTHCOST, GANG_HEALTHCOST, GANG_COOLDOWNCOST, GANG_NADECOST, GANG_GETCREDITSCOST, GANG_SIZECOST, GANG_FRIENDLYFIRECOST);
 		
 	dbFullConnected = false;
 	
@@ -173,27 +170,6 @@ public void OnPluginStart()
 	hcv_HonorPerKill = CreateConVar(HonorPerKillCvarName, "100", "Amount of honor you get per kill as T");
 	
 	ServerCommand("sm_cvar protect %s", HonorPerKillCvarName);
-	
-	#if defined _updater_included
-	if (LibraryExists("updater"))
-	{
-		Updater_AddPlugin(UPDATE_URL);
-	}
-	#endif
-	
-	//HandleGameData();
-}
-
-public void OnLibraryAdded(const char[] name)
-{
-	/*
-	#if defined _updater_included
-	if (StrEqual(name, "updater"))
-	{
-		Updater_AddPlugin(UPDATE_URL);
-	}
-	#endif
-	*/
 }
 
 public void OnPluginEnd()
@@ -203,74 +179,8 @@ public void OnPluginEnd()
 		TryDestroyGlow(i);
 	}
 }
-/*
-HandleGameData()
-{	
-	new String:FileName[300], Handle:hGameConf;
 
-	BuildPath(Path_SM, FileName, sizeof(FileName), "gamedata/%s.txt", const_GameDataFile);
-	if( !FileExists(FileName) )
-	{
-		if(!Updater_ForceUpdate())
-			SetFailState("Could not find offset PlayerMaxSpeedOffset.");
-			
-		return;
-	}
-	
-	
-	hGameConf = LoadGameConfigFile(const_GameDataFile);
-	
-	new PlayerMaxSpeedOffset = GameConfGetOffset(hGameConf, "PlayerMaxSpeedOffset");
-	
-	DHook_PlayerMaxSpeed = DHookCreate(PlayerMaxSpeedOffset, HookType_Entity, ReturnType_Float, ThisPointer_CBaseEntity, CCSPlayer_GetPlayerMaxSpeed);
-	
-	if(DHook_PlayerMaxSpeed == INVALID_HANDLE)
-	{
-		if(!Updater_ForceUpdate())
-			SetFailState("Could not DHook PlayerMaxSpeed");
-			
-		return;
-	}	
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if(!IsValidPlayer(i))
-			continue;
-			
-		DHookEntity(DHook_PlayerMaxSpeed, true, i);
-	}
-}
 
-public MRESReturn:CCSPlayer_GetPlayerMaxSpeed(client, Handle:hReturn, Handle:hParams)
-{	
-	if(!IsClientInGame(client) || !IsPlayerAlive(client))
-		return MRES_Ignored;
-	
-	else if(GetAliveTeamCount(CS_TEAM_T) <= 1)
-		return MRES_Ignored;
-	
-	new Float:Maxspeed = DHookGetReturn(hReturn);
-	
-	if(Maxspeed < 1.0)
-		return MRES_Ignored;
-	
-	switch(GetClientTeam(client))
-	{
-		case CS_TEAM_T: Maxspeed += (ClientSpeedPerkT[client] * GANG_SPEEDINCREASE);
-		case CS_TEAM_CT: Maxspeed += (ClientSpeedPerkCT[client] * GANG_SPEEDINCREASE);
-	}
-
-	DHookSetReturn(hReturn, Maxspeed);
-	return MRES_Supercede;
-}
-
-public Updater_OnPluginUpdated()
-{
-	new String:MapName[128];
-	GetCurrentMap(MapName, sizeof(MapName));
-
-	ServerCommand("changelevel %s", MapName);
-}
-*/
 public void LastRequest_OnLRStarted(int Prisoner, int Guard)
 {
 ///	SDKUnhook(Prisoner, SDKHook_PostThink, Event_PreThinkT);
@@ -581,7 +491,7 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 		if(IsVIP)
 			honor *= 2;
 			
-		PrintToChat(attacker, "%s \x05You \x01gained \x02%i%s \x01credits for your \x07kill.", PREFIX, GetConVarInt(hcv_HonorPerKill), IsVIP ? " x 2" : "");
+		PrintToChat(attacker, "%s \x05You \x01gained \x02%i%s \x01Honor for your \x07kill.", PREFIX, GetConVarInt(hcv_HonorPerKill), IsVIP ? " x 2" : "");
 		
 		
 		GiveClientHonor(attacker, honor);
@@ -597,7 +507,7 @@ public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcas
 		CanGetHonor[i] = true;
 		
 		if(IsClientGang(i) && ClientGetHonorPerk[i] > 0 && GetPlayerCount() >= MIN_PLAYERS_FOR_GC)
-			PrintToChat(i, " %s \x05You \x01can write \x07!gc \x01in the chat to get \x10%i \x01credits!", PREFIX , ClientGetHonorPerk[i] * GANG_GETCREDITSINCREASE);
+			PrintToChat(i, " %s \x05You \x01can write \x07!gc \x01in the chat to get \x10%i \x01Honor!", PREFIX , ClientGetHonorPerk[i] * GANG_GETCREDITSINCREASE);
 		
 	}
 }
@@ -657,40 +567,9 @@ public void ConnectDatabase()
 		dbGangs = hndl;
 		
 		SQL_TQuery(dbGangs, SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Members (GangName VARCHAR(32) NOT NULL, AuthId VARCHAR(32) NOT NULL UNIQUE, GangRank INT(20) NOT NULL, GangDonated INT(20) NOT NULL, LastName VARCHAR(32) NOT NULL, GangInviter VARCHAR(32) NOT NULL, GangJoinDate INT(20) NOT NULL, LastConnect INT(20) NOT NULL)", 0, DBPrio_High);
-		SQL_TQuery(dbGangs, SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Gangs (GangName VARCHAR(32) NOT NULL UNIQUE, GangTag VARCHAR(10) NOT NULL UNIQUE, GangMotd VARCHAR(100) NOT NULL, GangHonor INT(20) NOT NULL, GangHealthPerkT INT(20) NOT NULL, GangSpeedPerkT INT(20) NOT NULL, GangNadePerkT INT(20) NOT NULL, GangHealthPerkCT INT(20) NOT NULL, GangSpeedPerkCT INT(20) NOT NULL, GangGetHonorPerk INT(20) NOT NULL, GangSizePerk INT(20) NOT NULL)", 1, DBPrio_High);
+		SQL_TQuery(dbGangs, SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Gangs (GangName VARCHAR(32) NOT NULL UNIQUE, GangTag VARCHAR(10) NOT NULL UNIQUE, GangMotd VARCHAR(100) NOT NULL, GangHonor INT(20) NOT NULL, GangHealthPerkT INT(20) NOT NULL, GangSpeedPerkT INT(20) NOT NULL, GangNadePerkT INT(20) NOT NULL, GangHealthPerkCT INT(20) NOT NULL, GangSpeedPerkCT INT(20) NOT NULL, GangGetHonorPerk INT(20) NOT NULL, GangSizePerk INT(20) NOT NULL, GangFFPerk INT(11) NOT NULL, GangMinRankInvite INT(11) NOT NULL, GangMinRankKick INT(11) NOT NULL, GangMinRankPromote INT(11) NOT NULL, GangMinRankUpgrade INT(11), GangMinRankMOTD INT(11) NOT NULL)", 1, DBPrio_High);
 		SQL_TQuery(dbGangs, SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Honor (AuthId VARCHAR(32) NOT NULL UNIQUE, Honor INT(11) NOT NULL)", 2, DBPrio_High);
 		SQL_TQuery(dbGangs, SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_upgradelogs (GangName VARCHAR(32) NOT NULL, AuthId VARCHAR(32) NOT NULL, Perk VARCHAR(32) NOT NULL, BValue INT NOT NULL, AValue INT NOT NULL, timestamp INT NOT NULL)", 3, DBPrio_High); 
-		
-		char sQuery[512];
-		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "ALTER TABLE GangSystem_Gangs ADD COLUMN GangMinRankInvite INT(11) NOT NULL DEFAULT %i", RANK_OFFICER);
-		SQL_TQuery(dbGangs, SQLCB_ErrorIgnore, sQuery, _, DBPrio_High);
-
-		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "ALTER TABLE GangSystem_Gangs ADD COLUMN GangMinRankKick INT(11) NOT NULL DEFAULT %i", RANK_OFFICER);
-		SQL_TQuery(dbGangs, SQLCB_ErrorIgnore, sQuery, _, DBPrio_High);
-		
-		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "ALTER TABLE GangSystem_Gangs ADD COLUMN GangMinRankPromote INT(11) NOT NULL DEFAULT %i", RANK_MANAGER);
-		SQL_TQuery(dbGangs, SQLCB_ErrorIgnore, sQuery, _, DBPrio_High);
-		
-		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "ALTER TABLE GangSystem_Gangs ADD COLUMN GangMinRankUpgrade INT(11) NOT NULL DEFAULT %i", RANK_COLEADER);
-		SQL_TQuery(dbGangs, SQLCB_ErrorIgnore, sQuery, _, DBPrio_High);
-		
-		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "ALTER TABLE GangSystem_Gangs ADD COLUMN GangMinRankMOTD INT(11) NOT NULL DEFAULT %i", RANK_MANAGER);
-		SQL_TQuery(dbGangs, SQLCB_ErrorIgnore, sQuery, _, DBPrio_High);
-		
-		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "ALTER TABLE GangSystem_Gangs RENAME COLUMN GangCredits TO GangHonor");
-		SQL_TQuery(dbGangs, SQLCB_ErrorIgnore, sQuery, _, DBPrio_High);
-		
-		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "ALTER TABLE GangSystem_Gangs RENAME COLUMN GangGetCreditsPerk TO GangGetHonorPerk");
-		SQL_TQuery(dbGangs, SQLCB_ErrorIgnore, sQuery, _, DBPrio_High);
-
-		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "ALTER TABLE GangSystem_Credits RENAME TO GangSystem_Honor");
-		SQL_TQuery(dbGangs, SQLCB_ErrorIgnore, sQuery, _, DBPrio_High);		
-		
-		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "ALTER TABLE GangSystem_Honor RENAME COLUMN Credits TO Honor");
-		SQL_TQuery(dbGangs, SQLCB_ErrorIgnore, sQuery, _, DBPrio_High);
-		
-		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "ALTER TABLE GangSystem_Gangs ADD COLUMN GangFFPerk INT(11) NOT NULL DEFAULT 0");
-		SQL_TQuery(dbGangs, SQLCB_ErrorIgnore, sQuery, _, DBPrio_High);
 		
 		dbFullConnected = true;
 		
@@ -720,11 +599,12 @@ public void SQLCB_ErrorIgnore(Handle owner, Handle hndl, const char[] Error, int
 
 public void OnClientPutInServer(int client)
 {
-//	DHookEntity(DHook_PlayerMaxSpeed, true, client);	
+	DHookEntity(DHook_PlayerMaxSpeed, true, client);	
 	
 	ClientWhiteGlow[client] = 0;
 	ClientColorfulGlow[client] = 0;
 }
+
 
 public void OnClientConnected(int client)
 {	
@@ -737,10 +617,9 @@ void ResetVariables(int client, bool login = true)
 {
 	ClientHonor[client] = 0;
 	ClientHealthPerkT[client] = 0;
-	ClientSpeedPerkT[client] = 0;
+	ClientCooldownPerk[client] = 0;
 	ClientNadePerkT[client] = 0;
 	ClientHealthPerkCT[client] = 0;
-	ClientSpeedPerkCT[client] = 0;
 	
 	ClientAccessManage[client] = RANK_LEADER;
 	ClientAccessInvite[client] = RANK_LEADER;
@@ -916,18 +795,17 @@ public void SQLCB_LoadGangByClient(Handle owner, Handle hndl, char[] error, any 
 			SQL_FetchString(hndl, 2, ClientMotd[client], sizeof(ClientMotd[]));
 			ClientGangHonor[client] = SQL_FetchInt(hndl, 3);
 			ClientHealthPerkT[client] = SQL_FetchInt(hndl, 4);
-			ClientSpeedPerkT[client] = SQL_FetchInt(hndl, 5);
+			ClientCooldownPerk[client] = SQL_FetchInt(hndl, 5);
 			ClientNadePerkT[client] = SQL_FetchInt(hndl, 6);
 			ClientHealthPerkCT[client] = SQL_FetchInt(hndl, 7);
-			ClientSpeedPerkCT[client] = SQL_FetchInt(hndl, 8);
-			ClientGetHonorPerk[client] = SQL_FetchInt(hndl, 9);
-			ClientGangSizePerk[client] = SQL_FetchInt(hndl, 10);
-			ClientAccessInvite[client] = SQL_FetchInt(hndl, 11);
-			ClientAccessKick[client] = SQL_FetchInt(hndl, 12);
-			ClientAccessPromote[client] = SQL_FetchInt(hndl, 13);
-			ClientAccessUpgrade[client] = SQL_FetchInt(hndl, 14);
-			ClientAccessMOTD[client] = SQL_FetchInt(hndl, 15);
-			ClientFriendlyFirePerk[client] = SQL_FetchInt(hndl, 16);
+			ClientGetHonorPerk[client] = SQL_FetchInt(hndl, 8);
+			ClientGangSizePerk[client] = SQL_FetchInt(hndl, 9);
+			ClientAccessInvite[client] = SQL_FetchInt(hndl, 10);
+			ClientAccessKick[client] = SQL_FetchInt(hndl, 11);
+			ClientAccessPromote[client] = SQL_FetchInt(hndl, 12);
+			ClientAccessUpgrade[client] = SQL_FetchInt(hndl, 13);
+			ClientAccessMOTD[client] = SQL_FetchInt(hndl, 14);
+			ClientFriendlyFirePerk[client] = SQL_FetchInt(hndl, 15);
 			
 			int Smallest = ClientAccessInvite[client];
 			
@@ -1138,12 +1016,12 @@ public Action Command_DonateGang(int client, int args)
 	}
 	else if(amount < 50 || (amount % 50) != 0)
 	{
-		PrintToChat(client, "%s \x05You \x01must donate at least \x0750 \x01credits and in multiples of \x0750!", PREFIX);
+		PrintToChat(client, "%s \x05You \x01must donate at least \x0750 \x01honor and in multiples of \x0750!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if(amount > ClientHonor[client])
 	{
-		PrintToChat(client, "%s \x05You \x01cannot donate more credits than you \x07have.", PREFIX);
+		PrintToChat(client, "%s \x05You \x01cannot donate more honor than you \x07have.", PREFIX);
 		return Plugin_Handled;
 	}
 	Handle hMenu = CreateMenu(DonateGang_MenuHandler);
@@ -1151,7 +1029,7 @@ public Action Command_DonateGang(int client, int args)
 	AddMenuItem(hMenu, Args, "Yes");
 	AddMenuItem(hMenu, "", "No");
 	
-	SetMenuTitle(hMenu, "%s Gang Donation\n\nAre you sure you want to donate %i credits?", MENU_PREFIX, amount);
+	SetMenuTitle(hMenu, "%s Gang Donation\n\nAre you sure you want to donate %i honor?", MENU_PREFIX, amount);
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 	
 	return Plugin_Handled;
@@ -1429,7 +1307,7 @@ public Action Command_GC(int client, int args)
 	}
 	else if(!CanGetHonor[client])
 	{
-		PrintToChat(client, "%s \x05You \x01have already received credits this \x07round!", PREFIX);
+		PrintToChat(client, "%s \x05You \x01have already received honor this \x07round!", PREFIX);
 		return Plugin_Handled;	
 	}
 	else if(GetPlayerCount() < MIN_PLAYERS_FOR_GC)
@@ -1440,7 +1318,7 @@ public Action Command_GC(int client, int args)
 	
 	int received = ClientGetHonorPerk[client] * GANG_GETCREDITSINCREASE;
 	GiveClientHonor(client, received);
-	PrintToChat(client, "%s \x05You \x01have received \x07%i \x01credits with \x07!gc.", PREFIX, received);
+	PrintToChat(client, "%s \x05You \x01have received \x07%i \x01honor with \x07!gc.", PREFIX, received);
 	CanGetHonor[client] = false;
 	
 	return Plugin_Handled;
@@ -1535,7 +1413,7 @@ public Action Command_Gang(int client, int args)
 	
 	AddMenuItem(hMenu, "Top", "Top Gangs");
 	
-	SetMenuTitle(hMenu, "%s Gang Menu\nCurrent Gang: %s\nYour credits: %i\nYour Gang's credits: %i", MENU_PREFIX, isGang ? ClientGang[client] : "None", ClientHonor[client], isGang ? ClientGangHonor[client] : 0);
+	SetMenuTitle(hMenu, "%s Gang Menu\nCurrent Gang: %s\nYour Honor: %i\nYour Gang's Honor: %i", MENU_PREFIX, isGang ? ClientGang[client] : "None", ClientHonor[client], isGang ? ClientGangHonor[client] : 0);
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 	
 	LoadClientGang(client, true);
@@ -1631,7 +1509,7 @@ public void SQLCB_ShowTopGangsMenu(Handle owner, Handle hndl, char[] error, int 
 		FormatEx(TempFormat, sizeof(TempFormat), "%s [Net worth: %i]", GangName, NetWorth);
 		
 		if(StrEqual(ClientGang[client], GangName))
-			PrintToChat(client, " %s \x01Your gang \x07%s \x01is ranked \x07[%i]. \x01Net Worth: \x07%i \x01credits", PREFIX, GangName, Rank, NetWorth); // BAR COLOR
+			PrintToChat(client, " %s \x01Your gang \x07%s \x01is ranked \x07[%i]. \x01Net Worth: \x07%i \x01honor", PREFIX, GangName, Rank, NetWorth); // BAR COLOR
 			
 		AddMenuItem(hMenu, "", TempFormat);
 		
@@ -1657,7 +1535,7 @@ void ShowGangPerks(int client)
 	Format(TempFormat, sizeof(TempFormat), "Health ( T ) [ %i / %i ] Bonus: +%i [ %i per level ]", ClientHealthPerkT[client], GANG_HEALTHMAX, ClientHealthPerkT[client] * GANG_HEALTHINCREASE, GANG_HEALTHINCREASE);
 	AddMenuItem(hMenu, "", TempFormat, ITEMDRAW_DISABLED);
 	
-	Format(TempFormat, sizeof(TempFormat), "Speed ( T ) [ %i / %i ] Bonus: +%.1f [ %.1f per level ]", ClientSpeedPerkT[client], GANG_SPEEDMAX, ClientSpeedPerkT[client] * GANG_SPEEDINCREASE, GANG_SPEEDINCREASE);
+	Format(TempFormat, sizeof(TempFormat), "Cooldown [ %i / %i ] Bonus: +%.1f%% [ %.1f%% per level ]", ClientCooldownPerk[client], GANG_COOLDOWNMAX, ClientCooldownPerk[client] * GANG_COOLDOWNINCREASE, GANG_COOLDOWNINCREASE);
 	AddMenuItem(hMenu, "", TempFormat, ITEMDRAW_DISABLED);
 	
 	Format(TempFormat, sizeof(TempFormat), "Nade Chance ( T ) [ %i / %i ] Bonus: %.3f%% [ %.3f per level ]", ClientNadePerkT[client], GANG_NADEMAX, ClientNadePerkT[client] * GANG_NADEINCREASE, GANG_NADEINCREASE);
@@ -1665,11 +1543,8 @@ void ShowGangPerks(int client)
 
 	Format(TempFormat, sizeof(TempFormat), "Health ( CT ) [ %i / %i ] Bonus: +%i [ %i per level ]", ClientHealthPerkCT[client], GANG_HEALTHMAX, ClientHealthPerkCT[client] * GANG_HEALTHINCREASE, GANG_HEALTHINCREASE);
 	AddMenuItem(hMenu, "", TempFormat, ITEMDRAW_DISABLED);
-
-	Format(TempFormat, sizeof(TempFormat), "Speed ( CT ) [ %i / %i ] Bonus: +%.1f [ %.1f per level ]", ClientSpeedPerkCT[client], GANG_SPEEDMAX, ClientSpeedPerkCT[client] * GANG_SPEEDINCREASE, GANG_SPEEDINCREASE);
-	AddMenuItem(hMenu, "", TempFormat, ITEMDRAW_DISABLED);
 	
-	Format(TempFormat, sizeof(TempFormat), "Get Credits [ %i / %i ] Bonus: %i [ %i per level ]", ClientGetHonorPerk[client], GANG_GETCREDITSMAX, ClientGetHonorPerk[client] * GANG_GETCREDITSINCREASE, GANG_GETCREDITSINCREASE);
+	Format(TempFormat, sizeof(TempFormat), "Get Honor [ %i / %i ] Bonus: %i [ %i per level ]", ClientGetHonorPerk[client], GANG_GETCREDITSMAX, ClientGetHonorPerk[client] * GANG_GETCREDITSINCREASE, GANG_GETCREDITSINCREASE);
 	AddMenuItem(hMenu, "", TempFormat, ITEMDRAW_DISABLED);
 	
 	Format(TempFormat, sizeof(TempFormat), "Gang Size [ %i / %i ] Bonus: %i [ %i per level ]", ClientGangSizePerk[client], GANG_SIZEMAX, ClientGangSizePerk[client] * GANG_SIZEINCREASE, GANG_SIZEINCREASE);
@@ -1931,9 +1806,9 @@ void ShowUpgradeMenu(int client)
 	Format(TempFormat, sizeof(TempFormat), "Health ( T ) [ %i / %i ] Cost: %i", ClientHealthPerkT[client], GANG_HEALTHMAX, upgradecost);
 	AddMenuItem(hMenu, strUpgradeCost, TempFormat, ClientGangHonor[client] >= upgradecost ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	
-	upgradecost = GetUpgradeCost(ClientSpeedPerkT[client], GANG_SPEEDCOST);
+	upgradecost = GetUpgradeCost(ClientCooldownPerk[client], GANG_COOLDOWNCOST);
 	IntToString(upgradecost, strUpgradeCost, sizeof(strUpgradeCost));
-	Format(TempFormat, sizeof(TempFormat), "Speed ( T ) [ %i / %i ] Cost: %i", ClientSpeedPerkT[client], GANG_SPEEDMAX, upgradecost);
+	Format(TempFormat, sizeof(TempFormat), "Cooldown [ %i / %i ] Cost: %i", ClientCooldownPerk[client], GANG_COOLDOWNMAX, upgradecost);
 	AddMenuItem(hMenu, strUpgradeCost, TempFormat, ClientGangHonor[client] >= upgradecost ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	
 	upgradecost = GetUpgradeCost(ClientNadePerkT[client], GANG_NADECOST);
@@ -1945,15 +1820,10 @@ void ShowUpgradeMenu(int client)
 	IntToString(upgradecost, strUpgradeCost, sizeof(strUpgradeCost));
 	Format(TempFormat, sizeof(TempFormat), "Health ( CT ) [ %i / %i ] Cost: %i", ClientHealthPerkCT[client], GANG_HEALTHMAX, upgradecost);
 	AddMenuItem(hMenu, strUpgradeCost, TempFormat, ClientGangHonor[client] >= upgradecost ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
-
-	upgradecost = GetUpgradeCost(ClientSpeedPerkCT[client], GANG_SPEEDCOST);
-	IntToString(upgradecost, strUpgradeCost, sizeof(strUpgradeCost));
-	Format(TempFormat, sizeof(TempFormat), "Speed ( CT ) [ %i / %i ] Cost: %i", ClientSpeedPerkCT[client], GANG_SPEEDMAX, upgradecost);
-	AddMenuItem(hMenu, strUpgradeCost, TempFormat, ClientGangHonor[client] >= upgradecost ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	
 	upgradecost = GetUpgradeCost(ClientGetHonorPerk[client], GANG_GETCREDITSCOST);
 	IntToString(upgradecost, strUpgradeCost, sizeof(strUpgradeCost));
-	Format(TempFormat, sizeof(TempFormat), "Get Credits [ %i / %i ] Cost: %i", ClientGetHonorPerk[client], GANG_GETCREDITSMAX, upgradecost);
+	Format(TempFormat, sizeof(TempFormat), "Get Honor [ %i / %i ] Cost: %i", ClientGetHonorPerk[client], GANG_GETCREDITSMAX, upgradecost);
 	AddMenuItem(hMenu, strUpgradeCost, TempFormat, ClientGangHonor[client] >= upgradecost ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	
 	upgradecost = GetUpgradeCost(ClientGangSizePerk[client], GANG_SIZECOST);
@@ -2074,10 +1944,9 @@ public void SQLCB_LoadGangByClient_TryUpgrade(Handle owner, Handle hndl, char[] 
 			SQL_FetchString(hndl, 2, ClientMotd[client], sizeof(ClientMotd[]));
 			ClientGangHonor[client] = SQL_FetchInt(hndl, 3);
 			ClientHealthPerkT[client] = SQL_FetchInt(hndl, 4);
-			ClientSpeedPerkT[client] = SQL_FetchInt(hndl, 5);
+			ClientCooldownPerk[client] = SQL_FetchInt(hndl, 5);
 			ClientNadePerkT[client] = SQL_FetchInt(hndl, 6);
 			ClientHealthPerkCT[client] = SQL_FetchInt(hndl, 7);
-			ClientSpeedPerkCT[client] = SQL_FetchInt(hndl, 8);
 			ClientGetHonorPerk[client] = SQL_FetchInt(hndl, 9);
 			ClientGangSizePerk[client] = SQL_FetchInt(hndl, 10);
 			
@@ -2090,7 +1959,7 @@ void TryUpgradePerk(int client, int item, int upgradecost) // Safety accomplishe
 {
 	if(ClientGangHonor[client] < upgradecost)
 	{	
-		PrintToChat(client, "%s Your gang doesn't have enough credits to \x07upgrade.", PREFIX);
+		PrintToChat(client, "%s Your gang doesn't have enough honor to \x07upgrade.", PREFIX);
 		return;
 	}	
 	int PerkToUse, PerkMax;
@@ -2099,13 +1968,12 @@ void TryUpgradePerk(int client, int item, int upgradecost) // Safety accomplishe
 	switch(item + 1)
 	{
 		case 1: PerkToUse = ClientHealthPerkT[client], PerkMax = GANG_HEALTHMAX, PerkName = "GangHealthPerkT", PerkNick = "Health ( T )";
-		case 2: PerkToUse = ClientSpeedPerkT[client], PerkMax = GANG_SPEEDMAX, PerkName = "GangSpeedPerkT", PerkNick = "Speed ( T )";
+		case 2: PerkToUse = ClientCooldownPerk[client], PerkMax = GANG_COOLDOWNMAX, PerkName = "GangCooldownPerk", PerkNick = "Cooldown";
 		case 3: PerkToUse = ClientNadePerkT[client], PerkMax = GANG_NADEMAX, PerkName = "GangNadePerkT", PerkNick = "Nade Chance ( T )";
 		case 4: PerkToUse = ClientHealthPerkCT[client], PerkMax = GANG_HEALTHMAX, PerkName = "GangHealthPerkCT", PerkNick = "Health ( CT )";
-		case 5: PerkToUse = ClientSpeedPerkCT[client], PerkMax = GANG_SPEEDMAX, PerkName = "GangSpeedPerkCT", PerkNick = "Speed ( CT )";
-		case 6: PerkToUse = ClientGetHonorPerk[client], PerkMax = GANG_GETCREDITSMAX, PerkName = "GangGetHonorPerk", PerkNick = "Get Credits";
-		case 7: PerkToUse = ClientGangSizePerk[client], PerkMax = GANG_SIZEMAX, PerkName = "GangSizePerk", PerkNick = "Gang Size";
-		case 8: PerkToUse = ClientFriendlyFirePerk[client], PerkMax = GANG_FRIENDLYFIREMAX, PerkName = "GangFFPerk", PerkNick = "Friendly Fire Decrease";
+		case 5: PerkToUse = ClientGetHonorPerk[client], PerkMax = GANG_GETCREDITSMAX, PerkName = "GangGetHonorPerk", PerkNick = "Get Honor";
+		case 6: PerkToUse = ClientGangSizePerk[client], PerkMax = GANG_SIZEMAX, PerkName = "GangSizePerk", PerkNick = "Gang Size";
+		case 7: PerkToUse = ClientFriendlyFirePerk[client], PerkMax = GANG_FRIENDLYFIREMAX, PerkName = "GangFFPerk", PerkNick = "Friendly Fire Decrease";
 		default: return;
 	}
 	
@@ -2617,7 +2485,7 @@ void TryCreateGang(int client, const char[] GangName, const char[] GangTag)
 	{
 		GangCreateName[client] = GANG_NULL;
 		GangCreateTag[client] = GANG_NULL;
-		PrintToChat(client, "%s \x05You \x01need \x07%i \x01more credits to open a gang!", PREFIX, GANG_COSTCREATE - ClientHonor[client]);
+		PrintToChat(client, "%s \x05You \x01need \x07%i \x01more honor to open a gang!", PREFIX, GANG_COSTCREATE - ClientHonor[client]);
 		return;
 	}
 	Handle DP = CreateDataPack();
@@ -2710,7 +2578,7 @@ void CreateGang(int client, const char[] GangName, const char[] GangTag)
 	WritePackString(DP, AuthId);
 	WritePackString(DP, GangName);
 	
-	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Gangs (GangName, GangTag, GangMotd, GangHonor, GangHealthPerkT, GangSpeedPerkT, GangNadePerkT, GangHealthPerkCT, GangSpeedPerkCT, GangGetHonorPerk, GangSizePerk) VALUES ('%s', '%s', '', 0, 0, 0, 0, 0, 0, 0, 0)", GangName, GangTag);
+	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Gangs (GangName, GangTag, GangMotd, GangHonor, GangHealthPerkT, GangCooldownPerk, GangNadePerkT, GangHealthPerkCT, GangGetHonorPerk, GangSizePerk) VALUES ('%s', '%s', '', 0, 0, 0, 0, 0, 0, 0)", GangName, GangTag);
 	SQL_TQuery(dbGangs, SQLCB_GangCreated, sQuery, DP);
 	
 	GiveClientHonor(client, -1 * GANG_COSTCREATE);

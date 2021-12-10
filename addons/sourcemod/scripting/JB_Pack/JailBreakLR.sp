@@ -144,7 +144,8 @@ char LRArguments[MAXPLAYERS + 1][64];
 char LRHealthArgument[MAXPLAYERS + 1][64];
 char SavedLRArguments[MAXPLAYERS + 1][64];
 char SavedLRHealthArgument[MAXPLAYERS + 1][64];
-int Prisoner, Guard, FreeDayUID = -1, ChokeTimer, GeneralTimer;
+// True Prisoner ignores TSeeker reverting them
+int Prisoner, Guard, TruePrisoner, TrueGuard, FreeDayUID = -1, ChokeTimer, GeneralTimer;
 int PrisonerPrim, PrisonerSec, GuardPrim, GuardSec//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;
 int HPamount, BPAmmo, Vest;
 char PrimWep[32], SecWep[32];
@@ -2216,6 +2217,8 @@ stock void EndLR(int EndTimers = true)
 {
 	Prisoner = -1;
 	Guard = -1;
+	TruePrisoner = -1;
+	TrueGuard = -1;
 
 	PrimWep = "";
 	PrimNum = CSWeapon_NONE;
@@ -3466,6 +3469,7 @@ public int Opponent_MenuHandler(Handle hMenu, MenuAction action, int client, int
 			Guard = target;			
 			
 			Prisoner = client;
+			
 			LRStarted = true;
 			//OpenAllCells();
 			FinishTimers();
@@ -3622,13 +3626,13 @@ public void ContinueStartDuel()
 	
 	else if(StrContains(DuelName, "HNS") != -1) // If the duel is HNS.
 	{
-		if(!TSeeker) // If the terrorist doesn't seek.
+		if(!TSeeker) // If the terrorist doesn't seek reverse Guard and Prisoner
 		{
-			int Guard2 = Guard;
-			int Prisoner2 = Prisoner;
+			TrueGuard = Guard;
+			TruePrisoner = Prisoner;
 			
-			Prisoner = Guard2;
-			Guard = Prisoner2;
+			Prisoner = TrueGuard;
+			Guard = TruePrisoner;
 		}
 		
 		GivePlayerItem(Prisoner, "weapon_knife");
@@ -3655,13 +3659,13 @@ public void ContinueStartDuel()
 	}
 	else if(StrContains(DuelName, "Night Crawler") != -1)
 	{
-		if(!TSeeker) // If the terrorist doesn't seek.
+		if(!TSeeker) // If the terrorist doesn't seek reverse Guard and Prisoner
 		{
-			int Guard2 = Guard;
-			int Prisoner2 = Prisoner;
+			TrueGuard = Guard;
+			TruePrisoner = Prisoner;
 			
-			Prisoner = Guard2;
-			Guard = Prisoner2;
+			Prisoner = TrueGuard;
+			Guard = TruePrisoner;
 		}
 		
 		StripPlayerWeapons(Prisoner);
@@ -3676,13 +3680,13 @@ public void ContinueStartDuel()
 	
 	else if(StrContains(DuelName, "Shark") != -1)
 	{
-		if(!TSeeker) // If the terrorist doesn't seek.
+		if(!TSeeker) // If the terrorist doesn't seek reverse Guard and Prisoner
 		{
-			int Guard2 = Guard;
-			int Prisoner2 = Prisoner;
+			TrueGuard = Guard;
+			TruePrisoner = Prisoner;
 			
-			Prisoner = Guard2;
-			Guard = Prisoner2;
+			Prisoner = TrueGuard;
+			Guard = TruePrisoner;
 		}
 		
 		GivePlayerItem(Prisoner, "weapon_knife");
@@ -3867,7 +3871,7 @@ public void ContinueStartDuel()
 	
 	//Teleport();
 	
-	PrintToChat(Prisoner, "LR Sequence: !lr %s %s", SavedLRArguments[Prisoner], SavedLRHealthArgument[Prisoner][0] == EOS ? "" : SavedLRHealthArgument[Prisoner]);
+	PrintToChat(TruePrisoner, "LR Sequence: !lr %s %s", SavedLRArguments[Prisoner], SavedLRHealthArgument[Prisoner][0] == EOS ? "" : SavedLRHealthArgument[Prisoner]);
 }
 
 public void DeleteAllGuns()
