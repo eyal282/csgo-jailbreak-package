@@ -37,7 +37,7 @@ bool CKEnabled = false;
 public void OnPluginStart()
 {
 	RegConsoleCmd("sm_box", Command_Box, "Enables friendlyfire for the terrorists");
-	RegConsoleCmd("sm_vip", Command_VIP, "Turns on glow on a player");
+	RegConsoleCmd("sm_fd", Command_FD, "Turns on glow on a player");
 	RegConsoleCmd("sm_ck", Command_CK, "Turns on CK for the rest of the vote CT");
 
 	RegAdminCmd("sm_silentstopck", Command_SilentStopCK, ADMFLAG_ROOT, "Turns off CK silently");
@@ -75,7 +75,6 @@ public void OnClientPutInServer(int client)
 	SDKHook(client, SDKHook_OnTakeDamage, Hook_OnTakeDamage);
 	SDKHook(client, SDKHook_WeaponCanUse, Hook_WeaponCanUse);
 }
-
 
 public Action Hook_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
@@ -185,7 +184,7 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 
 }
 
-public Action Command_VIP(int client, int args)
+public Action Command_FD(int client, int args)
 {
 	if((GetClientTeam(client) != CS_TEAM_CT || !IsPlayerAlive(client)) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
@@ -196,7 +195,7 @@ public Action Command_VIP(int client, int args)
 	
 	else if(args == 0)
 	{
-		ReplyToCommand(client, "Usage: sm_vip <target>");
+		ReplyToCommand(client, "Usage: sm_fd <target>");
 		return Plugin_Handled;
 	}
 	char Arg[64];
@@ -209,7 +208,7 @@ public Action Command_VIP(int client, int args)
 		
 	IsVIP[target] = !IsVIP[target];
 	
-	PrintToChatAll(" %s \x05%N \x01%s \x10VIP \x01on \x05%N ", PREFIX, client, IsVIP[target] ? "Enabled" : "Disabled", target);
+	PrintToChatAll(" %s \x05%N \x01%s \x10Freeday \x01%s \x05%N ", PREFIX, client, IsVIP[target] ? "Gave" : "Took", IsVIP[target] ? "To" : "From", target);
 	
 	SetEntityRenderColor(target, 0, 128, 128, 255);
 
