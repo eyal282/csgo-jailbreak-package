@@ -33,6 +33,8 @@ Handle hTimer_Beacon = INVALID_HANDLE;
 
 bool CKEnabled = false;
 
+bool bCanZoom[MAXPLAYERS + 1], bHasSilencer[MAXPLAYERS+1], bWrongWeapon[MAXPLAYERS+1];
+
 
 public void OnPluginStart()
 {
@@ -49,6 +51,7 @@ public void OnPluginStart()
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_PostNoCopy);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
+	HookEvent("item_equip", Event_ItemEquip, EventHookMode_Post);
 	
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -70,6 +73,66 @@ public void OnMapStart()
 	
 }
 
+
+#define MAX_BUTTONS 26
+
+int g_LastButtons[MAXPLAYERS + 1];
+float g_fPressTime[MAXPLAYERS + 1][MAX_BUTTONS+1];
+
+public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
+{	
+    for (new i = 0; i < MAX_BUTTONS; i++)
+    {
+        int button = (1 << i);
+        
+        if ((buttons & button))
+        {
+            if (!(g_LastButtons[client] & button))
+            {
+				g_fPressTime[client][button] = GetGameTime();
+				OnButtonPress(client, button);
+            }
+        }
+        else if ((g_LastButtons[client] & button))
+        {
+            OnButtonRelease(client, button, GetGameTime() - g_fPressTime[client][button]);
+        }
+    }
+    
+    g_LastButtons[client] = buttons;
+    
+    return Plugin_Continue;
+}
+
+public void OnButtonPress(int client, int button)
+{
+	
+}
+
+public void OnButtonRelease(int client, int button, float holdTime)
+{
+	if(button != IN_ATTACK2)
+		return;
+	
+	else if(bWrongWeapon || bCanZoom || bHasSilencer)
+		return;
+		
+	else if (GetClientTeam(client) != CS_TEAM_CT)
+		return;
+		
+	else if(GetAliveTeamCount(CS_TEAM_T) <= 1)
+		return;
+	
+	
+	if(holdTime < 1.0)
+	{
+		CreateMarker(client);
+	}
+	else
+	{	
+		DeleteAllMarkers();
+	}
+} 
 public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_OnTakeDamage, Hook_OnTakeDamage);
@@ -149,6 +212,28 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 	
 	if(CKEnabled)
 		CreateTimer(0.2, AddHealthCT, GetEventInt(hEvent, "userid"));
+}
+
+public Action Event_ItemEquip(Event event, const char[] Name, bool dontBroadcast)
+{	
+	int client = GetClientOfUserId(event.GetInt("userid"));
+
+	bCanZoom[client] = event.GetBool("canzoom");
+	bHasSilencer[client] = event.GetBool("hassilencer");
+	bWrongWeapon[client] = false;
+	
+	int wepType = event.GetInt("weptype");
+	
+	if(wepType == 0 || wepType == 9)
+	{
+		bWrongWeapon[client] = true;
+	}
+		
+	/*
+	WEAPONTYPE_KNIFE = 0
+	WEAPONTYPE_TASER 8
+	WEAPONTYPE_GRENADE 9
+	*/
 }
 
 public Action AddHealthCT(Handle hTimer, int UserId)
@@ -469,4 +554,37 @@ stock bool IsEntityPlayer(int entity)
 		return false;
 		
 	return true;
+}
+
+
+stock int GetAliveTeamCount(int Team)
+{
+	int count = 0;
+	
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(GetClientTeam(i) != Team)
+			continue;
+			
+		else if(!IsPlayerAlive(i))
+			continue;
+			
+		count++;
+	}
+	
+	return count;
+}	
+
+stock void DeleteAllMarkers()
+{
+
+}
+
+
+stock void CreateMarker()
+{
+
 }
