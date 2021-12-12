@@ -156,6 +156,8 @@ public void OnButtonRelease(int client, int button, float holdTime)
 	if(holdTime < 1.0)
 	{
 		CreateMarker(client);
+		
+		PrintToChat(client, "Hint: Hold +attack2 for a second to clear all marks.")
 	}
 	else
 	{	
