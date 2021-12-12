@@ -12,6 +12,7 @@
 native bool Eyal282_VoteCT_IsChosen(client);
 native bool Eyal282_VoteCT_IsGodRound();
 native bool JailBreakDays_IsDayActive();
+native bool LR_isActive();
 
 public Plugin myinfo = 
 {
@@ -33,9 +34,15 @@ Handle hTimer_Beacon = INVALID_HANDLE;
 
 bool CKEnabled = false;
 
-bool bCanZoom[MAXPLAYERS + 1], bHasSilencer[MAXPLAYERS+1], bWrongWeapon[MAXPLAYERS+1];
+bool bCanZoom[MAXPLAYERS + 1] = true, bHasSilencer[MAXPLAYERS+1] = true, bWrongWeapon[MAXPLAYERS+1] = true;
 
+ArrayList aMarkers = null;
 
+enum struct markerEntry
+{
+	float origin[3];
+	float radius;
+}
 public void OnPluginStart()
 {
 	RegConsoleCmd("sm_box", Command_Box, "Enables friendlyfire for the terrorists");
@@ -52,6 +59,8 @@ public void OnPluginStart()
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_PostNoCopy);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("item_equip", Event_ItemEquip, EventHookMode_Post);
+	
+	aMarkers = CreateArray(sizeof(markerEntry))
 	
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -71,6 +80,27 @@ public void OnMapStart()
 	
 	SetConVarBool(hcv_TeammatesAreEnemies, false);
 	
+	CreateTimer(0.5, Timer_DrawMarkers, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+	
+}
+
+public Action Timer_DrawMarkers(Handle hTimer)
+{
+	for (int i = 0; i < GetArraySize(aMarkers);i++)
+	{
+		markerEntry entry;
+		
+		GetArrayArray(aMarkers, i, entry);
+		
+		float Origin[3], Radius;
+		
+		Origin = entry.origin;
+		Radius = entry.radius;
+		
+		int colors[4] =  { 0, 0, 255, 255 };
+		TE_SetupBeamRingPoint(Origin, Radius, Radius+0.1, BeamIndex, HaloIdx, 0, 10, 0.51, 5.0, 0.0, colors, 10, 0);
+		TE_SendToAll();
+	}
 }
 
 
@@ -81,27 +111,27 @@ float g_fPressTime[MAXPLAYERS + 1][MAX_BUTTONS+1];
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {	
-    for (new i = 0; i < MAX_BUTTONS; i++)
-    {
-        int button = (1 << i);
-        
-        if ((buttons & button))
-        {
-            if (!(g_LastButtons[client] & button))
-            {
-				g_fPressTime[client][button] = GetGameTime();
+	for (new i = 0; i < MAX_BUTTONS; i++)
+	{
+		int button = (1 << i);
+		
+		if ((buttons & button))
+		{
+			if (!(g_LastButtons[client] & button))
+			{
+				g_fPressTime[client][i] = GetGameTime();
 				OnButtonPress(client, button);
-            }
-        }
-        else if ((g_LastButtons[client] & button))
-        {
-            OnButtonRelease(client, button, GetGameTime() - g_fPressTime[client][button]);
-        }
-    }
+			}
+		}
+		else if ((g_LastButtons[client] & button))
+		{
+			OnButtonRelease(client, button, GetGameTime() - g_fPressTime[client][i]);
+		}
+	}	
     
-    g_LastButtons[client] = buttons;
+	g_LastButtons[client] = buttons;
     
-    return Plugin_Continue;
+	return Plugin_Continue;
 }
 
 public void OnButtonPress(int client, int button)
@@ -113,16 +143,15 @@ public void OnButtonRelease(int client, int button, float holdTime)
 {
 	if(button != IN_ATTACK2)
 		return;
-	
-	else if(bWrongWeapon || bCanZoom || bHasSilencer)
-		return;
 		
-	else if (GetClientTeam(client) != CS_TEAM_CT)
-		return;
-		
-	else if(GetAliveTeamCount(CS_TEAM_T) <= 1)
+	if(bWrongWeapon[client] || bCanZoom[client] || bHasSilencer[client])
 		return;
 	
+	if (GetClientTeam(client) != CS_TEAM_CT)
+		return;
+	
+	if(LR_isActive())
+		return;
 	
 	if(holdTime < 1.0)
 	{
@@ -195,6 +224,8 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 			AcceptEntityInput(i, "Kill");
 		}
 	}
+	
+	DeleteAllMarkers();
 }
 
 // Note to self: This has EventHookMode_PostNoCopy, meaning I can't use GetEventInt until I change to EventHookMode_Post.
@@ -214,6 +245,7 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 		CreateTimer(0.2, AddHealthCT, GetEventInt(hEvent, "userid"));
 }
 
+// Shamelessly stolen from MyJailBreak, Shanapu
 public Action Event_ItemEquip(Event event, const char[] Name, bool dontBroadcast)
 {	
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -580,11 +612,58 @@ stock int GetAliveTeamCount(int Team)
 
 stock void DeleteAllMarkers()
 {
-
+	ClearArray(aMarkers);
 }
 
 
-stock void CreateMarker()
+stock void CreateMarker(int client)
 {
+	markerEntry entry;
+	
+	GetClientAimTargetPos(client, entry.origin);
+	
+	entry.origin[2] += 5.0;
+	entry.radius = 128.0;
+	
+	PushArrayArray(aMarkers, entry);
+}
 
+// Shamelessly stolen from Shanapu MyJB.
+int GetClientAimTargetPos(int client, float g_fPos[3]) 
+{
+	if (client < 1)
+		return -1;
+
+	float vAngles[3];float vOrigin[3];
+
+	GetClientEyePosition(client, vOrigin);
+	GetClientEyeAngles(client, vAngles);
+
+	Handle trace = TR_TraceRayFilterEx(vOrigin, vAngles, MASK_SHOT, RayType_Infinite, TraceFilterAllEntities, client);
+
+	TR_GetEndPosition(g_fPos, trace);
+	g_fPos[2] += 5.0;
+
+	int entity = TR_GetEntityIndex(trace);
+
+	CloseHandle(trace);
+
+	return entity;
+}
+
+public bool TraceFilterAllEntities(int entity, int contentsMask, int client)
+{
+	if (entity == client)
+		return false;
+
+	if (entity > MaxClients)
+		return false;
+
+	if (!IsClientInGame(entity))
+		return false;
+
+	if (!IsPlayerAlive(entity))
+		return false;
+
+	return true;
 }
