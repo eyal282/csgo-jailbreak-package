@@ -158,13 +158,14 @@ public void OnButtonRelease(int client, int button, float holdTime)
 	// Releasing without hold = create marker.
 	// Releasing with a short hold could be a regret of action.
 	// Releasing with a second hold = delete marker.
-	if(holdTime < 1.0)
+	if(holdTime < 0.2)
 	{
 		CreateMarker(client);
 		
-		PrintToChat(client, "Hint: Hold +attack2 for a second to clear all marks.")
+		if(GetArraySize(aMarkers) == 1)
+			PrintToChat(client, "Hint: Hold +attack2 for a second to clear all marks.")
 	}
-	else if(holdTime > 0.2)
+	else if(holdTime >= 1.0)
 	{	
 		DeleteAllMarkers();
 	}
