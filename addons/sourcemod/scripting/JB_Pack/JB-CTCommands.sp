@@ -4,6 +4,8 @@
 #include <cstrike>
 #include <eyal-jailbreak>
 
+#define MAX_MARKERS 5
+
 #define PLUGIN_VERSION "1.0"
 
 #define semicolon 1
@@ -162,7 +164,7 @@ public void OnButtonRelease(int client, int button, float holdTime)
 		
 		PrintToChat(client, "Hint: Hold +attack2 for a second to clear all marks.")
 	}
-	else if(holdTime < 0.2)
+	else if(holdTime > 0.2)
 	{	
 		DeleteAllMarkers();
 	}
@@ -630,7 +632,14 @@ stock void CreateMarker(int client)
 	entry.origin[2] += 5.0;
 	entry.radius = 128.0;
 	
-	PushArrayArray(aMarkers, entry);
+	if(GetArraySize(aMarkers) >= 1)
+	{
+		ShiftArrayUp(aMarkers, 0);
+		SetArrayArray(aMarkers, 0, entry);
+		ResizeArray(aMarkers, MAX_MARKERS);
+	}
+	else
+		PushArrayArray(aMarkers, entry);
 }
 
 // Shamelessly stolen from Shanapu MyJB.
