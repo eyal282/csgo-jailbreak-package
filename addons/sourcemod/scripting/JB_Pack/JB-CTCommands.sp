@@ -637,10 +637,13 @@ stock void CreateMarker(int client)
 	{
 		ShiftArrayUp(aMarkers, 0);
 		SetArrayArray(aMarkers, 0, entry);
-		ResizeArray(aMarkers, MAX_MARKERS);
 	}
 	else
 		PushArrayArray(aMarkers, entry);
+		
+	
+	if(GetArraySize(aMarkers) >= MAX_MARKERS)
+		ResizeArray(aMarkers, MAX_MARKERS);
 }
 
 // Shamelessly stolen from Shanapu MyJB.
