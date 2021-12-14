@@ -22,10 +22,10 @@ native void Gangs_GiveGangCredits(const char[] GangName, int amount);
 
 
 #define RACE_DISTANCE_TO_WIN 25.0 // Distance from end point in order to win.
-#define LR_SOUNDS_DIRECTORY "WePlay-LRSounds/GZ.mp3"
+#define LR_SOUNDS_DIRECTORY "LRSounds/lr_activated.mp3"
 
 //#define LR_SOUNDS_S4S "adp_lrsounds/lr_shot4shot.mp3"
-#define LR_SOUNDS_BACKSTAB "adp_lrsounds/lr_start.mp3"
+#define LR_SOUNDS_BACKSTAB "LRSounds/fight.mp3"
 
 #define MENU_SELECT_SOUND	"buttons/button14.wav"
 #define MENU_EXIT_SOUND	"buttons/combine_button7.wav"
