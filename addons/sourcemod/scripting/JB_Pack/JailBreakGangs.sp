@@ -96,8 +96,8 @@ Handle hcv_HonorPerKill = INVALID_HANDLE;
 
 #define RANK_NULL -1
 #define RANK_MEMBER 0
-#define RANK_OFFICER 1
-#define RANK_ADMIN 2
+#define RANK_ENFORCER 1
+#define RANK_ADVISOR 2
 #define RANK_MANAGER 3
 #define RANK_COLEADER 4
 #define RANK_LEADER 420
@@ -2648,7 +2648,7 @@ void CreateGang(int client, const char[] GangName)
 	WritePackString(DP, AuthId);
 	WritePackString(DP, GangName);
 	
-	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Gangs (GangName, GangMOTD, GangHonor, GangHealthPerkT, GangCooldownPerk, GangNadePerkT, GangHealthPerkCT, GangGetHonorPerk, GangFFPerk, GangSizePerk, GangMinRankInvite, GangMinRankKick, GangMinRankPromote, GangMinRankUpgrade, GangMinRankMOTD) VALUES ('%s', '', 0, 0, 0, 0, 0, 0, 0, 0, %i, %i, %i, %i, %i)", GangName, RANK_OFFICER, RANK_ADMIN, RANK_MANAGER, RANK_COLEADER, RANK_MANAGER);
+	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Gangs (GangName, GangMOTD, GangHonor, GangHealthPerkT, GangCooldownPerk, GangNadePerkT, GangHealthPerkCT, GangGetHonorPerk, GangFFPerk, GangSizePerk, GangMinRankInvite, GangMinRankKick, GangMinRankPromote, GangMinRankUpgrade, GangMinRankMOTD) VALUES ('%s', '', 0, 0, 0, 0, 0, 0, 0, 0, %i, %i, %i, %i, %i)", GangName, RANK_ENFORCER, RANK_ADVISOR, RANK_MANAGER, RANK_COLEADER, RANK_MANAGER);
 	
 	dbGangs.Query(SQLCB_GangCreated, sQuery, DP);
 	
@@ -3010,8 +3010,8 @@ stock void GetRankName(int Rank, char[] buffer, int length)
 	switch(Rank)
 	{
 		case RANK_MEMBER: Format(buffer, length, "Member");
-		case RANK_OFFICER: Format(buffer, length, "Officer");
-		case RANK_ADMIN: Format(buffer, length, "Admin");
+		case RANK_ENFORCER: Format(buffer, length, "Enforcer");
+		case RANK_ADVISOR: Format(buffer, length, "Advisor");
 		case RANK_MANAGER: Format(buffer, length, "Manager");
 		case RANK_COLEADER: Format(buffer, length, "Co-Leader");
 		case RANK_LEADER: Format(buffer, length, "Leader");
