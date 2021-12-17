@@ -38,6 +38,7 @@ Handle hTimer_Beacon = INVALID_HANDLE;
 bool isbox = false;
 bool nospam[MAXPLAYERS + 1] = false;
 ConVar g_SetTimeMute;
+ConVar g_tMinMute;
 ConVar g_SetTimeCooldown;
 
 Handle hcv_DeadTalk = INVALID_HANDLE;
@@ -74,6 +75,7 @@ public void OnPluginStart()
 	
 	hcv_CKHealthPerT = CreateConVar("ck_health_per_t", "20", "Amount of health a CT gains per T. Formula: 100 + ((cvar * tcount) / ctcount)");
 	g_SetTimeMute = CreateConVar("sm_setmutetime", "30.0", "Set the mute timer on round start");
+	g_tMinMute = CreateConVar("sm_t_min_mute", "2", "Minimum amount of T before round start mute occurs.");
 	
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("item_equip", Event_ItemEquip, EventHookMode_Post);
@@ -97,13 +99,10 @@ public void OnPluginStart()
 // note: This forward will NOT fire if the cells were opened without being assigned.
 public void SmartOpen_OnCellsOpened(bool cmd)
 {
-	if(cmd)
+	if(cmd && hTimer_ExpireMute != INVALID_HANDLE)
 	{
-		if(hTimer_ExpireMute != INVALID_HANDLE)
-		{
-			CloseHandle(hTimer_ExpireMute);
-			hTimer_ExpireMute = INVALID_HANDLE;
-		}
+		CloseHandle(hTimer_ExpireMute);
+		hTimer_ExpireMute = INVALID_HANDLE;
 		
 		for (int i = 1; i <= MaxClients; i++)
 		{
@@ -286,6 +285,18 @@ public Action Event_RoundStart(Event hEvent, const char[] Name, bool dontBroadca
 	ServerCommand("mp_forcecamera 1");
 	ServerCommand("sm_silentcvar sv_full_alltalk 1");
 		
+		
+	if(GetTeamAliveCount(CS_TEAM_T) < g_tMinMute.IntValue)
+	{
+		if(hTimer_ExpireMute != INVALID_HANDLE)
+		{
+			CloseHandle(hTimer_ExpireMute);
+			hTimer_ExpireMute = INVALID_HANDLE;
+		}
+		
+		PrintToChatAll("%s The \x02terrorist \x01are not muted, they can talk now.", PREFIX);
+		return;
+	}
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientInGame(i))
