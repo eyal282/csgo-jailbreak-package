@@ -641,6 +641,28 @@ stock int GetTeamPlayerCount(int Team)
 	return count;
 }
 
+
+stock int GetAliveTeamCount(int Team)
+{
+	int count = 0;
+	
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(GetClientTeam(i) != Team)
+			continue;
+			
+		else if(!IsPlayerAlive(i))
+			continue;
+			
+		count++;
+	}
+	
+	return count;
+}	
+
 stock bool CanEmptyRebel()
 {
 	return (GetConVarBool(hcv_EmptyRebel) && GetTeamPlayerCount(CS_TEAM_CT) == 0);
@@ -648,7 +670,7 @@ stock bool CanEmptyRebel()
 
 stock bool CanLRChainsaw()
 {
-	return (GetConVarBool(hcv_LRChainsaw) && GetTeamPlayerCount(CS_TEAM_T) == 1);
+	return (GetConVarBool(hcv_LRChainsaw) && GetAliveTeamCount(CS_TEAM_T) == 1);
 }
 
 stock bool IsValidTeam(int client)
