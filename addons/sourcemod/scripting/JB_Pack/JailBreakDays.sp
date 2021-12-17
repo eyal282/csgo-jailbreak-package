@@ -72,6 +72,8 @@ enWeapon WarDayWeapons[] =
 
 native void Eyal282_VoteCT_StopVoteCT();
 native int Gangs_HasGang(int client);
+native int Gangs_GetClientGangId(int client);
+native int Gangs_GetClientGlowColorSlot(int client);
 native int Gangs_GetClientGangName(int client, char[] GangName, int len);
 native int Gangs_PrintToChatGang(char[] GangName, char[] format, any ...);
 native int Gangs_AddClientDonations(int client, int amount);
@@ -278,7 +280,7 @@ public void OnPluginStart()
 	hcv_TaserRechargeTime = FindConVar("mp_taser_recharge_time");
 	
 	// Called when there's a need to inform plugins of day status. Not guaranteed to be the exact start or stop.
-	// public JailBreakDays_OnDayStatus(bool:DayActive)
+	// public void JailBreakDays_OnDayStatus(bool DayActive)
 	
 	fw_OnDayStatus = CreateGlobalForward("JailBreakDays_OnDayStatus", ET_Ignore, Param_Cell);
 	
@@ -550,6 +552,7 @@ public Action Command_StartFSDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
+	EndVoteDay();
 	StopDay(false);
 	Eyal282_VoteCT_StopVoteCT();
 	ServerCommand("sm_egr");
@@ -566,6 +569,7 @@ public Action Command_StartZeusDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
+	EndVoteDay();
 	StopDay(false);
 	Eyal282_VoteCT_StopVoteCT();
 	ServerCommand("sm_egr");
@@ -583,6 +587,7 @@ public Action Command_StartDodgeballDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
+	EndVoteDay();
 	StopDay(false);
 	Eyal282_VoteCT_StopVoteCT();
 	ServerCommand("sm_egr");
@@ -599,6 +604,7 @@ public Action Command_StartScoutDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
+	EndVoteDay();
 	StopDay(false);
 	Eyal282_VoteCT_StopVoteCT();
 	ServerCommand("sm_egr");
@@ -614,6 +620,7 @@ public Action Command_StartKnifeDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
+	EndVoteDay();
 	Eyal282_VoteCT_StopVoteCT();
 	ServerCommand("sm_egr");
 		
@@ -738,6 +745,7 @@ public Action Command_StartWarDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
+	EndVoteDay();
 	Eyal282_VoteCT_StopVoteCT();
 	ServerCommand("sm_egr");
 	
@@ -752,6 +760,7 @@ public Action Command_StartSDeagleDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 	
+	EndVoteDay();
 	StopDay(false);
 	Eyal282_VoteCT_StopVoteCT();
 	ServerCommand("sm_egr");
@@ -1228,14 +1237,14 @@ public Action Timer_StartDay(Handle hTimer)
 	
 	KickBotImposters();
 	
-	Call_StartForward(fw_OnDayStatus);
-	
-	Call_PushCell(true);
-	
-	Call_Finish();
-	
 	if(DayCountDown == 0)
 	{
+		Call_StartForward(fw_OnDayStatus);
+	
+		Call_PushCell(true);
+	
+		Call_Finish();
+		
 		SetConVarBool(hcv_TeammatesAreEnemies, true);
 		
 		PrintCenterTextAll("<font color='#FF0000'>%s has begun</font>", DayName[DayActive]);
@@ -1298,8 +1307,12 @@ void ShowInfoMessage(int client)
 	
 	char TempFormat[2048];
 	char PlayerFormat[1024];
-	
+	char GangsFormat[1024];
+	int gangsCount = 0;
 	int count = 0;
+	
+	int gangsPlayers[MAXPLAYERS + 1];
+	char gangsNames[MAXPLAYERS + 1][64];
 	
 	for (int i = 1; i <= MaxClients;i++)
 	{
@@ -1312,15 +1325,38 @@ void ShowInfoMessage(int client)
 		else if(!IsPlayerAlive(i))
 			continue;
 			
+		
+		int gangId = Gangs_GetClientGangId(i);
+		if(gangId != GANGID_NULL)
+		{
+			int glowSlot = Gangs_GetClientGlowColorSlot(i);
+			
+			Gangs_GetClientGangName(i, gangsNames[glowSlot], sizeof(gangsNames[]));
+			
+			gangsPlayers[glowSlot]++;
+		}
 		Format(PlayerFormat, sizeof(PlayerFormat), "%s%N [%i HP]%s", PlayerFormat, i, GetEntityHealth(i), count % 2 == 1 ? "\n" : " | ")
 		
 		count++;
 	}
 	
-	PlayerFormat[strlen(PlayerFormat) - 2] = EOS;
+	for (int i = 0; i < sizeof(gangsNames);i++)
+	{
+		if(gangsNames[i][0] == EOS)
+			continue;
+			
+		Format(GangsFormat, sizeof(GangsFormat), "%s%s [%i players]%s", GangsFormat, gangsNames[i], gangsPlayers[i], gangsCount % 2 == 1 ? "\n" : " | ")
+		
+		gangsCount++;
+	}
+	// If count is divisible by 0, it gives " | " with a spacebar to delete, and not with divisible by one.
+	PlayerFormat[strlen(PlayerFormat) - (1 + (count % 2))] = EOS;
 	
-	FormatEx(TempFormat, sizeof(TempFormat), "%s!\n\n%s",
-	DayName[DayActive], PlayerFormat);
+	// If count is divisible by 0, it gives " | " with a spacebar to delete, and not with divisible by one.
+	GangsFormat[strlen(GangsFormat) - (1 + (gangsCount % 2))] = EOS;
+	
+	FormatEx(TempFormat, sizeof(TempFormat), "%s!\n \nPlayers:\n%s \n \nGangs:\n%s\n ",
+	DayName[DayActive], PlayerFormat, GangsFormat);
 
 		
 	SetPanelTitle(hPanel, TempFormat, false);
@@ -1522,10 +1558,10 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 	
 	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));	
 	
-	if(IsFakeClient(victim))
-		return;
+	//if(IsFakeClient(victim))
+		//return;
 		
-	else if(DayActive == LR_DAY)
+	if(DayActive == LR_DAY)
 	{
 		StopDay(true, true);
 		

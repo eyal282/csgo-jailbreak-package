@@ -91,17 +91,6 @@ Handle hcv_HonorPerKill = INVALID_HANDLE;
 #define GANG_SIZECOST 6500
 #define GANG_SIZEMAX 3
 
-#define GANG_NULL ""
-#define GANGID_NULL 0
-
-#define RANK_NULL -1
-#define RANK_MEMBER 0
-#define RANK_ENFORCER 1
-#define RANK_ADVISOR 2
-#define RANK_MANAGER 3
-#define RANK_COLEADER 4
-#define RANK_LEADER 420
-
 // Variables about the client's gang.
 
 int ClientRank[MAXPLAYERS+1], ClientGangHonor[MAXPLAYERS+1], ClientHonor[MAXPLAYERS+1];
@@ -262,9 +251,6 @@ public void Event_PlayerSpawnPlusFrame(int UserId)
 
 void CreateGlow(int client)
 {
-	if(EntRefToEntIndex(ClientWhiteGlow[client]) != INVALID_ENT_REFERENCE && EntRefToEntIndex(ClientColorfulGlow[client]) != INVALID_ENT_REFERENCE)
-		return;
-		
 	if(ClientWhiteGlow[client] != 0 || ClientColorfulGlow[client] != 0)
 	{
 		TryDestroyGlow(client);
@@ -3072,6 +3058,7 @@ stock int GetUpgradeCost(int CurrentPerkLevel, int PerkCost)
 
 public void JailBreakDays_OnDayStatus(bool DayActive)
 {
+	PrintToChatAll("%i", DayActive)
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
@@ -3080,7 +3067,7 @@ public void JailBreakDays_OnDayStatus(bool DayActive)
 		else if(!IsPlayerAlive(i))
 			continue;
 			
-		if(DayActive)
+		if(DayActive && IsClientGang(i))
 		{
 			CreateGlow(i);
 		}	
@@ -3093,6 +3080,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("Gangs_HasGang", Native_HasGang);
 	CreateNative("Gangs_AreClientsSameGang", Native_AreClientsSameGang);
 	CreateNative("Gangs_GetClientGangId", Native_GetClientGangId);
+	CreateNative("Gangs_GetClientGlowColorSlot", Native_GetClientGlowColorSlot);
 	CreateNative("Gangs_GetClientGangName", Native_GetClientGangName);
 	CreateNative("Gangs_GiveGangCredits", Native_GiveGangHonor);
 	CreateNative("Gangs_GiveClientCredits", Native_GiveClientHonor);
@@ -3126,6 +3114,16 @@ public int Native_GetClientGangId(Handle plugin, int numParams)
     
 	return ClientGangId[client];
 }
+
+// This is the slot of the glow the client takes. It is rarely useful and gets invalidated when an entire gang leaves the server, and created when the first member of a gang joins.
+
+public int Native_GetClientGlowColorSlot(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+    
+	return ClientGlowColorSlot[client];
+}
+
 
 
 public int Native_GetClientGangName(Handle plugin, int numParams)
