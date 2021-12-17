@@ -419,7 +419,7 @@ public Action Command_Open(int client, int args)
 		Title = "Admin";
 	
 	if(client != 0)
-		PrintToChatAll("%s \x05%N \x01opened the \x07jail \x01cells!" ,PREFIX, client);
+		PrintToChatAll("%s %s \x05%N \x01opened the \x07jail \x01cells!", Title, PREFIX, client);
 		
 	return Plugin_Handled;
 }

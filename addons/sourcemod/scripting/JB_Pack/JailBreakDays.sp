@@ -1102,6 +1102,8 @@ void SelectHSWarDay()
 		return;
 	}	
 	
+	EndVoteDay();
+	
 	VoteDayStart = GetGameTime();
 	
 	BuildUpVoteHSMenu();
@@ -1239,17 +1241,30 @@ public Action Timer_StartDay(Handle hTimer)
 	
 	if(DayCountDown == 0)
 	{
+		hTimer_StartDay = INVALID_HANDLE;
+		
+		int LivingT = GetAliveTeamCount(CS_TEAM_T);
+		
+		if(LivingT <= 1)
+		{
+			ServerCommand("mp_restartgame 1");
+			
+			DayActive = NULL_DAY;
+			
+			return Plugin_Stop;
+		}
+		
 		Call_StartForward(fw_OnDayStatus);
 	
 		Call_PushCell(true);
 	
 		Call_Finish();
 		
+		ProcessPlayerDeath(0); 
+		
 		SetConVarBool(hcv_TeammatesAreEnemies, true);
 		
 		PrintCenterTextAll("<font color='#FF0000'>%s has begun</font>", DayName[DayActive]);
-	
-		hTimer_StartDay = INVALID_HANDLE;
 		
 		for(int i=1;i <= MaxClients;i++)
 		{
@@ -1557,9 +1572,6 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 		return;
 	
 	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));	
-	
-	//if(IsFakeClient(victim))
-		//return;
 		
 	if(DayActive == LR_DAY)
 	{
@@ -1568,6 +1580,11 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 		return;
 	}
 	
+	ProcessPlayerDeath(victim);
+}
+
+void ProcessPlayerDeath(int victim)
+{
 	int LivingT = GetAliveTeamCount(CS_TEAM_T);
 	bool OnlyGangLeft = LivingT > 1; // Don't care if the day is over
 	
