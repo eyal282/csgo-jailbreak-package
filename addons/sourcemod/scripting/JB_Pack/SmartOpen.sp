@@ -382,7 +382,7 @@ public Action Command_Open(int client, int args)
 	
 	else if(OpenedThisRound)
 	{
-		PrintToChat(client, "%s Cells were \x07already \x01opened this round!");
+		PrintToChat(client, "%s Cells were \x07already \x01opened this round!", PREFIX);
 		return Plugin_Handled;
 	}
 	
@@ -390,6 +390,7 @@ public Action Command_Open(int client, int args)
 	{
 		PrintToChat(client, "Map does not have an assigned open button!");
 		PrintToChat(client, "An admin must use !assignopen to assign a button.");
+		PrintToChat(client, "An admin can also use !assignisolation to assign a button to open isolation room");
 		return Plugin_Handled;
 	}
 	
