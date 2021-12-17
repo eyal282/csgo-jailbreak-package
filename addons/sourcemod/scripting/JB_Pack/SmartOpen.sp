@@ -33,6 +33,8 @@ int ButtonHID = -1, IsolationHID = -1;
 
 bool CanBeGraced[MAXPLAYERS+1];
 
+Handle fw_OnCellsOpened;
+
 public Plugin myinfo = 
 {
 	name = "Smart Open",
@@ -97,6 +99,11 @@ public void OnPluginStart()
 	hcv_EmptyRebel = CreateConVar("open_cells_allow_empty_rebel", "1", "If there are no CT ( probably server empty ) terrorists are able to use !open");
 	hcv_LRChainsaw = CreateConVar("open_cells_lr_chainsaw", "1", "Last terrorist can execute !open with his lr chainsaw");
 	
+	// cmd = Were the cells opened by command or with button.
+	// note: This forward will fire if sm_open was used in any way.
+	// note: This forward will NOT fire if the cells were opened without being assigned.
+	// public void SmartOpen_OnCellsOpened(bool cmd) 
+	fw_OnCellsOpened = CreateGlobalForward("SmartOpen_OnCellsOpened", ET_Ignore, Param_Cell);
 	Trie_Retriers = CreateTrie();
 }
 
@@ -296,6 +303,12 @@ public void OnButtonPressed(const char[] output, int caller, int activator, floa
 	
 	OpenedThisRound = true;
 	UnhookSingleEntityOutput(caller, "PressIn", OnButtonPressed);
+	
+	Call_StartForward(fw_OnCellsOpened);
+		
+	Call_PushCell(false);
+
+	Call_Finish();
 }
 public Action AutoOpenCells(Handle hTimer)
 {
@@ -532,6 +545,12 @@ stock bool OpenCells()
 	}
 	
 	OpenedThisRound = true;
+	
+	Call_StartForward(fw_OnCellsOpened);
+		
+	Call_PushCell(true);
+
+	Call_Finish();
 	
 	return true;
 }

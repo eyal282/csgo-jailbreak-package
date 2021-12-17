@@ -92,6 +92,32 @@ public void OnPluginStart()
 	}
 }
 
+// cmd = Were the cells opened by command or with button.
+// note: This forward will fire if sm_open was used in any way.
+// note: This forward will NOT fire if the cells were opened without being assigned.
+public void SmartOpen_OnCellsOpened(bool cmd)
+{
+	if(cmd)
+	{
+		if(hTimer_ExpireMute != INVALID_HANDLE)
+		{
+			CloseHandle(hTimer_ExpireMute);
+			hTimer_ExpireMute = INVALID_HANDLE;
+		}
+		
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			if (IsClientInGame(i))
+			{
+				PrintToChat(i, "%s The \x02terrorists \x01got unmuted through\x05 sm_open", PREFIX);
+			}
+			if (IsClientInGame(i) && (IsPlayerAlive(i) || GetConVarBool(hcv_DeadTalk)) && !BaseComm_IsClientMuted(i))
+			{
+				SetClientListeningFlags(i, VOICE_NORMAL);
+			}
+		}
+	}
+}
 public void OnMapStart()
 {
 	BeamIndex = PrecacheModel("materials/sprites/laserbeam.vmt", true);
