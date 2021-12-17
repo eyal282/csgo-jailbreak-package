@@ -402,15 +402,18 @@ public Action Command_Open(int client, int args)
 	
 	char Title[64];
 	
-	Title = "Rebel";
-	
 	if(client != 0)
 	{
-		if(GetClientTeam(client) == CS_TEAM_CT)
+		int Team = GetClientTeam(client);
+		
+		if(Team == CS_TEAM_CT)
 			Title = "Warden";
 		
-		else if(GetClientTeam(client) == CS_TEAM_T && CanLRChainsaw())
-			Title = "LR"
+		else if(Team == CS_TEAM_T && CanLRChainsaw())
+			Title = "LR";
+			
+		else if(Team == CS_TEAM_T && CanEmptyRebel())
+			Title = "Rebel";
 			
 		else if(CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false))
 			Title = "Admin";
