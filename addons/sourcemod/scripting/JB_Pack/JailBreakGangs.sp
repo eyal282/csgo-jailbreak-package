@@ -95,7 +95,7 @@ Handle hcv_HonorPerKill = INVALID_HANDLE;
 
 // Variables about the client's gang.
 
-int  ClientRank[MAXPLAYERS + 1], ClientGangHonor[MAXPLAYERS + 1], ClientHonor[MAXPLAYERS + 1];
+int  ClientRank[MAXPLAYERS + 1], ClientHonor[MAXPLAYERS + 1], ClientGangHonor[MAXPLAYERS + 1], ClientGangNextWeekly[MAXPLAYERS + 1];
 bool ClientLoadedFromDb[MAXPLAYERS + 1];
 int  ClientGangId[MAXPLAYERS + 1];
 
@@ -186,7 +186,7 @@ public void OnMapStart()
 public Action Timer_CheckWeekly(Handle hTimer)
 {
 	char sQuery[256];
-	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT GangId, GangCash FROM GangSystem_Gangs WHERE GangNextWeekly < %i", GetTime());
+	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT GangId, GangHonor FROM GangSystem_Gangs WHERE GangNextWeekly < %i", GetTime());
 	dbGangs.Query(SQLCB_CheckWeekly, sQuery);
 }
 
@@ -207,7 +207,7 @@ public void SQLCB_CheckWeekly(Handle owner, Handle hndl, char[] error, any data)
 		int GangId = SQL_FetchInt(hndl, 0);
 
 		char sQuery[256];
-		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangCash = GangCash - %i, GangNextWeekly = %i WHERE GangId = %i", GetConVarInt(hcv_WeeklyTax), GetTime() + SECONDS_IN_A_WEEK, GangId);
+		SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangHonor = GangHonor - %i, GangNextWeekly = %i WHERE GangId = %i", GetConVarInt(hcv_WeeklyTax), GetTime() + SECONDS_IN_A_WEEK, GangId);
 
 		Handle DP = CreateDataPack();
 
@@ -673,14 +673,15 @@ void ResetVariables(int client, bool login = true)
 
 	if (login)
 	{
-		GangAttemptLeave[client]    = false;
-		GangAttemptDisband[client]  = false;
-		GangAttemptStepDown[client] = false;
-		GangStepDownTarget[client]  = -1;
-		ClientGang[client]          = GANG_NULL;
-		ClientGangId[client]        = GANGID_NULL;
-		ClientRank[client]          = RANK_NULL;
-		ClientGangHonor[client]     = 0;
+		GangAttemptLeave[client]     = false;
+		GangAttemptDisband[client]   = false;
+		GangAttemptStepDown[client]  = false;
+		GangStepDownTarget[client]   = -1;
+		ClientGang[client]           = GANG_NULL;
+		ClientGangId[client]         = GANGID_NULL;
+		ClientRank[client]           = RANK_NULL;
+		ClientGangHonor[client]      = 0;
+		ClientGangNextWeekly[client] = 0;
 	}
 	ClientMotd[client]         = "";
 	ClientLoadedFromDb[client] = false;
@@ -845,6 +846,7 @@ public void SQLCB_LoadGangByClient(Handle owner, DBResultSet hndl, char[] error,
 				SQL_FetchStringByName(hndl, "GangMOTD", ClientMotd[client], sizeof(ClientMotd[]));
 
 				ClientGangHonor[client]        = SQL_FetchIntByName(hndl, "GangHonor");
+				ClientGangNextWeekly[client]   = SQL_FetchIntByName(hndl, "GangNextWeekly");
 				ClientHealthPerkT[client]      = SQL_FetchIntByName(hndl, "GangHealthPerkT");
 				ClientHealthPerkCT[client]     = SQL_FetchIntByName(hndl, "GangHealthPerkCT");
 				ClientNadePerkT[client]        = SQL_FetchIntByName(hndl, "GangNadePerkT");
@@ -1707,7 +1709,17 @@ void ShowManageGangMenu(int client)
 
 	AddMenuItem(hMenu, "", "Manage Actions Access", CheckGangAccess(client, RANK_LEADER) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 
-	SetMenuTitle(hMenu, "%s Manage Gang", MENU_PREFIX);
+	char sPrice[16], sTime[32];
+
+	AddCommas(GetConVarInt(hcv_WeeklyTax), ",", sPrice, sizeof(sPrice));
+
+	FormatTime(sTime, sizeof(sTime), "%d/%m/%Y - %X", ClientGangNextWeekly[client]);
+
+	if (GetConVarInt(hcv_WeeklyTax) > 0)
+		SetMenuTitle(hMenu, "%s Manage Gang\nWeekly tax: %s\nDate of next Tax: %s", MENU_PREFIX, sPrice, sTime);
+
+	else
+		SetMenuTitle(hMenu, "%s Manage Gang", MENU_PREFIX);
 
 	SetMenuExitBackButton(hMenu, true);
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
@@ -2588,7 +2600,7 @@ public void SQLCB_ShowMembersMenu(Handle owner, DBResultSet hndl, char[] error, 
 
 			FormatEx(TempFormat, sizeof(TempFormat), "%s [%s] - %s [Donated: %s]", Name, strRank, FindClientByAuthId(iAuthId) != 0 ? "ONLINE" : "OFFLINE", sHonor);
 
-			AddMenuItem(hMenu, iAuthId, TempFormat, ITEMDRAW_DISABLED);
+			AddMenuItem(hMenu, iAuthId, TempFormat);
 		}
 
 		SetMenuTitle(hMenu, "%s Member List:", MENU_PREFIX);
@@ -2714,7 +2726,7 @@ void CreateGang(int client, const char[] GangName)
 	WritePackString(DP, AuthId);
 	WritePackString(DP, GangName);
 
-	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Gangs (GangName, GangMOTD, GangHonor, GangHealthPerkT, GangCooldownPerk, GangNadePerkT, GangHealthPerkCT, GangGetHonorPerk, GangFFPerk, GangSizePerk, GangMinRankInvite, GangMinRankKick, GangMinRankPromote, GangMinRankUpgrade, GangMinRankMOTD) VALUES ('%s', '', 0, 0, 0, 0, 0, 0, 0, 0, %i, %i, %i, %i, %i)", GangName, RANK_ENFORCER, RANK_ADVISOR, RANK_MANAGER, RANK_COLEADER, RANK_MANAGER);
+	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Gangs (GangName, GangNextWeekly, GangMOTD, GangHonor, GangHealthPerkT, GangCooldownPerk, GangNadePerkT, GangHealthPerkCT, GangGetHonorPerk, GangFFPerk, GangSizePerk, GangMinRankInvite, GangMinRankKick, GangMinRankPromote, GangMinRankUpgrade, GangMinRankMOTD) VALUES ('%s', %i, '', 0, 0, 0, 0, 0, 0, 0, 0, %i, %i, %i, %i, %i)", GangName, GetTime() + SECONDS_IN_A_WEEK, RANK_ENFORCER, RANK_ADVISOR, RANK_MANAGER, RANK_COLEADER, RANK_MANAGER);
 
 	dbGangs.Query(SQLCB_GangCreated, sQuery, DP);
 

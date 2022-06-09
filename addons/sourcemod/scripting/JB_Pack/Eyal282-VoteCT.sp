@@ -1090,7 +1090,7 @@ public Action Timer_DrawVoteCTMenu(Handle hTimer)
 		if (!IsClientInGame(i))
 			continue;
 
-		else if (!IsClientInVotePool(i))
+		else if (!IsVoteInProgress() || !IsClientInVotePool(i))
 			continue;
 
 		RedrawClientVoteMenu(i);

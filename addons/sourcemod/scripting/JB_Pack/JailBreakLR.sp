@@ -2336,7 +2336,7 @@ public Action Command_LR(int client, int args)
 	}
 	if (GetClientTeam(client) == CS_TEAM_CT)
 	{
-		int LastT, count;
+		int LastT, TCount;
 		for (int i = 1; i <= MaxClients; i++)
 		{
 			if (!IsClientInGame(i))
@@ -2345,11 +2345,14 @@ public Action Command_LR(int client, int args)
 			else if (!IsPlayerAlive(i))
 				continue;
 
+			else if (GetClientTeam(i) != CS_TEAM_T)
+				continue;
+
 			LastT = i;
-			count++;
+			TCount++;
 		}
 
-		if (count == 1)
+		if (TCount == 1)
 		{
 			PrintToChatAll("%N has shown the last T the LR menu!", client);
 
@@ -2957,8 +2960,6 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 
 		else
 			FormatEx(sDigit, sizeof(sDigit), "%i", item + 1);
-
-		PrintToChat(client, sDigit);
 
 		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
 
