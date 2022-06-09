@@ -1,19 +1,20 @@
 #pragma semicolon 1
 #pragma newdecls required
 #include <sourcemod>
-public Plugin myinfo = 
+
+public Plugin myinfo =
 {
-	name = "BlockRadio",
-	author = "cra88y",
+	name        = "BlockRadio",
+	author      = "cra88y",
 	description = "Blocks radio spam in chat",
-	version = "1.0"
+	version     = "1.0"
 };
 
 public void OnPluginStart()
 {
 	if (GetUserMessageType() == UM_Protobuf)
 	{
-		HookUserMessage(GetUserMessageId("RadioText"),  RadioMsg, true);
+		HookUserMessage(GetUserMessageId("RadioText"), RadioMsg, true);
 	}
 }
 

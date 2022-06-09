@@ -24,7 +24,7 @@ bool dbFullConnected = false;
 
 native bool JailBreakDays_IsDayActive();
 
-// As long as it is ensured that you don't get a color if you're the only gang member, 32 is enough.
+// We must allow 64 total colors.
 int GangColors[][] = {
 	{255,  0,   0  }, // red
 	{ 0,   255, 0  }, // green
