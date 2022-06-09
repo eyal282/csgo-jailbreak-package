@@ -43,6 +43,7 @@ public Plugin myinfo =
 	version     = PLUGIN_VERSION,
 	url         = ""
 
+
 }
 
 native bool

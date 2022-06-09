@@ -2183,7 +2183,15 @@ public void SQLCB_ShowPromoteMenu(Handle owner, DBResultSet hndl, char[] error, 
 			int LastConnect = SQL_FetchIntByName(hndl, "LastConnect");
 
 			Format(Info, sizeof(Info), "\"%s\" \"%s\" \"%i\" \"%i\"", iAuthId, Name, Rank, LastConnect);
-			Format(TempFormat, sizeof(TempFormat), "%s [%s] - %s [Donated: %i]", Name, strRank, FindClientByAuthId(iAuthId) != 0 ? "ONLINE" : "OFFLINE", SQL_FetchIntByName(hndl, "GangDonated"));
+
+			int amount;
+			GetTrieValue(Trie_Donated, iAuthId, amount);
+
+			char sHonor[16];
+
+			AddCommas(amount, ",", sHonor, sizeof(sHonor));
+
+			FormatEx(TempFormat, sizeof(TempFormat), "%s [%s] - %s [Donated: %s]", Name, strRank, FindClientByAuthId(iAuthId) != 0 ? "ONLINE" : "OFFLINE", sHonor);
 
 			AddMenuItem(hMenu, Info, TempFormat, Rank < GetClientRank(client) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 		}
@@ -2341,7 +2349,14 @@ public void SQLCB_ShowKickMenu(Handle owner, DBResultSet hndl, char[] error, int
 			int LastConnect = SQL_FetchIntByName(hndl, "LastConnect");
 
 			Format(Info, sizeof(Info), "\"%s\" \"%s\" \"%i\" \"%i\"", iAuthId, Name, Rank, LastConnect);
-			Format(TempFormat, sizeof(TempFormat), "%s [%s] - %s [Donated: %i]", Name, strRank, FindClientByAuthId(iAuthId) != 0 ? "ONLINE" : "OFFLINE", SQL_FetchIntByName(hndl, "GangDonated"));
+			int amount;
+			GetTrieValue(Trie_Donated, iAuthId, amount);
+
+			char sHonor[16];
+
+			AddCommas(amount, ",", sHonor, sizeof(sHonor));
+
+			FormatEx(TempFormat, sizeof(TempFormat), "%s [%s] - %s [Donated: %s]", Name, strRank, FindClientByAuthId(iAuthId) != 0 ? "ONLINE" : "OFFLINE", sHonor);
 
 			AddMenuItem(hMenu, Info, TempFormat, Rank < GetClientRank(client) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 		}
@@ -3242,7 +3257,7 @@ public int Native_AddClientDonations(Handle plugin, int numParams)
 	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
-	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Members SET GangDonated = GangDonated + %i WHERE AuthId = '%s'", amount, AuthId);
+	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Donations (GangId, AuthId, AmountDonated, timestamp) VALUES (%i, '%s', %i, %i)", ClientGangId[client], AuthId, amount, GetTime());
 
 	Handle DP = CreateDataPack();
 
