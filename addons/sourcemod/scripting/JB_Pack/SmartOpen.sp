@@ -390,7 +390,7 @@ public Action Command_OpenOverride(int client, int args)
 
 public Action Command_Open(int client, int args)
 {
-	if (JailBreakDays_IsDayActive())
+	if (JailBreakDays_IsDayActive() || CanEmptyRebel() || CanLRChainsaw())
 	{
 		// Must open isolation otherwise the isolation will never open...
 		Command_HardOpen(client, 0);
