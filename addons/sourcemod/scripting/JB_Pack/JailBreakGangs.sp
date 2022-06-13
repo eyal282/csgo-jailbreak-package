@@ -4092,7 +4092,7 @@ public any Native_GetFFDamageDecrease(Handle plugin, int numParams)
 public any Native_GetCooldownPercent(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
-	return float(ClientCooldownPerk[client] * GANG_COOLDOWNINCREASE) / 100.0;
+	return (ClientCooldownPerk[client] * GANG_COOLDOWNINCREASE) / 100.0;
 }
 
 public void SQLCB_GiveGangHonor(Handle owner, DBResultSet hndl, char[] error, Handle DP)
