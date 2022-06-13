@@ -446,7 +446,7 @@ void CreateWhiteGlow(int client)
 
 	// Give glowing effect to the entity
 	SetEntProp(GlowEnt, Prop_Send, "m_bShouldGlow", true, true);
-	SetEntProp(GlowEnt, Prop_Send, "m_nGlowStyle", 1);
+	SetEntProp(GlowEnt, Prop_Send, "m_nGlowStyle", 0);
 	SetEntPropFloat(GlowEnt, Prop_Send, "m_flGlowMaxDist", 10000.0);
 
 	// Set glowing color
@@ -705,7 +705,7 @@ public void ConnectDatabase()
 		dbGangs = hndl;
 
 		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Members (GangId INT(11) NOT NULL, AuthId VARCHAR(32) NOT NULL UNIQUE, GangRank INT(20) NOT NULL, LastName VARCHAR(32) NOT NULL, GangInviter VARCHAR(32) NOT NULL, GangJoinDate INT(20) NOT NULL, LastConnect INT(20) NOT NULL)", 0, DBPrio_High);
-		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Gangs (`GangId` INTEGER, GangName VARCHAR(32) UNIQUE, GangPrefix VARCHAR(32) NOT NULL, GangPrefixMethod INT(6) NOT NULL, GangMOTD VARCHAR(100) NOT NULL, GangHonor INT(20) NOT NULL, GangNextWeekly INT(20) NOT NULL, GangHealthPerkT INT(20) NOT NULL, GangHealthPerkCT INT(20) NOT NULL, GangNadePerkT INT(20) NOT NULL, GangCooldownPerk INT(20) NOT NULL, GangGetHonorPerk INT(20) NOT NULL, GangFFPerk INT(11) NOT NULL, GangSizePerk INT(20) NOT NULL, GangMinRankInvite INT(11) NOT NULL, GangMinRankKick INT(11) NOT NULL, GangMinRankPromote INT(11) NOT NULL, GangMinRankUpgrade INT(11), GangMinRankMOTD INT(11) NOT NULL, PRIMARY KEY (`GangId` AUTOINCREMENT))", 1, DBPrio_High);
+		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Gangs (`GangId` INTEGER, GangName VARCHAR(32) UNIQUE, GangPrefix VARCHAR(32) NOT NULL, GangPrefixMethod INT(6) NOT NULL, GangMOTD VARCHAR(512) NOT NULL, GangHonor INT(20) NOT NULL, GangNextWeekly INT(20) NOT NULL, GangHealthPerkT INT(20) NOT NULL, GangHealthPerkCT INT(20) NOT NULL, GangNadePerkT INT(20) NOT NULL, GangCooldownPerk INT(20) NOT NULL, GangGetHonorPerk INT(20) NOT NULL, GangFFPerk INT(11) NOT NULL, GangSizePerk INT(20) NOT NULL, GangMinRankInvite INT(11) NOT NULL, GangMinRankKick INT(11) NOT NULL, GangMinRankPromote INT(11) NOT NULL, GangMinRankUpgrade INT(11), GangMinRankMOTD INT(11) NOT NULL, PRIMARY KEY (`GangId` AUTOINCREMENT))", 1, DBPrio_High);
 		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Honor (AuthId VARCHAR(32) NOT NULL UNIQUE, Honor INT(11) NOT NULL)", 2, DBPrio_High);
 		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_upgradelogs (GangId INT(11) NOT NULL, GangName VARCHAR(32) NOT NULL, AuthId VARCHAR(32) NOT NULL, Perk VARCHAR(32) NOT NULL, BValue INT NOT NULL, AValue INT NOT NULL, timestamp INT NOT NULL)", 3, DBPrio_High);
 		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_modlogs (GangId INT(11) NOT NULL, AuthId VARCHAR(32) NOT NULL, ModAction INT(6) NOT NULL, ModActionNumber INT(11), ModActionWord VARCHAR(100), ModTarget VARCHAR(128) NOT NULL, timestamp INT NOT NULL)", -1, DBPrio_High);

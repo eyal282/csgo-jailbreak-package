@@ -394,8 +394,9 @@ public Action Command_Open(int client, int args)
 	{
 		// Must open isolation otherwise the isolation will never open...
 		Command_HardOpen(client, 0);
+		return Plugin_Handled;
 	}
-	if (client != 0 && GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false) && !CanEmptyRebel() && !CanLRChainsaw())
+	else if (client != 0 && GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false) && !CanEmptyRebel() && !CanLRChainsaw())
 	{
 		PrintToChat(client, "%s You must be \x0BCT \x01to use this \x07command!", PREFIX);
 		return Plugin_Handled;
