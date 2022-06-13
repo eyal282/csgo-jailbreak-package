@@ -1,7 +1,6 @@
 
 
 #include <cstrike>
-#include <dhooks>
 #include <eyal-jailbreak>
 #include <sdkhooks>
 #include <sdktools>
