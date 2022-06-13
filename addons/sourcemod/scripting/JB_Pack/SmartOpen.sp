@@ -43,11 +43,10 @@ public Plugin myinfo =
 	version     = PLUGIN_VERSION,
 	url         = ""
 
+};
 
-}
-
-native bool
-	SmartOpen_AreCellsOpen();
+native bool JailBreakDays_IsDayActive();
+native bool SmartOpen_AreCellsOpen();
 
 // returns false if couldn't open cells. Forced may fail if not assigned.
 native bool SmartOpen_OpenCells(bool forced, bool isolation);
@@ -379,7 +378,8 @@ public Action Command_AssignIsolation(int client, int args)
 
 	SQL_TQuery(dbLocal, SQLCB_Error, sQuery, _, DBPrio_Normal);
 
-	PrintToChat(client, "%s \x05Successfully \x01made the door you're aiming at as the door of the isolation for \x07!hardopen");
+	PrintToChat(client, "%s \x05Successfully \x01made the door you're aiming at as the door of the isolation for \x07!hardopen", PREFIX);
+
 	return Plugin_Handled;
 }
 
@@ -390,6 +390,11 @@ public Action Command_OpenOverride(int client, int args)
 
 public Action Command_Open(int client, int args)
 {
+	if (JailBreakDays_IsDayActive())
+	{
+		// Must open isolation otherwise the isolation will never open...
+		Command_HardOpen(client, 0);
+	}
 	if (client != 0 && GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false) && !CanEmptyRebel() && !CanLRChainsaw())
 	{
 		PrintToChat(client, "%s You must be \x0BCT \x01to use this \x07command!", PREFIX);
