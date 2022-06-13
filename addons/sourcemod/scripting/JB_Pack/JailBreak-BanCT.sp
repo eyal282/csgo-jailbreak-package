@@ -76,7 +76,7 @@ public void OnClientPostAdminCheck(int client)
 	g_iBanCTUnix[client] = 0;
 
 	char SteamID[32];
-	GetClientAuthId(client, AuthId_Engine, SteamID, sizeof(SteamID));
+	GetClientAuthId(client, AuthId_Steam2, SteamID, sizeof(SteamID));
 
 	char aQuery[255];
 	SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "SELECT banctunix FROM jb_banct where auth='%s'", SteamID);
@@ -115,7 +115,7 @@ public int Native_IsPlayerBanned(Handle plugin, int numParams)
 		g_bBanCTBool[client] = false;
 
 		char SteamID[32];
-		GetClientAuthId(client, AuthId_Engine, SteamID, sizeof(SteamID));
+		GetClientAuthId(client, AuthId_Steam2, SteamID, sizeof(SteamID));
 
 		char aQuery[255];
 		SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "DELETE FROM jb_banct where auth='%s'", SteamID);
@@ -176,7 +176,7 @@ public void SQL_LoadPlayer(Handle owner, Handle hndl, const char[] error, any da
 			else
 			{
 				char SteamID[32];
-				GetClientAuthId(client, AuthId_Engine, SteamID, sizeof(SteamID));
+				GetClientAuthId(client, AuthId_Steam2, SteamID, sizeof(SteamID));
 
 				char aQuery[255];
 				SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "DELETE FROM jb_banct where auth='%s'", SteamID);
@@ -264,7 +264,7 @@ public Action Command_BanCT(int client, int args)
 	}
 
 	char SteamID[32];
-	GetClientAuthId(target, AuthId_Engine, SteamID, sizeof(SteamID));
+	GetClientAuthId(target, AuthId_Steam2, SteamID, sizeof(SteamID));
 
 	char aQuery[255];
 	SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "INSERT OR IGNORE INTO jb_banct (auth,banctunix,reason,name,admin) VALUES ('%s','%i','%s','%N','%N')", SteamID, g_iBanCTUnix[target], Reason, target, client);
@@ -303,7 +303,7 @@ public Action Command_UnbanCT(int client, int args)
 	PrintToChatAll("%s \x02%N\x01 has unbanned \x02%N\x01 from the \x0Ccounter-terrorist team.", PREFIX, client, target);
 
 	char SteamID[32];
-	GetClientAuthId(client, AuthId_Engine, SteamID, sizeof(SteamID));
+	GetClientAuthId(client, AuthId_Steam2, SteamID, sizeof(SteamID));
 
 	char aQuery[255];
 	SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "DELETE FROM jb_banct where auth='%s'", SteamID);
@@ -438,7 +438,7 @@ stock int FindClientByAuthId(const char[] AuthId)
 		if (!IsClientInGame(i))
 			continue;
 
-		GetClientAuthId(i, AuthId_Engine, iAuthId, sizeof(iAuthId));
+		GetClientAuthId(i, AuthId_Steam2, iAuthId, sizeof(iAuthId));
 
 		if (StrEqual(AuthId, iAuthId, true))
 			return i;

@@ -14,7 +14,7 @@
 #define newdecls  required
 
 native bool Eyal282_VoteCT_IsChosen(client);
-native bool Eyal282_VoteCT_IsGodRound();
+native bool Eyal282_VoteCT_IsPreviewRound();
 native bool JailBreakDays_IsDayActive();
 native bool LR_isActive();
 
@@ -546,7 +546,7 @@ public Action Command_CK(int client, int args)
 		return Plugin_Handled;
 	}
 
-	else if (!Eyal282_VoteCT_IsGodRound() && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+	else if (!Eyal282_VoteCT_IsPreviewRound() && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
 		ReplyToCommand(client, " \x07CK \x01can only be \x07started \x01in \x07God Round. ");
 

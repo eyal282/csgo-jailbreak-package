@@ -12,6 +12,7 @@ public Plugin myinfo =
 	version     = "1.2",
 	url         = "http://www.sourcemod.net/"
 
+
 }
 
 public void

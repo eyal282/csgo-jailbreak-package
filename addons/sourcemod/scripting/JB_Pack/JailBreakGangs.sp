@@ -13,6 +13,9 @@
 #define EF_NORECEIVESHADOW (1 << 6)
 #define EF_PARENT_ANIMATES (1 << 9)
 
+#define GANG_RENAME_PRICE 2500
+#define GANG_PREFIX_PRICE 25000
+
 #define SECONDS_IN_A_WEEK 604800
 
 #pragma newdecls required
@@ -66,13 +69,13 @@ Handle hcv_HonorPerKill = INVALID_HANDLE;
 
 #define MIN_PLAYERS_FOR_GC 3
 
-#define GANG_COSTCREATE 100000
+#define GANG_COSTCREATE 10000
 
 #define GANG_HEALTHCOST     7500
 #define GANG_HEALTHMAX      5
 #define GANG_HEALTHINCREASE 2
 
-#define GANG_COOLDOWNCOST     20000
+#define GANG_COOLDOWNCOST     2000
 #define GANG_COOLDOWNMAX      10
 #define GANG_COOLDOWNINCREASE 2.0
 
@@ -93,13 +96,18 @@ Handle hcv_HonorPerKill = INVALID_HANDLE;
 #define GANG_SIZECOST     6500
 #define GANG_SIZEMAX      3
 
+// Admin Variables.
+
+bool ClientSpyGang[MAXPLAYERS + 1];
+
 // Variables about the client's gang.
 
 int  ClientRank[MAXPLAYERS + 1], ClientHonor[MAXPLAYERS + 1], ClientGangHonor[MAXPLAYERS + 1], ClientGangNextWeekly[MAXPLAYERS + 1];
 bool ClientLoadedFromDb[MAXPLAYERS + 1];
 int  ClientGangId[MAXPLAYERS + 1];
 
-char ClientGang[MAXPLAYERS + 1][32], ClientMotd[MAXPLAYERS + 1][32];
+char ClientGang[MAXPLAYERS + 1][32], ClientMotd[MAXPLAYERS + 1][100], ClientPrefix[MAXPLAYERS + 1][32];
+int  ClientPrefixMethod[MAXPLAYERS + 1];
 
 int ClientHealthPerkT[MAXPLAYERS + 1], ClientCooldownPerk[MAXPLAYERS + 1], ClientNadePerkT[MAXPLAYERS + 1], ClientHealthPerkCT[MAXPLAYERS + 1], ClientGetHonorPerk[MAXPLAYERS + 1], ClientGangSizePerk[MAXPLAYERS + 1], ClientFriendlyFirePerk[MAXPLAYERS + 1];
 
@@ -112,6 +120,8 @@ int  GangStepDownTarget[MAXPLAYERS + 1];
 char GangCreateName[MAXPLAYERS + 1][32];
 int  ClientMembersCount[MAXPLAYERS + 1];
 int  ClientWhiteGlow[MAXPLAYERS + 1], ClientColorfulGlow[MAXPLAYERS + 1], ClientGlowColorSlot[MAXPLAYERS + 1];    // White glow is how gang members see themselves, colorful glow is how other players see gang members.
+
+float ClientNextMOTD[MAXPLAYERS + 1] = { 0.0, ... };
 
 int ClientActionEdit[MAXPLAYERS + 1];
 
@@ -146,6 +156,8 @@ public void OnPluginStart()
 
 	RegConsoleCmd("sm_donategang", Command_DonateGang);
 	RegConsoleCmd("sm_motdgang", Command_MotdGang);
+	RegConsoleCmd("sm_prefixgang", Command_PrefixGang);
+	RegConsoleCmd("sm_renamegang", Command_RenameGang);
 	RegConsoleCmd("sm_creategang", Command_CreateGang);
 	RegConsoleCmd("sm_confirmleavegang", Command_LeaveGang);
 	RegConsoleCmd("sm_confirmdisbandgang", Command_DisbandGang);
@@ -154,10 +166,13 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_gethonor", Command_GC);
 	RegConsoleCmd("sm_gc", Command_GC);
 
+	RegAdminCmd("sm_spygang", Command_SpyGang, ADMFLAG_ROOT, "Allows you to spy gang chats.");
 	RegAdminCmd("sm_breachgang", Command_BreachGang, ADMFLAG_ROOT, "Breaches into a gang as a member.");
 	RegAdminCmd("sm_breachgangrank", Command_BreachGangRank, ADMFLAG_ROOT, "Sets your rank within your gang.");
 
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
+	HookEvent("player_changename", Event_ChangeName, EventHookMode_Pre);
+	HookEvent("player_ping", Event_PlayerPingPre, EventHookMode_Pre);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 
@@ -169,7 +184,7 @@ public void OnPluginStart()
 
 	char CvarCostWeekly[] = "gang_system_weekly_price";
 
-	hcv_WeeklyTax = CreateConVar(CvarCostWeekly, "100000");
+	hcv_WeeklyTax = CreateConVar(CvarCostWeekly, "10000");
 
 	ServerCommand("sm_cvar protect %s", CvarCostWeekly);
 
@@ -177,10 +192,58 @@ public void OnPluginStart()
 	Trie_DonatedWeek = CreateTrie();
 }
 
+public Action Event_PlayerPingPre(Handle hEvent, const char[] Name, bool dontBroadcast)
+{
+	if (GetEventBool(hEvent, "filtered_by_sourcemod_plugin"))
+		return Plugin_Continue;
+
+	int entity = GetEventInt(hEvent, "entityid");
+
+	int owner = GetEntPropEnt(entity, Prop_Send, "m_hPlayer");
+
+	if (owner == -1)
+		return Plugin_Continue;
+
+	else if (GetClientTeam(owner) != CS_TEAM_T)
+		return Plugin_Continue;
+
+	if (!IsClientGang(owner))
+	{
+		AcceptEntityInput(entity, "Kill");
+
+		return Plugin_Handled;
+	}
+
+	SDKHook(entity, SDKHook_SetTransmit, SDKEvent_PingSetTransmit);
+
+	return Plugin_Continue;
+}
+
+public Action SDKEvent_PingSetTransmit(int pingEntity, int viewer)
+{
+	if (!IsPlayer(viewer))
+		return Plugin_Continue;
+
+	int owner = GetEntPropEnt(pingEntity, Prop_Send, "m_hPlayer");
+
+	if (owner == -1)
+		return Plugin_Continue;
+
+	else if (!AreClientsSameGang(owner, viewer))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
 public void OnMapStart()
 {
 	CreateTimer(1.0, Timer_CheckWeekly, _, TIMER_FLAG_NO_MAPCHANGE);
 	CreateTimer(31.0, Timer_CheckWeekly, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		ClientNextMOTD[i] = 0.0;
+	}
 }
 
 public Action Timer_CheckWeekly(Handle hTimer)
@@ -222,6 +285,14 @@ public void OnPluginEnd()
 	for (int i = 1; i < MAXPLAYERS + 1; i++)
 	{
 		TryDestroyGlow(i);
+	}
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		TryRemoveGangPrefix(i);
 	}
 }
 
@@ -302,6 +373,34 @@ public void Event_PlayerSpawnPlusFrame(int UserId)
 			}
 		}
 	}
+}
+
+public Action Event_ChangeName(Handle hEvent, const char[] Name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if (client == 0)
+		return Plugin_Continue;
+
+	else if (ClientPrefix[client][0] == EOS)
+		return Plugin_Continue;
+
+	char NewName[64];
+
+	GetEventString(hEvent, "newname", NewName, sizeof(NewName));
+
+	if (StrContains(NewName, ClientPrefix[client]) == 0)    // Client's name starts with the prefix.
+		return Plugin_Continue;
+
+	Format(NewName, sizeof(NewName), "%s%s", ClientPrefix[client], NewName);
+
+	SetClientNameHidden(client, NewName);
+
+	SetEventString(hEvent, "newname", NewName);
+
+	SetEventBroadcast(hEvent, true);
+
+	return Plugin_Changed;
 }
 
 void CreateGlow(int client)
@@ -607,10 +706,11 @@ public void ConnectDatabase()
 		dbGangs = hndl;
 
 		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Members (GangId INT(11) NOT NULL, AuthId VARCHAR(32) NOT NULL UNIQUE, GangRank INT(20) NOT NULL, LastName VARCHAR(32) NOT NULL, GangInviter VARCHAR(32) NOT NULL, GangJoinDate INT(20) NOT NULL, LastConnect INT(20) NOT NULL)", 0, DBPrio_High);
-		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Gangs (`GangId` INTEGER, GangName VARCHAR(32) UNIQUE, GangMOTD VARCHAR(100) NOT NULL, GangHonor INT(20) NOT NULL, GangNextWeekly INT(20) NOT NULL, GangHealthPerkT INT(20) NOT NULL, GangHealthPerkCT INT(20) NOT NULL, GangNadePerkT INT(20) NOT NULL, GangCooldownPerk INT(20) NOT NULL, GangGetHonorPerk INT(20) NOT NULL, GangFFPerk INT(11) NOT NULL, GangSizePerk INT(20) NOT NULL, GangMinRankInvite INT(11) NOT NULL, GangMinRankKick INT(11) NOT NULL, GangMinRankPromote INT(11) NOT NULL, GangMinRankUpgrade INT(11), GangMinRankMOTD INT(11) NOT NULL, PRIMARY KEY (`GangId` AUTOINCREMENT))", 1, DBPrio_High);
+		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Gangs (`GangId` INTEGER, GangName VARCHAR(32) UNIQUE, GangPrefix VARCHAR(32) NOT NULL, GangPrefixMethod INT(6) NOT NULL, GangMOTD VARCHAR(100) NOT NULL, GangHonor INT(20) NOT NULL, GangNextWeekly INT(20) NOT NULL, GangHealthPerkT INT(20) NOT NULL, GangHealthPerkCT INT(20) NOT NULL, GangNadePerkT INT(20) NOT NULL, GangCooldownPerk INT(20) NOT NULL, GangGetHonorPerk INT(20) NOT NULL, GangFFPerk INT(11) NOT NULL, GangSizePerk INT(20) NOT NULL, GangMinRankInvite INT(11) NOT NULL, GangMinRankKick INT(11) NOT NULL, GangMinRankPromote INT(11) NOT NULL, GangMinRankUpgrade INT(11), GangMinRankMOTD INT(11) NOT NULL, PRIMARY KEY (`GangId` AUTOINCREMENT))", 1, DBPrio_High);
 		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Honor (AuthId VARCHAR(32) NOT NULL UNIQUE, Honor INT(11) NOT NULL)", 2, DBPrio_High);
 		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_upgradelogs (GangId INT(11) NOT NULL, GangName VARCHAR(32) NOT NULL, AuthId VARCHAR(32) NOT NULL, Perk VARCHAR(32) NOT NULL, BValue INT NOT NULL, AValue INT NOT NULL, timestamp INT NOT NULL)", 3, DBPrio_High);
-		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Donations (GangId INT(11) NOT NULL, AuthId VARCHAR(32) NOT NULL, AmountDonated INT(11), timestamp INT(32))", -1, DBPrio_High);
+		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_modlogs (GangId INT(11) NOT NULL, AuthId VARCHAR(32) NOT NULL, ModAction INT(6) NOT NULL, ModActionNumber INT(11), ModActionWord VARCHAR(100), ModTarget VARCHAR(128) NOT NULL, timestamp INT NOT NULL)", -1, DBPrio_High);
+		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Donations (GangId INT(11) NOT NULL, AuthId VARCHAR(32) NOT NULL, AmountDonated INT(11), timestamp INT(32))", -2, DBPrio_High);
 
 		dbFullConnected = true;
 
@@ -623,7 +723,7 @@ public void ConnectDatabase()
 				continue;
 
 			char AuthId[35];
-			GetClientAuthId(i, AuthId_Engine, AuthId, sizeof(AuthId));
+			GetClientAuthId(i, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 			UpdateInGameAuthId(AuthId);
 		}
@@ -645,13 +745,14 @@ public void OnClientPutInServer(int client)
 {
 	ClientWhiteGlow[client]    = 0;
 	ClientColorfulGlow[client] = 0;
+	ClientSpyGang[client]      = false;
 }
 
 public void OnClientConnected(int client)
 {
 	ResetVariables(client, true);
-
-	CanGetHonor[client] = false;
+	ClientNextMOTD[client] = 0.0;
+	CanGetHonor[client]    = false;
 }
 
 void ResetVariables(int client, bool login = true)
@@ -690,7 +791,7 @@ void ResetVariables(int client, bool login = true)
 public void OnClientDisconnect(int client)
 {
 	char AuthId[35], Name[64];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	Format(Name, sizeof(Name), "%N", client);
 
@@ -714,7 +815,7 @@ public void OnClientPostAdminCheck(int client)
 void LoadClientGang(int client, int LowPrio = false)
 {
 	char AuthId[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
 	dbGangs.Format(sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE AuthId = '%s'", AuthId);
@@ -750,12 +851,18 @@ public void SQLCB_LoadClientGang(Handle owner, DBResultSet hndl, char[] error, a
 	{
 		StoreClientLastInfo(client);
 
+		ClientGangId[client] = -1;
+
 		if (SQL_GetRowCount(hndl) != 0)
 		{
 			SQL_FetchRow(hndl);
 
 			ClientGangId[client] = SQL_FetchIntByName(hndl, "GangId");
-			ClientRank[client]   = SQL_FetchIntByName(hndl, "GangRank");
+		}
+
+		if (ClientGangId[client] != -1)
+		{
+			ClientRank[client] = SQL_FetchIntByName(hndl, "GangRank");
 
 			for (int i = 1; i <= MaxClients; i++)
 			{
@@ -845,20 +952,46 @@ public void SQLCB_LoadGangByClient(Handle owner, DBResultSet hndl, char[] error,
 			{
 				SQL_FetchStringByName(hndl, "GangMOTD", ClientMotd[client], sizeof(ClientMotd[]));
 
-				ClientGangHonor[client]        = SQL_FetchIntByName(hndl, "GangHonor");
-				ClientGangNextWeekly[client]   = SQL_FetchIntByName(hndl, "GangNextWeekly");
-				ClientHealthPerkT[client]      = SQL_FetchIntByName(hndl, "GangHealthPerkT");
-				ClientHealthPerkCT[client]     = SQL_FetchIntByName(hndl, "GangHealthPerkCT");
-				ClientNadePerkT[client]        = SQL_FetchIntByName(hndl, "GangNadePerkT");
-				ClientCooldownPerk[client]     = SQL_FetchIntByName(hndl, "GangCooldownPerk");
-				ClientGetHonorPerk[client]     = SQL_FetchIntByName(hndl, "GangGetHonorPerk");
-				ClientGangSizePerk[client]     = SQL_FetchIntByName(hndl, "GangSizePerk");
-				ClientFriendlyFirePerk[client] = SQL_FetchIntByName(hndl, "GangFFPerk");
-				ClientAccessInvite[client]     = SQL_FetchIntByName(hndl, "GangMinRankInvite");
-				ClientAccessKick[client]       = SQL_FetchIntByName(hndl, "GangMinRankKick");
-				ClientAccessPromote[client]    = SQL_FetchIntByName(hndl, "GangMinRankPromote");
-				ClientAccessUpgrade[client]    = SQL_FetchIntByName(hndl, "GangMinRankUpgrade");
-				ClientAccessMOTD[client]       = SQL_FetchIntByName(hndl, "GangMinRankMOTD");
+				ClientGangHonor[client]      = SQL_FetchIntByName(hndl, "GangHonor");
+				ClientGangNextWeekly[client] = SQL_FetchIntByName(hndl, "GangNextWeekly");
+				ClientGangSizePerk[client]   = SQL_FetchIntByName(hndl, "GangSizePerk");
+
+				TryRemoveGangPrefix(client);
+
+				if (ClientGangHonor[client] >= 0)
+				{
+					ClientHealthPerkT[client]      = SQL_FetchIntByName(hndl, "GangHealthPerkT");
+					ClientHealthPerkCT[client]     = SQL_FetchIntByName(hndl, "GangHealthPerkCT");
+					ClientNadePerkT[client]        = SQL_FetchIntByName(hndl, "GangNadePerkT");
+					ClientCooldownPerk[client]     = SQL_FetchIntByName(hndl, "GangCooldownPerk");
+					ClientGetHonorPerk[client]     = SQL_FetchIntByName(hndl, "GangGetHonorPerk");
+					ClientFriendlyFirePerk[client] = SQL_FetchIntByName(hndl, "GangFFPerk");
+
+					SQL_FetchStringByName(hndl, "GangPrefix", ClientPrefix[client], sizeof(ClientPrefix[]));
+					ClientPrefixMethod[client] = SQL_FetchIntByName(hndl, "GangPrefixMethod");
+
+					char Name[64];
+
+					GetClientName(client, Name, sizeof(Name));
+
+					if (ClientPrefixMethod[client] == 0 && ClientPrefix[client][0] != EOS)
+					{
+						Format(ClientPrefix[client], sizeof(ClientPrefix[]), "[%s] ", ClientPrefix[client]);
+					}
+
+					if (ClientPrefix[client][0] != EOS)
+					{
+						Format(Name, sizeof(Name), "%s%s", ClientPrefix[client], Name);
+
+						SetClientNameHidden(client, Name);
+					}
+				}
+
+				ClientAccessInvite[client]  = SQL_FetchIntByName(hndl, "GangMinRankInvite");
+				ClientAccessKick[client]    = SQL_FetchIntByName(hndl, "GangMinRankKick");
+				ClientAccessPromote[client] = SQL_FetchIntByName(hndl, "GangMinRankPromote");
+				ClientAccessUpgrade[client] = SQL_FetchIntByName(hndl, "GangMinRankUpgrade");
+				ClientAccessMOTD[client]    = SQL_FetchIntByName(hndl, "GangMinRankMOTD");
 
 				int Smallest = ClientAccessInvite[client];
 
@@ -902,12 +1035,14 @@ public void SQLCB_LoadGangByClient(Handle owner, DBResultSet hndl, char[] error,
 		if (bDeleted)
 		{
 			char AuthId[35];
-			GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+			GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 			KickAuthIdFromGang(AuthId, ClientGangId[client]);
 
 			ClientGang[client]   = GANG_NULL;
 			ClientGangId[client] = GANGID_NULL;
+
+			ClientPrefix[client] = "";
 
 			if (IsPlayerAlive(client))
 				TryDestroyGlow(client);
@@ -938,7 +1073,7 @@ public void SQLCB_LoadClientHonor(Handle owner, DBResultSet hndl, char[] error, 
 		else
 		{
 			char AuthId[35];
-			GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+			GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 			// The reason I use INSERT OR IGNORE rather than just INSERT is bots, that can have multiple steam IDs.
 			char sQuery[256];
@@ -950,21 +1085,38 @@ public void SQLCB_LoadClientHonor(Handle owner, DBResultSet hndl, char[] error, 
 	}
 }
 
-stock void KickClientFromGang(int client, int GangId)
+stock void KickClientFromGang(int client, int GangId, int kicker = 0)
 {
 	char AuthId[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
-	KickAuthIdFromGang(AuthId, GangId);
+	KickAuthIdFromGang(AuthId, GangId, kicker);
 }
 
-stock void KickAuthIdFromGang(const char[] AuthId, int GangId)
+stock void KickAuthIdFromGang(const char[] AuthId, int GangId, int kicker = 0)
 {
-	char sQuery[256];
-	Format(sQuery, sizeof(sQuery), "DELETE FROM GangSystem_Members WHERE AuthId = '%s' AND GangId = %i", AuthId, GangId);
-	dbGangs.Query(SQLCB_Error, sQuery, 5);
+	char        sQuery[256];
+	Transaction transaction = SQL_CreateTransaction();
 
-	UpdateInGameAuthId(AuthId);
+	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Members SET GangId = -1 WHERE AuthId = '%s' AND GangId = %i", AuthId, GangId);
+	SQL_AddQuery(transaction, sQuery);
+
+	char kickerAuthId[35];
+
+	if (kicker == 0)
+		kickerAuthId = "CONSOLE";
+
+	else
+		GetClientAuthId(kicker, AuthId_Steam2, kickerAuthId, sizeof(kickerAuthId));
+
+	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_modlogs (GangId, AuthId, ModAction, ModTarget, timestamp) VALUES (%i, '%s', %i, '%s', %i)", GangId, kickerAuthId, MODACTION_KICK, AuthId, GetTime());
+	SQL_AddQuery(transaction, sQuery);
+
+	Handle DP = CreateDataPack();
+
+	WritePackCell(DP, GangId);
+
+	dbGangs.Execute(transaction, SQLTrans_GangDonated, SQLTrans_SetFailState, DP);
 }
 
 public Action CommandListener_Say(int client, const char[] command, int args)
@@ -989,6 +1141,15 @@ public Action CommandListener_Say(int client, const char[] command, int args)
 		GetRankName(GetClientRank(client), RankName, sizeof(RankName));
 
 		PrintToChatGang(ClientGangId[client], "\x04[Gang Chat] \x05%s \x04%N\x01 : %s", RankName, client, Args);
+
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			if (!IsClientInGame(i))
+				continue;
+
+			if (ClientSpyGang[i])
+				PrintToChat(i, " \x04[\x05Spy Gang Chat\x01] \x05%s \x04%N\x01 : %s", RankName, client, Args);
+		}
 
 		return Plugin_Handled;
 	}
@@ -1027,6 +1188,11 @@ public Action Command_MotdGang(int client, int args)
 		PrintToChat(client, " %s \x05You \x01have to be a gang \x07%s \x01to use this \x07command!", PREFIX, RankName);
 		return Plugin_Handled;
 	}
+	else if (ClientNextMOTD[client] > GetGameTime())
+	{
+		PrintToChat(client, " %s \x05You can change the MOTD again in %i seconds.", PREFIX, RoundToFloor(ClientNextMOTD[client] - GetGameTime()));
+		return Plugin_Handled;
+	}
 
 	char Args[100];
 	GetCmdArgString(Args, sizeof(Args));
@@ -1037,10 +1203,26 @@ public Action Command_MotdGang(int client, int args)
 		PrintToChat(client, " %s Invalid motd! \x05You \x01can only use \x07SPACEBAR, \x07a-z, A-Z\x01, _, -, \x070-9", PREFIX);
 		return Plugin_Handled;
 	}
-	char sQuery[256];
-	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangMOTD = '%s' WHERE GangId = %i", Args, ClientGangId[client]);
 
-	dbGangs.Query(SQLCB_Error, sQuery, 6);
+	ClientNextMOTD[client] = GetGameTime() + 60.0;
+	char        sQuery[256];
+	Transaction transaction = SQL_CreateTransaction();
+
+	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangMOTD = '%s' WHERE GangId = %i", Args, ClientGangId[client]);
+	SQL_AddQuery(transaction, sQuery);
+
+	char motdAuthId[35];
+	GetClientAuthId(client, AuthId_Steam2, motdAuthId, sizeof(motdAuthId));
+
+	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_modlogs (GangId, AuthId, ModAction, ModActionWord, ModTarget, timestamp) VALUES (%i, '%s', %i, '%s', '%s', %i)", ClientGangId[client], motdAuthId, MODACTION_MOTD, Args, motdAuthId, GetTime());
+	SQL_AddQuery(transaction, sQuery);
+
+	Handle DP = CreateDataPack();
+
+	WritePackCell(DP, ClientGangId[client]);
+
+	// It doesn't really matter to immediately update the MOTD, as it's a login message anyways.
+	dbGangs.Execute(transaction, INVALID_FUNCTION, INVALID_FUNCTION, DP);
 
 	PrintToChat(client, "%s The gang's motd has been changed to \x07%s", PREFIX, Args);
 
@@ -1114,6 +1296,261 @@ public int DonateGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 	}
 }
 
+public Action Command_RenameGang(int client, int args)
+{
+	if (!IsClientGang(client))
+	{
+		PrintToChat(client, "%s \x05You \x01have to be in a \x07gang \x01to use this command!", PREFIX);
+		return Plugin_Handled;
+	}
+	else if (!CheckGangAccess(client, RANK_LEADER))
+	{
+		PrintToChat(client, "%s \x05You \x01have to be the gang's leader to use this \x07command!", PREFIX);
+		return Plugin_Handled;
+	}
+
+	char Args[32];
+	GetCmdArgString(Args, sizeof(Args));
+	StripQuotes(Args);
+
+	if (Args[0] == EOS)
+	{
+		PrintToChat(client, "%s Invalid Usage! \x07!renamegang \x01<new name>", PREFIX);
+		return Plugin_Handled;
+	}
+	else if (StringHasInvalidCharacters(Args))
+	{
+		PrintToChat(client, "%s Invalid name! \x05You \x01can only use \x07a-z, A-Z\x01, _, -, \x070-9!", PREFIX);
+		return Plugin_Handled;
+	}
+
+	Handle hMenu = CreateMenu(RenameGang_MenuHandler);
+
+	AddMenuItem(hMenu, Args, "Yes");
+	AddMenuItem(hMenu, "", "No");
+
+	SetMenuTitle(hMenu, "%s Gang Rename\n\nAre you sure you want to pay %i Honor to rename your gang?\nNew Name: %s", MENU_PREFIX, GANG_RENAME_PRICE, Args);
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+public int RenameGang_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if (action == MenuAction_End)
+		CloseHandle(hMenu);
+
+	else if (action == MenuAction_Select)
+	{
+		if (!IsClientGang(client))
+			return;
+
+		else if (!CheckGangAccess(client, RANK_LEADER))
+			return;
+
+		if (item + 1 == 1)
+		{
+			if (ClientGangHonor[client] < GANG_RENAME_PRICE)
+			{
+				char sPriceDifference[16];
+
+				AddCommas(GANG_RENAME_PRICE - ClientGangHonor[client], ",", sPriceDifference, sizeof(sPriceDifference));
+
+				PrintToChat(client, "%s \x05You \x01need \x07%s more honor\x01 to rename your gang!", PREFIX, sPriceDifference);
+				return;
+			}
+
+			char strName[32];
+			GetMenuItem(hMenu, item, strName, sizeof(strName));
+
+			Handle DP = CreateDataPack();
+			WritePackCell(DP, GetClientUserId(client));
+			WritePackString(DP, strName);
+
+			char sQuery[256];
+			SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Gangs WHERE lower(GangName) = lower('%s')", strName);
+
+			// Normal prio on check taken and high on change ensures if there is a check taken for anything else, it won't allow two gangs with same name.
+			SQL_TQuery(dbGangs, SQLCB_RenameGang_CheckTakenName, sQuery, DP);
+		}
+	}
+}
+
+public void SQLCB_RenameGang_CheckTakenName(Handle owner, Handle hndl, char[] error, Handle DP)
+{
+	if (hndl == null)
+	{
+		LogError(error);
+
+		return;
+	}
+
+	ResetPack(DP);
+
+	int  client = GetClientOfUserId(ReadPackCell(DP));
+	char GangName[32];
+
+	ReadPackString(DP, GangName, sizeof(GangName));
+
+	CloseHandle(DP);
+
+	if (!IsValidPlayer(client))
+	{
+		return;
+	}
+	else
+	{
+		if (SQL_GetRowCount(hndl) == 0)
+		{
+			PrintToChatGang(ClientGangId[client], "%s The gang was renamed to\x07 %s\x01!", PREFIX, GangName);
+
+			DP = CreateDataPack();
+
+			WritePackCell(DP, ClientGangId[client]);
+
+			char sQuery[256];
+
+			dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangName = '%s', GangHonor = GangHonor - %i WHERE GangId = %i", GangName, GANG_RENAME_PRICE, ClientGangId[client]);
+
+			dbGangs.Query(SQLCB_GangDonated, sQuery, DP);
+		}
+		else    // Gang name is taken.
+		{
+			PrintToChat(client, "%s The selected gang name is \x07already \x01taken!", PREFIX);
+		}
+	}
+}
+
+public Action Command_PrefixGang(int client, int args)
+{
+	if (!IsClientGang(client))
+	{
+		PrintToChat(client, "%s \x05You \x01have to be in a \x07gang \x01to use this command!", PREFIX);
+		return Plugin_Handled;
+	}
+	else if (!CheckGangAccess(client, RANK_LEADER))
+	{
+		PrintToChat(client, "%s \x05You \x01have to be the gang's leader to use this \x07command!", PREFIX);
+		return Plugin_Handled;
+	}
+
+	char Args[32];
+	GetCmdArgString(Args, sizeof(Args));
+	StripQuotes(Args);
+
+	if (Args[0] == EOS)
+	{
+		PrintToChat(client, "%s Invalid Usage! \x07!prefixgang \x01<new prefix>", PREFIX);
+		return Plugin_Handled;
+	}
+	else if (StringHasInvalidCharacters(Args))
+	{
+		PrintToChat(client, "%s Invalid prefix! \x05You \x01can only use \x07a-z, A-Z\x01, _, -, \x070-9!", PREFIX);
+		return Plugin_Handled;
+	}
+	else if (strlen(Args) < 3 || strlen(Args) > 5)
+	{
+		PrintToChat(client, "%s Invalid prefix! \x05You \x01can only use\x03\x01 to\x03 5\x01 characters!", PREFIX);
+
+		return Plugin_Handled;
+	}
+	Handle hMenu = CreateMenu(PrefixGang_MenuHandler);
+
+	AddMenuItem(hMenu, Args, "Yes");
+	AddMenuItem(hMenu, "", "No");
+
+	SetMenuTitle(hMenu, "%s Gang Prefix Change\n\nAre you sure you want to pay $%i to change your gang's prefix?\nNew Prefix: %s", MENU_PREFIX, GANG_PREFIX_PRICE, Args);
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+public int PrefixGang_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if (action == MenuAction_End)
+		CloseHandle(hMenu);
+
+	else if (action == MenuAction_Select)
+	{
+		if (!IsClientGang(client))
+			return;
+
+		else if (!CheckGangAccess(client, RANK_LEADER))
+			return;
+
+		if (item + 1 == 1)
+		{
+			if (ClientGangHonor[client] < GANG_PREFIX_PRICE)
+			{
+				char sPriceDifference[16];
+
+				AddCommas(GANG_PREFIX_PRICE - ClientGangHonor[client], ",", sPriceDifference, sizeof(sPriceDifference));
+
+				PrintToChat(client, "%s \x05You \x01need \x07$%s more\x01 to change your gang's prefix!", PREFIX, sPriceDifference);
+				return;
+			}
+
+			char strName[32];
+			GetMenuItem(hMenu, item, strName, sizeof(strName));
+
+			Handle DP = CreateDataPack();
+			WritePackCell(DP, GetClientUserId(client));
+			WritePackString(DP, strName);
+
+			char sQuery[256];
+			SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Gangs WHERE lower(GangPrefix) = lower('%s')", strName);
+
+			// Normal prio on check taken and high on change ensures if there is a check taken for anything else, it won't allow two gangs with same name.
+			SQL_TQuery(dbGangs, SQLCB_GangPrefix_CheckTakenPrefix, sQuery, DP);
+		}
+	}
+}
+
+public void SQLCB_GangPrefix_CheckTakenPrefix(Handle owner, Handle hndl, char[] error, Handle DP)
+{
+	if (hndl == null)
+	{
+		LogError(error);
+
+		return;
+	}
+
+	ResetPack(DP);
+
+	int  client = GetClientOfUserId(ReadPackCell(DP));
+	char GangPrefix[32];
+
+	ReadPackString(DP, GangPrefix, sizeof(GangPrefix));
+
+	CloseHandle(DP);
+
+	if (!IsValidPlayer(client))
+	{
+		return;
+	}
+	else
+	{
+		if (SQL_GetRowCount(hndl) == 0)
+		{
+			PrintToChatGang(ClientGangId[client], "%s The gang's prefix was changed to\x07 %s\x01!", PREFIX, GangPrefix);
+
+			DP = CreateDataPack();
+
+			WritePackCell(DP, ClientGangId[client]);
+
+			char sQuery[256];
+
+			dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangPrefix = '%s', GangHonor = GangHonor - %i WHERE GangId = %i", GangPrefix, GANG_PREFIX_PRICE, ClientGangId[client]);
+
+			dbGangs.Query(SQLCB_GangDonated, sQuery, DP);
+		}
+		else    // Gang name is taken.
+		{
+			PrintToChat(client, "%s The selected gang prefix is \x07already \x01taken!", PREFIX);
+		}
+	}
+}
+
 public Action Command_CreateGang(int client, int args)
 {
 	if (!ClientLoadedFromDb[client])
@@ -1170,7 +1607,7 @@ public Action Command_LeaveGang(int client, int args)
 	}
 
 	PrintToChatGang(ClientGangId[client], "%s \x03%N \x09has left the gang!", PREFIX, client);
-	KickClientFromGang(client, ClientGangId[client]);
+	KickClientFromGang(client, ClientGangId[client], client);
 
 	GangAttemptLeave[client] = false;
 
@@ -1197,16 +1634,26 @@ public Action Command_DisbandGang(int client, int args)
 
 	PrintToChatAll("%s \x05%N \x01has disbanded the gang \x07%s!", PREFIX, client, ClientGang[client]);
 
-	char sQuery[256];
+	char        sQuery[256];
+	Transaction transaction = SQL_CreateTransaction();
+
 	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangName = NULL WHERE GangId = %i", ClientGangId[client]);
+	SQL_AddQuery(transaction, sQuery);
+
+	char disbanderAuthId[35];
+	GetClientAuthId(client, AuthId_Steam2, disbanderAuthId, sizeof(disbanderAuthId));
+
+	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_modlogs (GangId, AuthId, ModAction, ModTarget, timestamp) VALUES (%i, '%s', %i, '%s', %i)", ClientGangId[client], disbanderAuthId, MODACTION_DISBAND, disbanderAuthId, GetTime());
+	SQL_AddQuery(transaction, sQuery);
 
 	Handle DP = CreateDataPack();
 
 	WritePackCell(DP, ClientGangId[client]);
 
-	dbGangs.Query(SQLCB_GangDisbanded, sQuery, DP);
+	dbGangs.Execute(transaction, SQLTrans_GangDonated, SQLTrans_SetFailState, DP);
 
 	GangAttemptDisband[client] = false;
+
 	return Plugin_Handled;
 }
 
@@ -1246,38 +1693,15 @@ public Action Command_StepDown(int client, int args)
 	PrintToChatGang(ClientGangId[client], "%s \x05%N \x01is now the gang \x07Leader.", PREFIX, NewLeader);
 
 	char AuthId[35], AuthIdNewLeader[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
-	GetClientAuthId(NewLeader, AuthId_Engine, AuthIdNewLeader, sizeof(AuthIdNewLeader));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
+	GetClientAuthId(NewLeader, AuthId_Steam2, AuthIdNewLeader, sizeof(AuthIdNewLeader));
 
-	SetAuthIdRank(AuthId, ClientGangId[client], RANK_COLEADER);
-	SetAuthIdRank(AuthIdNewLeader, ClientGangId[NewLeader], RANK_LEADER);
+	SetAuthIdRank(AuthId, ClientGangId[client], RANK_COLEADER, client);
+	SetAuthIdRank(AuthIdNewLeader, ClientGangId[NewLeader], RANK_LEADER, client);
 
 	GangAttemptStepDown[client] = false;
 	GangStepDownTarget[client]  = -1;
 	return Plugin_Handled;
-}
-
-public void SQLCB_GangDisbanded(Handle owner, DBResultSet hndl, char[] error, Handle DP)
-{
-	ResetPack(DP);
-
-	int GangId = ReadPackCell(DP);
-
-	CloseHandle(DP);
-
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientInGame(i))
-			continue;
-
-		else if (ClientGangId[i] != GangId)
-			continue;
-
-		OnClientConnected(i);
-		OnClientPutInServer(i);
-
-		OnClientPostAdminCheck(i);
-	}
 }
 
 public int CreateGang_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -1335,6 +1759,15 @@ public Action Command_GC(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_SpyGang(int client, int args)
+{
+	ClientSpyGang[client] = !ClientSpyGang[client];
+
+	PrintToChat(client, "You are no%s spying gang chats", ClientSpyGang[client] ? "w" : " longer");
+
+	return Plugin_Handled;
+}
+
 public Action Command_BreachGang(int client, int args)
 {
 	if (IsClientGang(client))
@@ -1355,7 +1788,7 @@ public Action Command_BreachGang(int client, int args)
 
 	char   AuthId[35];
 	Handle DP = CreateDataPack();
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 	WritePackString(DP, AuthId);
 
 	FinishAddAuthIdToGang(StringToInt(sGangId), AuthId, RANK_MEMBER, AuthId, DP);
@@ -1386,7 +1819,7 @@ public Action Command_BreachGangRank(int client, int args)
 		Rank = RANK_LEADER;
 
 	char AuthId[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	SetAuthIdRank(AuthId, ClientGangId[client], Rank);
 
@@ -1415,17 +1848,32 @@ public Action Command_Gang(int client, int args)
 	{
 		Format(TempFormat, sizeof(TempFormat), "Create Gang [ %i Honor ]", GANG_COSTCREATE);
 		AddMenuItem(hMenu, "Create", TempFormat, !isGang ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
-	}
-	AddMenuItem(hMenu, "Donate", "Donate To Gang", isGang ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
-	AddMenuItem(hMenu, "Member List", "Member List", isGang ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
-	AddMenuItem(hMenu, "Perks", "Gang Perks", isGang ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 
-	AddMenuItem(hMenu, "Manage", "Manage Gang", CheckGangAccess(client, ClientAccessManage[client]) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
-	AddMenuItem(hMenu, "Leave", "Leave Gang", !isLeader && isGang ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+		SetMenuTitle(hMenu, "%s Gang Menu\nYour Honor: %i", MENU_PREFIX, ClientHonor[client]);
+	}
+	else
+	{
+		AddMenuItem(hMenu, "Donate", "Donate To Gang", isGang ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+		AddMenuItem(hMenu, "Member List", "Member List", isGang && ClientGangHonor[client] >= 0 ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+		AddMenuItem(hMenu, "Perks", "Gang Perks", isGang && ClientGangHonor[client] >= 0 ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+
+		if (ClientGangHonor[client] >= 0)
+			AddMenuItem(hMenu, "Manage", "Manage Gang", CheckGangAccess(client, ClientAccessManage[client]) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+
+		else
+			AddMenuItem(hMenu, "Disband", "Disband Gang", isLeader ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+
+		AddMenuItem(hMenu, "Leave", "Leave Gang", !isLeader && isGang ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+
+		if (ClientGangHonor[client] >= 0)
+			SetMenuTitle(hMenu, "%s Gang Menu [ID: %i]\nCurrent Gang: %s\nYour Honor: %i\nYour Gang's Honor: %i", MENU_PREFIX, ClientGangId[client], ClientGang[client], ClientHonor[client], ClientGangHonor[client]);
+
+		else
+			SetMenuTitle(hMenu, "%s Gang Menu [ID: %i]\nCurrent Gang: %s\nYour Honor: %i\nYour Gang's Honor Debt: %i", MENU_PREFIX, ClientGangId[client], ClientGang[client], ClientHonor[client], -1 * ClientGangHonor[client]);
+	}
 
 	AddMenuItem(hMenu, "Top", "Top Gangs");
 
-	SetMenuTitle(hMenu, "%s Gang Menu [ID: %i]\nCurrent Gang: %s\nYour Honor: %i\nYour Gang's Honor: %i", MENU_PREFIX, ClientGangId[client], isGang ? ClientGang[client] : "None", ClientHonor[client], isGang ? ClientGangHonor[client] : 0);
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 
 	LoadClientGang(client, true);
@@ -1468,9 +1916,19 @@ public int Gang_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 			if (IsClientGang(client) && CheckGangAccess(client, ClientAccessManage[client]))
 				ShowManageGangMenu(client);
 		}
+		else if (StrEqual(Info, "Disband"))
+		{
+			if (!CheckGangAccess(client, RANK_LEADER))
+				return;
+
+			GangAttemptDisband[client] = true;
+			PrintToChat(client, "%s Write \x07!confirmdisbandgang \x01to confirm DELETION of the \x05gang.", PREFIX);
+			PrintToChat(client, "%s Write anything else in the chat to abort deleting the \x05gang.", PREFIX);
+			PrintToChat(client, "%s ATTENTION! THIS ACTION WILL PERMANENTLY DELETE YOUR \x07GANG\x01, IT IS NOT UNDOABLE AND YOU WILL NOT BE \x07REFUNDED!!!", PREFIX);
+		}
 		else if (StrEqual(Info, "Leave"))
 		{
-			if (GetClientRank(client) == RANK_LEADER || !IsClientGang(client))
+			if (CheckGangAccess(client, RANK_LEADER) || !IsClientGang(client))
 				return;
 
 			GangAttemptLeave[client] = true;
@@ -1487,7 +1945,7 @@ public int Gang_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 void ShowTopGangsMenu(int client)
 {
 	char sQuery[1024];
-	dbGangs.Format(sQuery, sizeof(sQuery), "SELECT GangName, GangId, (%!s) as net_worth FROM GangSystem_Gangs WHERE GangName IS NOT NULL ORDER BY net_worth DESC", NET_WORTH_ORDER_BY_FORMULA);
+	dbGangs.Format(sQuery, sizeof(sQuery), "SELECT GangName, GangId, (%!s) as net_worth FROM GangSystem_Gangs WHERE GangHonor >= 0 AND GangName IS NOT NULL ORDER BY net_worth DESC", NET_WORTH_ORDER_BY_FORMULA);
 	dbGangs.Query(SQLCB_ShowTopGangsMenu, sQuery, GetClientUserId(client));
 }
 
@@ -1546,7 +2004,8 @@ public int TopGangs_MenuHandler(Handle hMenu, MenuAction action, int client, int
 		char Info[11];
 		GetMenuItem(hMenu, item, Info, sizeof(Info));
 
-		int  GangId = StringToInt(Info);
+		int GangId = StringToInt(Info);
+
 		char sQuery[128];
 		dbGangs.Format(sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Gangs WHERE GangId = %i", GangId);
 
@@ -1579,6 +2038,8 @@ public void SQLCB_ShowGangInfo_LoadGang(Handle owner, DBResultSet hndl, char[] e
 			SQL_FetchStringByName(hndl, "GangName", GangName, sizeof(GangName));
 
 			int GangHonor = SQL_FetchIntByName(hndl, "GangHonor");
+
+			FindDonationsForGang(GangId);
 
 			char sQuery[256];
 			dbGangs.Format(sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangId = %i", GangId);
@@ -1628,7 +2089,14 @@ public void SQLCB_ShowGangInfo_LoadMembers(Handle owner, DBResultSet hndl, char[
 		SQL_FetchStringByName(hndl, "LastName", Name, sizeof(Name));
 		SQL_FetchStringByName(hndl, "AuthId", iAuthId, sizeof(iAuthId));
 
-		Format(TempFormat, sizeof(TempFormat), "%s [%s] - %s", Name, strRank, FindClientByAuthId(iAuthId) != 0 ? "ONLINE" : "OFFLINE");
+		int amount;
+		GetTrieValue(Trie_Donated, iAuthId, amount);
+
+		char sHonor[16];
+
+		AddCommas(amount, ",", sHonor, sizeof(sHonor));
+
+		FormatEx(TempFormat, sizeof(TempFormat), "%s [%s] - %s [Donated: %s]", Name, strRank, FindClientByAuthId(iAuthId) != 0 ? "ONLINE" : "OFFLINE", sHonor);
 
 		AddMenuItem(hMenu, iAuthId, TempFormat, ITEMDRAW_DISABLED);
 	}
@@ -1691,9 +2159,11 @@ public int Perks_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 		Command_Gang(client, 0);
 }
 
-void ShowManageGangMenu(int client)
+stock void ShowManageGangMenu(int client, int item = 0)
 {
 	Handle hMenu = CreateMenu(ManageGang_MenuHandler);
+
+	AddMenuItem(hMenu, "", "Mod Logs");
 
 	AddMenuItem(hMenu, "", "Invite To Gang", CheckGangAccess(client, ClientAccessInvite[client]) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 
@@ -1709,6 +2179,10 @@ void ShowManageGangMenu(int client)
 
 	AddMenuItem(hMenu, "", "Manage Actions Access", CheckGangAccess(client, RANK_LEADER) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 
+	AddMenuItem(hMenu, "", "Rename Gang", CheckGangAccess(client, RANK_LEADER) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+
+	AddMenuItem(hMenu, "", "Change Gang Prefix", CheckGangAccess(client, RANK_LEADER) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+
 	char sPrice[16], sTime[32];
 
 	AddCommas(GetConVarInt(hcv_WeeklyTax), ",", sPrice, sizeof(sPrice));
@@ -1716,13 +2190,13 @@ void ShowManageGangMenu(int client)
 	FormatTime(sTime, sizeof(sTime), "%d/%m/%Y - %X", ClientGangNextWeekly[client]);
 
 	if (GetConVarInt(hcv_WeeklyTax) > 0)
-		SetMenuTitle(hMenu, "%s Manage Gang\nWeekly tax: %s\nDate of next Tax: %s", MENU_PREFIX, sPrice, sTime);
+		SetMenuTitle(hMenu, "%s Manage Gang\nWeekly tax: %s Honor\nDate of next Tax: %s", MENU_PREFIX, sPrice, sTime);
 
 	else
 		SetMenuTitle(hMenu, "%s Manage Gang", MENU_PREFIX);
 
 	SetMenuExitBackButton(hMenu, true);
-	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	DisplayMenuAtItem(hMenu, client, item, MENU_TIME_FOREVER);
 }
 
 public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -1735,13 +2209,20 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 
 	else if (action == MenuAction_Select)
 	{
-		if (!CheckGangAccess(client, ClientAccessManage[client]))
+		if (!CheckGangAccess(client, ClientAccessManage[client]) || ClientGangHonor[client] < 0)
 		{
 			Command_Gang(client, 0);
 			return;
 		}
-		switch (item + 1)
+		switch (item)
 		{
+			case 0:
+			{
+				if (!ClientAccessManage[client])
+					return;
+
+				ShowModLogs(client);
+			}
 			case 1:
 			{
 				if (!ClientAccessInvite[client])
@@ -1782,6 +2263,8 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 					return;
 
 				PrintToChat(client, "%s Use \x07!motdgang \x01<new motd> to change the gang's \x07motd.", PREFIX);
+
+				ShowManageGangMenu(client, GetMenuSelectionPosition());
 			}
 
 			case 6:
@@ -1801,6 +2284,25 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 					return;
 
 				ShowActionAccessMenu(client);
+			}
+			case 8:
+			{
+				if (!CheckGangAccess(client, RANK_LEADER))
+					return;
+
+				PrintToChat(client, "%s Use \x07!renamegang \x01<new name> to change the gang's \x07name.", PREFIX);
+
+				ShowManageGangMenu(client, GetMenuSelectionPosition());
+			}
+
+			case 9:
+			{
+				if (!CheckGangAccess(client, RANK_LEADER))
+					return;
+
+				PrintToChat(client, "%s Use \x07!prefixgang \x01<new prefix> to change the gang's \x07prefix.", PREFIX);
+
+				ShowManageGangMenu(client, GetMenuSelectionPosition());
 			}
 		}
 	}
@@ -1994,7 +2496,7 @@ public int Upgrade_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 void LoadClientGang_TryUpgrade(int client, int item, int upgradecost)
 {
 	char AuthId[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
 	dbGangs.Format(sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE AuthId = '%s'", AuthId);
@@ -2111,25 +2613,29 @@ void TryUpgradePerk(int client, int item, int upgradecost)    // Safety accompli
 		return;
 	}
 
-	char sQuery[256];
-
 	char steamid[32];
-	GetClientAuthId(client, AuthId_Engine, steamid, sizeof(steamid));
+	GetClientAuthId(client, AuthId_Steam2, steamid, sizeof(steamid));
+
+	char        sQuery[256];
+	Transaction transaction = SQL_CreateTransaction();
+
+	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET %s = %s + 1, GangHonor = GangHonor - %i WHERE GangId = %i", PerkName, PerkName, upgradecost, ClientGangId[client]);
+	SQL_AddQuery(transaction, sQuery);
 
 	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_upgradelogs (GangId, GangName, AuthId, Perk, BValue, AValue, timestamp) VALUES (%i, '%s', '%s', '%s', %i, %i, %i)", ClientGangId[client], ClientGang[client], steamid, PerkName, PerkToUse, PerkToUse + 1, GetTime());
-	dbGangs.Query(SQLCB_Error, sQuery, 7, DBPrio_High);
+	SQL_AddQuery(transaction, sQuery);
 
-	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET GangHonor = GangHonor - %i WHERE GangId = %i", upgradecost, ClientGangId[client]);
+	char upgraderAuthId[35];
+	GetClientAuthId(client, AuthId_Steam2, upgraderAuthId, sizeof(upgraderAuthId));
 
-	Handle DP  = CreateDataPack();
-	Handle DP2 = CreateDataPack();
+	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_modlogs (GangId, AuthId, ModAction, ModActionNumber, ModActionWord, ModTarget, timestamp) VALUES (%i, '%s', %i, %i, '%s', '%s', %i)", ClientGangId[client], upgraderAuthId, MODACTION_UPGRADE, PerkToUse + 1, PerkNick, upgraderAuthId, GetTime());
+	SQL_AddQuery(transaction, sQuery);
+
+	Handle DP = CreateDataPack();
 
 	WritePackCell(DP, ClientGangId[client]);
-	dbGangs.Query(SQLCB_UpdateGang, sQuery, DP);
 
-	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET %s = %s + 1 WHERE GangId = %i", PerkName, PerkName, ClientGangId[client]);
-	WritePackCell(DP, ClientGangId[client]);
-	dbGangs.Query(SQLCB_UpdateGang, sQuery, DP2);
+	dbGangs.Execute(transaction, SQLTrans_GangDonated, SQLTrans_SetFailState, DP);
 
 	PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has upgraded the gang perk \x07%s!", PREFIX, client, PerkNick);
 }
@@ -2161,6 +2667,8 @@ public void SQLCB_UpdateGang(Handle owner, DBResultSet hndl, char[] error, Handl
 
 void ShowPromoteMenu(int client)
 {
+	FindDonationsForGang(ClientGangId[client]);
+
 	char sQuery[256];
 	dbGangs.Format(sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangId = %i ORDER BY LastConnect DESC", ClientGangId[client]);
 	dbGangs.Query(SQLCB_ShowPromoteMenu, sQuery, GetClientUserId(client));
@@ -2299,7 +2807,7 @@ public int ChooseRank_MenuHandler(Handle hMenu, MenuAction action, int client, i
 			char NewRank[32];
 			GetRankName(item, NewRank, sizeof(NewRank));
 			PrintToChatGang(ClientGangId[client], " %s has been \x07promoted \x01to \x05%s", Name, NewRank);
-			SetAuthIdRank(iAuthId, ClientGangId[client], item);
+			SetAuthIdRank(iAuthId, ClientGangId[client], item, client);
 		}
 		else
 		{
@@ -2327,6 +2835,8 @@ public int ChooseRank_MenuHandler(Handle hMenu, MenuAction action, int client, i
 
 void ShowKickMenu(int client)
 {
+	FindDonationsForGang(ClientGangId[client]);
+
 	char sQuery[256];
 	dbGangs.Format(sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_Members WHERE GangId = %i ORDER BY LastConnect DESC", ClientGangId[client]);
 	dbGangs.Query(SQLCB_ShowKickMenu, sQuery, GetClientUserId(client));
@@ -2442,8 +2952,245 @@ public int ConfirmKick_MenuHandler(Handle hMenu, MenuAction action, int client, 
 
 			PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has kicked \x07%s \x01from the gang!", PREFIX, client, Name);
 
-			KickAuthIdFromGang(iAuthId, ClientGangId[client]);
+			KickAuthIdFromGang(iAuthId, ClientGangId[client], client);
 		}
+	}
+}
+
+stock void ShowModLogs(int client, int item = 0)
+{
+	char        sQuery[256];
+	Transaction transaction = SQL_CreateTransaction();
+
+	dbGangs.Format(sQuery, sizeof(sQuery), "SELECT AuthId, LastName FROM GangSystem_Members");
+	SQL_AddQuery(transaction, sQuery);
+
+	dbGangs.Format(sQuery, sizeof(sQuery), "SELECT * FROM GangSystem_modlogs WHERE GangId = %i ORDER BY timestamp DESC LIMIT 500", ClientGangId[client]);
+	SQL_AddQuery(transaction, sQuery);
+
+	DataPack DP = CreateDataPack();
+
+	WritePackCell(DP, GetClientUserId(client));
+	WritePackCell(DP, item);
+
+	dbGangs.Execute(transaction, SQLTrans_ShowModLogsMenu, SQLTrans_SetFailState, DP);
+}
+
+public void SQLTrans_ShowModLogsMenu(Database db, DataPack DP, int numQueries, DBResultSet[] results, any[] queryData)
+{
+	ResetPack(DP);
+
+	int client = GetClientOfUserId(ReadPackCell(DP));
+	int item   = ReadPackCell(DP);
+
+	CloseHandle(DP);
+
+	if (!IsValidPlayer(client))
+	{
+		return;
+	}
+	else
+	{
+		Handle hMenu = CreateMenu(ModLogs_MenuHandler);
+
+		char TempFormat[200];
+
+		StringMap smNames = new StringMap();
+
+		while (SQL_FetchRow(results[0]))
+		{
+			char AuthId[35], LastName[64];
+
+			SQL_FetchStringByName(results[0], "AuthId", AuthId, sizeof(AuthId));
+			SQL_FetchStringByName(results[0], "LastName", LastName, sizeof(LastName));
+
+			smNames.SetString(AuthId, LastName, true);
+		}
+
+		while (SQL_FetchRow(results[1]))
+		{
+			int modAction = SQL_FetchIntByName(results[1], "ModAction");
+
+			char TargetAuthId[35], TargetLastName[64];
+			SQL_FetchStringByName(results[1], "ModTarget", TargetAuthId, sizeof(TargetAuthId));
+
+			smNames.GetString(TargetAuthId, TargetLastName, sizeof(TargetLastName));
+
+			char AuthId[35], LastName[64];
+			SQL_FetchStringByName(results[1], "AuthId", AuthId, sizeof(AuthId));
+
+			smNames.GetString(AuthId, LastName, sizeof(LastName));
+
+			DP = CreateDataPack();
+			WritePackCell(DP, modAction);
+
+			WritePackString(DP, TargetAuthId);
+			WritePackString(DP, TargetLastName);
+
+			WritePackString(DP, AuthId);
+			WritePackString(DP, LastName);
+
+			WritePackCell(DP, SQL_FetchIntByName(results[1], "timestamp"));
+
+			switch (modAction)
+			{
+				case MODACTION_INVITE:
+				{
+					FormatEx(TempFormat, sizeof(TempFormat), "%s was invited", TargetLastName);
+
+					// Rank.
+					WritePackCell(DP, SQL_FetchIntByName(results[1], "ModActionNumber"));
+				}
+
+				case MODACTION_KICK:
+				{
+					FormatEx(TempFormat, sizeof(TempFormat), "%s was kicked", TargetLastName);
+				}
+
+				case MODACTION_PROMOTE:
+				{
+					int  Rank = SQL_FetchIntByName(results[1], "ModActionNumber");
+					char RankName[32];
+					GetRankName(Rank, RankName, sizeof(RankName));
+
+					FormatEx(TempFormat, sizeof(TempFormat), "%s was promoted to %s", TargetLastName, RankName);
+
+					WritePackCell(DP, Rank);
+				}
+
+				case MODACTION_MOTD:
+				{
+					char MOTD[100];
+					SQL_FetchStringByName(results[1], "ModActionWord", MOTD, sizeof(MOTD));
+
+					FormatEx(TempFormat, sizeof(TempFormat), "MOTD changed by %s", LastName);
+
+					WritePackString(DP, MOTD);
+				}
+				case MODACTION_UPGRADE:
+				{
+					char PerkNick[32];
+					SQL_FetchStringByName(results[1], "ModActionWord", PerkNick, sizeof(PerkNick));
+
+					FormatEx(TempFormat, sizeof(TempFormat), "%s upgraded %s", LastName, PerkNick);
+
+					WritePackCell(DP, SQL_FetchIntByName(results[1], "ModActionNumber"));
+					WritePackString(DP, PerkNick);
+				}
+					// Not needed to put disband here, we must restore the gang from MySQL anyways...
+			}
+
+			char sInfo[32];
+			IntToString(view_as<int>(DP), sInfo, sizeof(sInfo));
+
+			AddMenuItem(hMenu, sInfo, TempFormat);
+		}
+
+		SetMenuTitle(hMenu, "%s Mod Logs, sorting from new to old:", MENU_PREFIX);
+
+		SetMenuExitButton(hMenu, true);
+		SetMenuExitBackButton(hMenu, true);
+		DisplayMenuAtItem(hMenu, client, item, MENU_TIME_FOREVER);
+
+		delete smNames;
+	}
+}
+
+public int ModLogs_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if (action == MenuAction_End)
+	{
+		char sInfo[32];
+		int  i = 0;
+		while (GetMenuItem(hMenu, i++, sInfo, sizeof(sInfo)))
+		{
+			delete view_as<DataPack>(StringToInt(sInfo));
+		}
+
+		CloseHandle(hMenu);
+	}
+
+	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
+		ShowManageGangMenu(client);
+
+	else if (action == MenuAction_Select)
+	{
+		char sInfo[32];
+		GetMenuItem(hMenu, item, sInfo, sizeof(sInfo));
+
+		DataPack DP = view_as<DataPack>(StringToInt(sInfo));
+
+		DP.Reset();
+
+		int modAction = ReadPackCell(DP);
+
+		char TargetAuthId[35], TargetLastName[35];
+		ReadPackString(DP, TargetAuthId, sizeof(TargetAuthId));
+		ReadPackString(DP, TargetLastName, sizeof(TargetLastName));
+
+		char AuthId[35], LastName[35];
+		ReadPackString(DP, AuthId, sizeof(AuthId));
+		ReadPackString(DP, LastName, sizeof(LastName));
+
+		int timestamp = ReadPackCell(DP);
+
+		char sTime[32];
+
+		FormatTime(sTime, sizeof(sTime), "%d/%m/%Y - %X", timestamp);
+
+		switch (modAction)
+		{
+			case MODACTION_INVITE:
+			{
+				int  Rank = ReadPackCell(DP);
+				char RankName[32];
+				GetRankName(Rank, RankName, sizeof(RankName));
+
+				if (Rank == RANK_MEMBER)
+				{
+					PrintToChat(client, "%s [%s] was invited by %s [%s] at %s", TargetLastName, TargetAuthId, LastName, AuthId, sTime);
+				}
+				else
+				{
+					PrintToChat(client, "%s [%s] was invited as %s by %s [%s] at %s", TargetLastName, TargetAuthId, RankName, LastName, AuthId, sTime);
+				}
+			}
+
+			case MODACTION_KICK:
+			{
+				PrintToChat(client, "%s [%s] was kicked by %s [%s] at %s", TargetLastName, TargetAuthId, LastName, AuthId, sTime);
+			}
+
+			case MODACTION_PROMOTE:
+			{
+				int  Rank = ReadPackCell(DP);
+				char RankName[32];
+				GetRankName(Rank, RankName, sizeof(RankName));
+
+				PrintToChat(client, "%s [%s] was promoted to %s by %s [%s] at %s", TargetLastName, TargetAuthId, RankName, LastName, AuthId, sTime);
+			}
+
+			case MODACTION_MOTD:
+			{
+				char MOTD[100];
+				ReadPackString(DP, MOTD, sizeof(MOTD));
+
+				PrintToChat(client, "%s [%s] changed the MOTD at %s to:", LastName, AuthId, sTime);
+				PrintToChat(client, "%s", MOTD);
+			}
+			case MODACTION_UPGRADE:
+			{
+				int PerkLevel = ReadPackCell(DP);
+
+				char PerkNick[32];
+				ReadPackString(DP, PerkNick, sizeof(PerkNick));
+
+				PrintToChat(client, "%s [%s] upgraded perk %s to level %i", LastName, AuthId, PerkNick, PerkLevel);
+			}
+				// Not needed to put disband here, we must restore the gang from MySQL anyways...
+		}
+
+		ShowModLogs(client, GetMenuSelectionPosition());
 	}
 }
 
@@ -2497,14 +3244,14 @@ public int Invite_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 				if (!IsFakeClient(target))
 				{
 					char AuthId[35];
-					GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+					GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 					ShowAcceptInviteMenu(target, AuthId, ClientGangId[client], ClientGang[client]);
 					PrintToChat(client, "%s \x05You \x01have invited \x07%N \x01to join the gang!", PREFIX, target);
 				}
 				else
 				{
 					char AuthId[35];
-					GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+					GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 					AddClientToGang(target, AuthId, ClientGangId[client]);
 				}
 			}
@@ -2578,6 +3325,9 @@ public void SQLCB_ShowMembersMenu(Handle owner, DBResultSet hndl, char[] error, 
 	}
 	else
 	{
+		if (ClientGangHonor[client] < 0)
+			return;
+
 		Handle hMenu = CreateMenu(Members_MenuHandler);
 
 		char TempFormat[200], iAuthId[35], Name[64];
@@ -2715,29 +3465,29 @@ void CreateGang(int client, const char[] GangName)
 	if (ClientHonor[client] < GANG_COSTCREATE)
 		return;
 
-	char sQuery[512];
+	char sQuery[1024];
 
 	char AuthId[35];
 
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	Handle DP = CreateDataPack();
 
 	WritePackString(DP, AuthId);
 	WritePackString(DP, GangName);
 
-	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Gangs (GangName, GangNextWeekly, GangMOTD, GangHonor, GangHealthPerkT, GangCooldownPerk, GangNadePerkT, GangHealthPerkCT, GangGetHonorPerk, GangFFPerk, GangSizePerk, GangMinRankInvite, GangMinRankKick, GangMinRankPromote, GangMinRankUpgrade, GangMinRankMOTD) VALUES ('%s', %i, '', 0, 0, 0, 0, 0, 0, 0, 0, %i, %i, %i, %i, %i)", GangName, GetTime() + SECONDS_IN_A_WEEK, RANK_ENFORCER, RANK_ADVISOR, RANK_MANAGER, RANK_COLEADER, RANK_MANAGER);
+	Transaction transaction = SQL_CreateTransaction();
 
-	dbGangs.Query(SQLCB_GangCreated, sQuery, DP);
+	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Gangs (GangName, GangPrefix, GangPrefixMethod, GangNextWeekly, GangMOTD, GangHonor, GangHealthPerkT, GangCooldownPerk, GangNadePerkT, GangHealthPerkCT, GangGetHonorPerk, GangFFPerk, GangSizePerk, GangMinRankInvite, GangMinRankKick, GangMinRankPromote, GangMinRankUpgrade, GangMinRankMOTD) VALUES ('%s', '', 0, %i, '', 0, 0, 0, 0, 0, 0, 0, 0, %i, %i, %i, %i, %i)", GangName, GetTime() + SECONDS_IN_A_WEEK, RANK_ENFORCER, RANK_ADVISOR, RANK_MANAGER, RANK_COLEADER, RANK_MANAGER);
+	SQL_AddQuery(transaction, sQuery);
 
-	GiveClientHonor(client, -1 * GANG_COSTCREATE);
+	Transaction_GiveClientHonor(transaction, client, -1 * GANG_COSTCREATE);
+
+	dbGangs.Execute(transaction, SQLTrans_GangCreated, SQLTrans_SetFailState, DP, DBPrio_High);
 }
 
-public void SQLCB_GangCreated(Handle owner, DBResultSet hndl, char[] error, Handle DP)
+public void SQLTrans_GangCreated(Database db, any DP, int numQueries, DBResultSet[] results, any[] queryData)
 {
-	if (hndl == null)
-		SetFailState(error);
-
 	ResetPack(DP);
 
 	char AuthId[35], GangName[32];
@@ -2784,7 +3534,7 @@ stock void AddClientToGang(int client, const char[] AuthIdInviter, int GangId, i
 {
 	char AuthId[35];
 
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	AddAuthIdToGang(AuthId, AuthIdInviter, GangId, GangRank);
 }
@@ -2872,28 +3622,22 @@ public void SQLCB_AuthIdAddToGang_CheckMemberCount(Handle owner, DBResultSet hnd
 // The DataPack will contain the invited auth ID as the first thing to be added.
 public void FinishAddAuthIdToGang(int GangId, const char[] AuthId, int GangRank, char[] AuthIdInviter, Handle DP)
 {
-	char sQuery[256];
-	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Members (GangId, AuthId, GangRank, GangInviter, LastName, GangJoinDate, LastConnect) VALUES (%i, '%s', %i, '%s', '', %i, %i)", GangId, AuthId, GangRank, AuthIdInviter, GetTime(), GetTime());
+	char        sQuery[256];
+	Transaction transaction = SQL_CreateTransaction();
 
-	dbGangs.Query(SQLCB_AuthIdAddedToGang, sQuery, DP);
-}
+	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT OR REPLACE INTO GangSystem_Members (GangId, AuthId, GangRank, GangInviter, LastName, GangJoinDate, LastConnect) VALUES (%i, '%s', %i, '%s', '', %i, %i)", GangId, AuthId, GangRank, AuthIdInviter, GetTime(), GetTime());
+	SQL_AddQuery(transaction, sQuery);
 
-public void SQLCB_AuthIdAddedToGang(Handle owner, DBResultSet hndl, char[] error, Handle DP)
-{
-	if (hndl == null)
-	{
-		SetFailState(error);
-	}
-
-	ResetPack(DP);
-
-	char AuthId[35];
-
-	ReadPackString(DP, AuthId, sizeof(AuthId));
+	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_modlogs (GangId, AuthId, ModAction, ModActionNumber, ModTarget, timestamp) VALUES (%i, '%s', %i, %i, '%s', %i)", GangId, AuthIdInviter, MODACTION_INVITE, GangRank, AuthId, GetTime());
+	SQL_AddQuery(transaction, sQuery);
 
 	CloseHandle(DP);
+	DP = CreateDataPack();
 
-	UpdateInGameAuthId(AuthId);
+	WritePackString(DP, AuthId);
+
+	// You cannot use GangDonated because it doesn't apply for new members.
+	dbGangs.Execute(transaction, SQLTrans_GangInvited, SQLTrans_SetFailState, DP);
 }
 
 stock void UpdateInGameAuthId(const char[] AuthId)
@@ -2904,12 +3648,13 @@ stock void UpdateInGameAuthId(const char[] AuthId)
 		if (!IsValidPlayer(i))
 			continue;
 
-		GetClientAuthId(i, AuthId_Engine, iAuthId, sizeof(iAuthId));
+		GetClientAuthId(i, AuthId_Steam2, iAuthId, sizeof(iAuthId));
 
 		if (StrEqual(AuthId, iAuthId, true))
 		{
 			ClientLoadedFromDb[i] = false;
 
+			TryRemoveGangPrefix(i);
 			ResetVariables(i, true);
 			LoadClientGang(i);
 			break;
@@ -2925,7 +3670,7 @@ stock int FindClientByAuthId(const char[] AuthId)
 		if (!IsValidPlayer(i))
 			continue;
 
-		GetClientAuthId(i, AuthId_Engine, iAuthId, sizeof(iAuthId));
+		GetClientAuthId(i, AuthId_Steam2, iAuthId, sizeof(iAuthId));
 
 		if (StrEqual(AuthId, iAuthId, true))
 			return i;
@@ -2936,7 +3681,7 @@ stock int FindClientByAuthId(const char[] AuthId)
 stock void StoreClientLastInfo(int client)
 {
 	char AuthId[35], Name[64];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	Format(Name, sizeof(Name), "%N", client);
 	StoreAuthIdLastInfo(AuthId, Name);
@@ -2950,13 +3695,30 @@ stock void StoreAuthIdLastInfo(const char[] AuthId, const char[] Name)
 	dbGangs.Query(SQLCB_Error, sQuery, 9, DBPrio_Low);
 }
 
-stock void SetAuthIdRank(const char[] AuthId, int GangId, int Rank = RANK_MEMBER)
+stock void SetAuthIdRank(const char[] AuthId, int GangId, int Rank = RANK_MEMBER, int promoter = 0)
 {
-	char sQuery[256];
-	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Members SET GangRank = %i WHERE AuthId = '%s' AND GangId = %i", Rank, AuthId, GangId);
-	dbGangs.Query(SQLCB_Error, sQuery, 10);
+	char        sQuery[256];
+	Transaction transaction = SQL_CreateTransaction();
 
-	UpdateInGameAuthId(AuthId);
+	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Members SET GangRank = %i WHERE AuthId = '%s' AND GangId = %i", Rank, AuthId, GangId);
+	SQL_AddQuery(transaction, sQuery);
+
+	char promoterAuthId[35];
+
+	if (promoter == 0)
+		promoterAuthId = "CONSOLE";
+
+	else
+		GetClientAuthId(promoter, AuthId_Steam2, promoterAuthId, sizeof(promoterAuthId));
+
+	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_modlogs (GangId, AuthId, ModAction, ModActionNumber, ModTarget, timestamp) VALUES (%i, '%s', %i, %i, '%s', %i)", GangId, promoterAuthId, MODACTION_PROMOTE, Rank, AuthId, GetTime());
+	SQL_AddQuery(transaction, sQuery);
+
+	Handle DP = CreateDataPack();
+
+	WritePackCell(DP, GangId);
+
+	dbGangs.Execute(transaction, SQLTrans_GangDonated, SQLTrans_SetFailState, DP);
 }
 
 stock void DonateToGang(int client, int amount)
@@ -2968,7 +3730,7 @@ stock void DonateToGang(int client, int amount)
 		return;
 
 	char AuthId[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	Transaction transaction = SQL_CreateTransaction();
 
@@ -2979,15 +3741,20 @@ stock void DonateToGang(int client, int amount)
 	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Donations (GangId, AuthId, AmountDonated, timestamp) VALUES (%i, '%s', %i, %i)", ClientGangId[client], AuthId, amount, GetTime());
 	SQL_AddQuery(transaction, sQuery);
 
+	Transaction_GiveClientHonor(transaction, client, -1 * amount);
+
 	Handle DP = CreateDataPack();
 
 	WritePackCell(DP, ClientGangId[client]);
 
-	dbGangs.Execute(transaction, SQLTrans_GangDonated, INVALID_FUNCTION, DP);
-
-	GiveClientHonor(client, -1 * amount);
+	dbGangs.Execute(transaction, SQLTrans_GangDonated, SQLTrans_SetFailState, DP);
 
 	PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has donated \x07%i \x01to the gang!", PREFIX, client, amount);
+}
+
+public void SQLTrans_SetFailState(Database db, any data, int numQueries, const char[] error, int failIndex, any[] queryData)
+{
+	SetFailState("Transaction at index %i failed:\n%s", failIndex, error);
 }
 
 public void SQLTrans_GangDonated(Database db, any DP, int numQueries, DBResultSet[] results, any[] queryData)
@@ -3034,6 +3801,18 @@ public void SQLCB_GangDonated(Handle owner, DBResultSet hndl, char[] error, Hand
 		LoadClientGang(i);
 	}
 }
+
+public void SQLTrans_GangInvited(Database db, any DP, int numQueries, DBResultSet[] results, any[] queryData)
+{
+	ResetPack(DP);
+
+	char AuthId[35];
+	ReadPackString(DP, AuthId, sizeof(AuthId));
+	CloseHandle(DP);
+
+	UpdateInGameAuthId(AuthId);
+}
+
 stock bool IsClientGang(int client)
 {
 	return ClientGangId[client] > 0;
@@ -3048,6 +3827,9 @@ stock int GetClientRank(int client)
 stock bool AreClientsSameGang(int client, int otherclient)
 {
 	if (!IsClientGang(client) || !IsClientGang(otherclient))
+		return false;
+
+	else if (ClientGangHonor[client] < 0 || ClientGangHonor[otherclient] < 0)
 		return false;
 
 	return ClientGangId[client] == ClientGangId[otherclient];
@@ -3191,6 +3973,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("Gangs_PrintToChatGang", Native_PrintToChatGang);
 	CreateNative("Gangs_TryDestroyGlow", Native_TryDestroyGlow);
 	CreateNative("Gangs_GetFFDamageDecrease", Native_GetFFDamageDecrease);
+	CreateNative("Gangs_GetCooldownPercent", Native_GetCooldownPercent);
 
 	RegPluginLibrary("JB Gangs");
 	return APLRes_Success;
@@ -3213,6 +3996,9 @@ public int Native_GetClientGangId(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
 
+	if (ClientGangHonor[client] < 0)
+		return -1;
+
 	return ClientGangId[client];
 }
 
@@ -3220,6 +4006,9 @@ public int Native_GetClientGangId(Handle plugin, int numParams)
 public int Native_GetClientGlowColorSlot(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
+
+	if (ClientGangHonor[client] < 0)
+		return -1;
 
 	return ClientGlowColorSlot[client];
 }
@@ -3266,7 +4055,7 @@ public int Native_AddClientDonations(Handle plugin, int numParams)
 	int amount = GetNativeCell(2);
 
 	char AuthId[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
 	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Donations (GangId, AuthId, AmountDonated, timestamp) VALUES (%i, '%s', %i, %i)", ClientGangId[client], AuthId, amount, GetTime());
@@ -3298,6 +4087,12 @@ public any Native_GetFFDamageDecrease(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
 	return float(ClientFriendlyFirePerk[client] * GANG_FRIENDLYFIREINCREASE) / 100.0;
+}
+
+public any Native_GetCooldownPercent(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	return float(ClientCooldownPerk[client] * GANG_COOLDOWNINCREASE) / 100.0;
 }
 
 public void SQLCB_GiveGangHonor(Handle owner, DBResultSet hndl, char[] error, Handle DP)
@@ -3337,7 +4132,7 @@ stock void PrintToChatEyal(const char[] format, any...)
 			continue;
 
 		char steamid[64];
-		GetClientAuthId(i, AuthId_Engine, steamid, sizeof(steamid));
+		GetClientAuthId(i, AuthId_Steam2, steamid, sizeof(steamid));
 
 		if (StrEqual(steamid, "STEAM_1:0:49508144"))
 			PrintToChat(i, buffer);
@@ -3403,7 +4198,7 @@ stock int GetAliveTeamCount(int Team)
 stock void GiveClientHonor(int client, int amount)
 {
 	char AuthId[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
 	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Honor SET Honor = Honor + %i WHERE AuthId = '%s'", amount, AuthId);
@@ -3411,6 +4206,19 @@ stock void GiveClientHonor(int client, int amount)
 	ClientHonor[client] += amount;
 
 	dbGangs.Query(SQLCB_Error, sQuery, 12);
+}
+
+stock void Transaction_GiveClientHonor(Transaction txn, int client, int amount)
+{
+	char AuthId[35];
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
+
+	char sQuery[256];
+	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Honor SET Honor = Honor + %i WHERE AuthId = '%s'", amount, AuthId);
+
+	SQL_AddQuery(txn, sQuery);
+
+	ClientHonor[client] += amount;
 }
 
 stock void FindDonationsForGang(int GangId)
@@ -3483,4 +4291,35 @@ stock void AddCommas(int value, char[] seperator, char[] buffer, int bufferLen)
 		Format(buffer, bufferLen, "%c%03.d%s", seperator, offcut, buffer);
 	}
 	Format(buffer, bufferLen, "%d%s", value, buffer);
+}
+
+stock void SetClientNameHidden(int client, const char[] Name)
+{
+	HookUserMessage(GetUserMessageId("SayText2"), hook_alwaysBlock, true);
+
+	SetClientName(client, Name);
+
+	UnhookUserMessage(GetUserMessageId("SayText2"), hook_alwaysBlock, true);
+}
+
+public Action hook_alwaysBlock(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init)
+{
+	return Plugin_Handled;
+}
+
+stock void TryRemoveGangPrefix(int client)
+{
+	char Name[64];
+
+	GetClientName(client, Name, sizeof(Name));
+
+	if (ClientPrefix[client][0] != EOS)
+	{
+		if (StrContains(Name, ClientPrefix[client]) == 0)    // Client's name starts with the prefix.
+		{
+			ReplaceStringEx(Name, sizeof(Name), ClientPrefix[client], "");
+
+			SetClientNameHidden(client, Name);
+		}
+	}
 }

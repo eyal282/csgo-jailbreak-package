@@ -884,7 +884,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 
 	if (StrContains(DuelName, "HNS") != -1 || StrContains(DuelName, "Night Crawler") != -1 || StrContains(DuelName, "Shark") != -1) HNS = true;
 
-	if (!HNS && !Rambo && !Dodgeball && LastHoldReload[Guard] != 0.0 && LastHoldReload[Prisoner] != 0.0)
+	if (!HNS && !Rambo && !Dodgeball && !Race && LastHoldReload[Guard] != 0.0 && LastHoldReload[Prisoner] != 0.0)
 	{
 		if (GetGameTime() - LastHoldReload[Guard] > 5.0 && GetGameTime() - LastHoldReload[Prisoner] > 5.0)
 		{

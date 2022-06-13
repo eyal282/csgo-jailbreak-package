@@ -1258,8 +1258,6 @@ public Action Timer_InfoMessage(Handle hTimer)
 {
 	if (DayActive <= LR_DAY)
 	{
-		CloseHandle(hTimer_InfoMessage);
-
 		hTimer_InfoMessage = INVALID_HANDLE;
 
 		return Plugin_Stop;
@@ -1338,11 +1336,17 @@ void ShowInfoMessage(int client)
 	// If count is divisible by 0, it gives " | " with a spacebar to delete, and not with divisible by one.
 	PlayerFormat[strlen(PlayerFormat) - (1 + (count % 2))] = EOS;
 
-	// If count is divisible by 0, it gives " | " with a spacebar to delete, and not with divisible by one.
-	GangsFormat[strlen(GangsFormat) - (1 + (gangsCount % 2))] = EOS;
+	if (gangsCount > 0)
+	{
+		// If count is divisible by 0, it gives " | " with a spacebar to delete, and not with divisible by one.
+		GangsFormat[strlen(GangsFormat) - (1 + (gangsCount % 2))] = EOS;
 
-	FormatEx(TempFormat, sizeof(TempFormat), "%s!\n \nPlayers:\n%s \n \nGangs:\n%s\n ",
-	         DayName[DayActive], PlayerFormat, GangsFormat);
+		FormatEx(TempFormat, sizeof(TempFormat), "%s!\n \nPlayers:\n%s \n \nGangs:\n%s\n ", DayName[DayActive], PlayerFormat, GangsFormat);
+	}
+	else
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s!\n \nPlayers:\n%s \n", DayName[DayActive], PlayerFormat);
+	}
 
 	SetPanelTitle(hPanel, TempFormat, false);
 

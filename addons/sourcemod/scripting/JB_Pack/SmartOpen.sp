@@ -122,7 +122,7 @@ public void OnMapStart()
 public void OnClientAuthorized(int client)
 {
 	char AuthId[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	int dummy_value;
 	if (!GetTrieValue(Trie_Retriers, AuthId, dummy_value))
@@ -132,7 +132,7 @@ public void OnClientAuthorized(int client)
 public void OnClientDisconnect(int client)
 {
 	char AuthId[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	SetTrieValue(Trie_Retriers, AuthId, 1, true);
 }

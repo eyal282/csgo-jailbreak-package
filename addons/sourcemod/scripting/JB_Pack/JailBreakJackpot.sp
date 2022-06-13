@@ -179,7 +179,7 @@ public Action Command_Jackpot(int client, int args)
 	}
 
 	char AuthId[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	if (GetTrieValue(Trie_Jackpot, AuthId, args))
 	{
@@ -252,7 +252,7 @@ public Action Timer_LoadJackpotDebt(Handle hTimer, int UserId)
 
 	char sQuery[256];
 	char AuthId[35];
-	GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	Format(sQuery, sizeof(sQuery), "SELECT * FROM Jackpot_Debt WHERE AuthId = '%s'", AuthId);
 	SQL_TQuery(dbJackpot, SQLCB_LoadDebt, sQuery, GetClientUserId(client));
@@ -278,7 +278,7 @@ public int SQLCB_LoadDebt(Handle db, Handle hResults, const char[] Error, int Us
 		int debt = SQL_FetchInt(hResults, 1);
 
 		char AuthId[35];
-		GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId));
+		GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 		char sQuery[256];
 		Format(sQuery, sizeof(sQuery), "DELETE FROM Jackpot_Debt WHERE AuthId = '%s'", AuthId);
@@ -313,7 +313,7 @@ stock int FindClientByAuthId(const char[] AuthId)
 		else if (!FullyAuthorized[i])    // Only due to Store's absolutely trash methods of setting a player's credits
 			continue;
 
-		GetClientAuthId(i, AuthId_Engine, iAuthId, sizeof(iAuthId));
+		GetClientAuthId(i, AuthId_Steam2, iAuthId, sizeof(iAuthId));
 
 		if (StrEqual(AuthId, iAuthId, true))
 			return i;

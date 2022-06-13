@@ -53,9 +53,9 @@ float  VoteCTTimeLeft;
 Handle hElectionDayMenu;
 float  ElectionDayStart;
 
-bool IsGodRound, AlreadyDoneGodRound;
+bool IsPreviewRound, AlreadyDonePreviewRound;
 
-int GodRoundTimeLeft;
+int PreviewRoundTimeLeft;
 
 bool NextRoundSpecialDay;
 
@@ -104,19 +104,19 @@ int ComboBits[] = { IN_ATTACK, IN_ATTACK2, IN_JUMP, IN_SCORE, IN_MOVELEFT, IN_MO
 int ChosenUserId;
 
 int  RoundsLeft = 0;
-bool NextRoundGodRound;
+bool NextRoundPreviewRound;
 
-Handle hTimer_StartGame = INVALID_HANDLE;
-Handle hTimer_FailGame  = INVALID_HANDLE;
-Handle hTimer_GodRound  = INVALID_HANDLE;
+Handle hTimer_StartGame    = INVALID_HANDLE;
+Handle hTimer_FailGame     = INVALID_HANDLE;
+Handle hTimer_PreviewRound = INVALID_HANDLE;
 
 Handle hcv_VoteCTMin = INVALID_HANDLE;
 
 Handle hcv_MaxRounds        = INVALID_HANDLE;
 Handle hcv_ForbidUnassigned = INVALID_HANDLE;
 
-Handle hcv_GodRoundOnce = INVALID_HANDLE;
-Handle hcv_GodRoundTime = INVALID_HANDLE;
+Handle hcv_PreviewRoundOnce = INVALID_HANDLE;
+Handle hcv_PreviewRoundTime = INVALID_HANDLE;
 
 Handle hcv_ForcePickTime   = INVALID_HANDLE;
 Handle hcv_JoinGraceTime   = INVALID_HANDLE;
@@ -149,7 +149,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("Eyal282_VoteCT_StopVoteCT", Native_StopVoteCT);
 	CreateNative("Eyal282_VoteCT_IsChosen", Native_IsChosen);
 	CreateNative("Eyal282_VoteCT_GetChosenUserId", Native_GetChosenUserId);
-	CreateNative("Eyal282_VoteCT_IsGodRound", Native_IsGodRound);
+	CreateNative("Eyal282_VoteCT_IsPreviewRound", Native_IsPreviewRound);
 
 	CreateNative("Eyal282_VoteCT_SetChosen", Native_SetChosen);
 
@@ -172,9 +172,9 @@ public int Native_GetChosenUserId(Handle plugin, int numParams)
 	return ChosenUserId;
 }
 
-public int Native_IsGodRound(Handle plugin, int numParams)
+public int Native_IsPreviewRound(Handle plugin, int numParams)
 {
-	return IsGodRound;
+	return IsPreviewRound;
 }
 
 public int Native_SetChosen(Handle plugin, int numParams)
@@ -200,14 +200,15 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_kickct", Command_KickCT);
 	RegConsoleCmd("sm_tlist", Command_TList);
 	RegConsoleCmd("sm_ctlist", Command_TList);
-	RegConsoleCmd("sm_endgodround", Command_EndGodRound);
-	RegConsoleCmd("sm_egr", Command_EndGodRound);
+	RegConsoleCmd("sm_endpreviewround", Command_EndPreviewRound);
+	RegConsoleCmd("sm_egr", Command_EndPreviewRound);
+	RegConsoleCmd("sm_epr", Command_EndPreviewRound, "End preview round.");
 
 	hcv_VoteCTMin        = CreateConVar("votect_min", "2", "Minimum amount of players to start a vote CT");
 	hcv_MaxRounds        = CreateConVar("votect_max_rounds", "5", "Maximum amount of rounds CT get before swapping");
 	hcv_ForbidUnassigned = CreateConVar("votect_forbid_unassigned", "1", "Forbid unassigned players");
-	hcv_GodRoundOnce     = CreateConVar("votect_god_round_once", "0", "If set to 1, God round will only work once per map");
-	hcv_GodRoundTime     = CreateConVar("votect_god_round_time", "45", "If set to 1, God round will only work once per map");
+	hcv_PreviewRoundOnce = CreateConVar("votect_preview_round_once", "0", "If set to 1, Preview round will only work once per map");
+	hcv_PreviewRoundTime = CreateConVar("votect_preview_round_time", "45", "If set to 1, Preview round will only work once per map");
 
 	// public Eyal282_VoteCT_OnRoundEnd(&ChosenUserId, &RoundsLeft);
 	// public Eyal282_VoteCT_OnVoteCTStart(ChosenUserId);
@@ -253,10 +254,10 @@ public void OnPluginStart()
 // return Plugin_Continue if LR can start, anything higher to disallow.
 public Action LastRequest_OnCanStartLR(int client, char Message[256], Handle hTimer_Ignore)
 {
-	if (IsGodRound)
+	if (IsPreviewRound)
 	{
 		LR_FinishTimers(hTimer_Ignore);
-		Format(Message, sizeof(Message), "\x05You \x01cannot start an \x07LR \x01during God Round!");
+		Format(Message, sizeof(Message), "\x05You \x01cannot start an \x07LR \x01during Preview Round!");
 		return Plugin_Changed;
 	}
 	else if (VoteCTRunning)
@@ -295,7 +296,7 @@ public void OnMapStart()
 
 	CreateTimer(3.0, Timer_CheckVoteCT, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
-	AlreadyDoneGodRound = false;
+	AlreadyDonePreviewRound = false;
 
 	RoundsLeft = 0;
 }
@@ -394,7 +395,7 @@ public void OnClientPutInServer(int client)
 
 public Action Hook_OnTakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
-	if (VoteCTRunning || IsGodRound)
+	if (VoteCTRunning || IsPreviewRound)
 	{
 		damage = 0.0;
 		return Plugin_Changed;
@@ -556,38 +557,38 @@ public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcas
 		NextRoundSpecialDay = true;
 	}
 
-	IsGodRound = false;
+	IsPreviewRound = false;
 	PrintToChatAll("%s \x05Vote-CT \x01will start in \x07%i \x01round%s. ", PREFIX, RoundsLeft, RoundsLeft == 1 ? "" : "s");
 }
 
 public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	IsGodRound      = false;
+	IsPreviewRound  = false;
 	ExpireGraceTime = MAX_FLOAT;
 
 	if (NextRoundSpecialDay)
 	{
 		StartVoteDay();
 	}
-	else if (NextRoundGodRound && (!AlreadyDoneGodRound || !GetConVarBool(hcv_GodRoundOnce)))
+	else if (NextRoundPreviewRound && (!AlreadyDonePreviewRound || !GetConVarBool(hcv_PreviewRoundOnce)))
 	{
-		IsGodRound = true;
+		IsPreviewRound = true;
 
 		ServerCommand("sm_hardopen");
 
 		LR_FinishTimers();
 
-		GodRoundTimeLeft = GetConVarInt(hcv_GodRoundTime);
+		PreviewRoundTimeLeft = GetConVarInt(hcv_PreviewRoundTime);
 
-		hTimer_GodRound = CreateTimer(1.0, Timer_CheckGodRound, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+		hTimer_PreviewRound = CreateTimer(1.0, Timer_CheckPreviewRound, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 		// Color
-		PrintToChatAll("%s God Round has started. It will \x05end \x01in \x07%i seconds. ", PREFIX, GetConVarInt(hcv_GodRoundTime));
+		PrintToChatAll("%s Preview Round has started. It will \x05end \x01in \x07%i seconds. ", PREFIX, GetConVarInt(hcv_PreviewRoundTime));
 
-		AlreadyDoneGodRound = true;
+		AlreadyDonePreviewRound = true;
 	}
 
-	NextRoundGodRound   = false;
-	NextRoundSpecialDay = false;
+	NextRoundPreviewRound = false;
+	NextRoundSpecialDay   = false;
 }
 
 void StartVoteDay()
@@ -610,29 +611,29 @@ void StartVoteDay()
 	JailBreakDays_StartVoteDay();
 }
 
-public Action Timer_CheckGodRound(Handle hTimer)
+public Action Timer_CheckPreviewRound(Handle hTimer)
 {
-	if (!IsGodRound)
+	if (!IsPreviewRound)
 	{
-		hTimer_GodRound = INVALID_HANDLE;
+		hTimer_PreviewRound = INVALID_HANDLE;
 
 		return Plugin_Stop;
 	}
-	GodRoundTimeLeft--;
-	if (GodRoundTimeLeft <= 0)
+	PreviewRoundTimeLeft--;
+	if (PreviewRoundTimeLeft <= 0)
 	{
 		ServerCommand("mp_restartgame 1");
 
-		IsGodRound = false;
+		IsPreviewRound = false;
 
-		hTimer_GodRound = INVALID_HANDLE;
+		hTimer_PreviewRound = INVALID_HANDLE;
 
 		return Plugin_Stop;
 	}
 	else
 	{
 		SetHudTextParams(0.3, 0.2, 1.0, 255, 0, 0, 255, 0, 0.0, 0.0, 0.0);
-		ShowHudTextAll(2, "God round will end in %i seconds.", GodRoundTimeLeft);
+		ShowHudTextAll(2, "Preview round will end in %i seconds.", PreviewRoundTimeLeft);
 
 		return Plugin_Continue;
 	}
@@ -831,7 +832,7 @@ public int TList_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 	}
 }
 
-public Action Command_EndGodRound(int client, int args)
+public Action Command_EndPreviewRound(int client, int args)
 {
 	int Chosen = GetClientOfUserId(ChosenUserId);
 
@@ -842,16 +843,16 @@ public Action Command_EndGodRound(int client, int args)
 		return Plugin_Handled;
 	}
 
-	else if (!IsGodRound)
+	else if (!IsPreviewRound)
 	{
-		ReplyToCommand(client, "%s \x01God round is not \x07Active!", PREFIX);
+		ReplyToCommand(client, "%s \x01Preview round is not \x07Active!", PREFIX);
 
 		return Plugin_Handled;
 	}
 
 	ServerCommand("mp_restartgame 1");
 
-	IsGodRound = false;
+	IsPreviewRound = false;
 
 	return Plugin_Handled;
 }
@@ -1745,10 +1746,10 @@ void EndVoteCT(Handle hTimer_Ignore = INVALID_HANDLE, bool MapStart = false)
 
 	if (MapStart)
 	{
-		hTimer_StartGame = INVALID_HANDLE;
-		hTimer_FailGame  = INVALID_HANDLE;
-		hTimer_GodRound  = INVALID_HANDLE;
-		hVoteCTMenu      = INVALID_HANDLE;
+		hTimer_StartGame    = INVALID_HANDLE;
+		hTimer_FailGame     = INVALID_HANDLE;
+		hTimer_PreviewRound = INVALID_HANDLE;
+		hVoteCTMenu         = INVALID_HANDLE;
 	}
 	else
 	{
@@ -1764,10 +1765,10 @@ void EndVoteCT(Handle hTimer_Ignore = INVALID_HANDLE, bool MapStart = false)
 			hTimer_FailGame = INVALID_HANDLE;
 		}
 
-		if (hTimer_GodRound != INVALID_HANDLE && hTimer_GodRound != hTimer_Ignore)
+		if (hTimer_PreviewRound != INVALID_HANDLE && hTimer_PreviewRound != hTimer_Ignore)
 		{
-			CloseHandle(hTimer_GodRound);
-			hTimer_GodRound = INVALID_HANDLE;
+			CloseHandle(hTimer_PreviewRound);
+			hTimer_PreviewRound = INVALID_HANDLE;
 		}
 
 		if (hVoteCTMenu != INVALID_HANDLE)
@@ -1812,7 +1813,7 @@ stock void SetChosenCT(int client, bool dontKickCT = false, bool swapped = false
 		}
 
 		if (GetPlayerCount() > 4)
-			NextRoundGodRound = true;
+			NextRoundPreviewRound = true;
 	}
 
 	if (client != 0)
