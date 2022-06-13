@@ -430,11 +430,11 @@ public Action Command_Open(int client, int args)
 		if (Team == CS_TEAM_CT)
 			Title = "Warden";
 
-		else if (Team == CS_TEAM_T && CanLRChainsaw())
-			Title = "LR";
-
 		else if (Team == CS_TEAM_T && CanEmptyRebel())
 			Title = "Rebel";
+
+		else if (Team == CS_TEAM_T && CanLRChainsaw())
+			Title = "LR";
 
 		else if (CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false))
 			Title = "Admin";
@@ -477,11 +477,18 @@ public Action Command_HardOpen(int client, int args)
 
 	char Title[64];
 
-	Title = "Rebel";
 	if (client != 0)
 	{
-		if (GetClientTeam(client) == CS_TEAM_CT)
+		int Team = GetClientTeam(client);
+
+		if (Team == CS_TEAM_CT)
 			Title = "Warden";
+
+		else if (Team == CS_TEAM_T && CanEmptyRebel())
+			Title = "Rebel";
+
+		else if (Team == CS_TEAM_T && CanLRChainsaw())
+			Title = "LR";
 
 		else if (CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false))
 			Title = "Admin";
@@ -490,7 +497,7 @@ public Action Command_HardOpen(int client, int args)
 		Title = "Admin";
 
 	if (client != 0)
-		PrintToChatAll("%s \x05%N \x01hard opened the \x07jail \x01cells!", PREFIX, client);
+		PrintToChatAll("%s %s \x05%N \x01hard opened the \x07jail \x01cells!", PREFIX, Title, client);
 
 	OpenIsolation();
 	return Plugin_Handled;
