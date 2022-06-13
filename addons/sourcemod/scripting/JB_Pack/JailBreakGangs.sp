@@ -850,7 +850,7 @@ public void SQLCB_LoadClientGang(Handle owner, DBResultSet hndl, char[] error, a
 	{
 		StoreClientLastInfo(client);
 
-		ClientGangId[client] = -1;
+		ClientGangId[client] = GANGID_NULL;
 
 		if (SQL_GetRowCount(hndl) != 0)
 		{
@@ -859,7 +859,7 @@ public void SQLCB_LoadClientGang(Handle owner, DBResultSet hndl, char[] error, a
 			ClientGangId[client] = SQL_FetchIntByName(hndl, "GangId");
 		}
 
-		if (ClientGangId[client] != -1)
+		if (ClientGangId[client] != GANGID_NULL)
 		{
 			ClientRank[client] = SQL_FetchIntByName(hndl, "GangRank");
 
@@ -1097,7 +1097,7 @@ stock void KickAuthIdFromGang(const char[] AuthId, int GangId, int kicker = 0)
 	char        sQuery[256];
 	Transaction transaction = SQL_CreateTransaction();
 
-	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Members SET GangId = -1 WHERE AuthId = '%s' AND GangId = %i", AuthId, GangId);
+	dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Members SET GangId = %i WHERE AuthId = '%s' AND GangId = %i", GANGID_NULL, AuthId, GangId);
 	SQL_AddQuery(transaction, sQuery);
 
 	char kickerAuthId[35];
@@ -3996,7 +3996,7 @@ public int Native_GetClientGangId(Handle plugin, int numParams)
 	int client = GetNativeCell(1);
 
 	if (ClientGangHonor[client] < 0)
-		return -1;
+		return GANGID_NULL;
 
 	return ClientGangId[client];
 }
