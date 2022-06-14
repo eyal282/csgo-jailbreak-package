@@ -22,6 +22,7 @@ public Plugin myinfo =
 	version     = PLUGIN_VERSION,
 	url         = "http://www.wcfan.de/"
 
+
 }
 
 public void
