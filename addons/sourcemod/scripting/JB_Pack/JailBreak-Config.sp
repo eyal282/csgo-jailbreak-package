@@ -20,12 +20,10 @@ enum struct enCvarList
 
 // Cvar, Value
 enCvarList cvarList[] = {
-	{"sm_vote_delay",  "0"},
-	{ "uc_party_mode", "0"}
-};
-
-char G_iCvars[][][] = {
-	{"mp_freezetime",       "5" },
+	{"sm_vote_delay",       "0" },
+	{ "uc_party_mode",      "0" },
+	{ "mp_autokick",        "0" },
+	{ "mp_freezetime",      "0" },
 	{ "mp_friendlyfire",    "0" },
 	{ "mp_timelimit",       "60"},
 	{ "mp_teamcashawards",  "0" },
@@ -49,13 +47,4 @@ public Action Timer_ExecuteConfig(Handle hTimer)
 			SetConVarString(convar, cvarList[i].value);
 		}
 	}
-	for (int G = 0; G < sizeof(G_iCvars); G++)
-	{
-		SetCvarInt(G_iCvars[G][0], StringToInt(G_iCvars[G][1]));
-	}
-}
-
-stock void SetCvarInt(char[] scvar, int svalue)
-{
-	SetConVarInt(FindConVar(scvar), svalue, true);
 }
