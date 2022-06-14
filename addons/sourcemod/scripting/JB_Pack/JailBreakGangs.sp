@@ -1165,7 +1165,7 @@ public Action CommandListener_Say(int client, const char[] command, int args)
 		char RankName[32];
 		GetRankName(GetClientRank(client), RankName, sizeof(RankName));
 
-		UC_PrintToChatGang(ClientGangId[client], "\x04[Gang Chat] \x05%s \x04%N\x01 : %s", RankName, client, Args);
+		PrintToChatGang(ClientGangId[client], "\x04[Gang Chat] \x05%s \x04%N\x01 : %s", RankName, client, Args);
 
 		for (int i = 1; i <= MaxClients; i++)
 		{
@@ -1427,7 +1427,7 @@ public void SQLCB_RenameGang_CheckTakenName(Handle owner, Handle hndl, char[] er
 	{
 		if (SQL_GetRowCount(hndl) == 0)
 		{
-			UC_PrintToChatGang(ClientGangId[client], "%s The gang was renamed to\x07 %s\x01!", PREFIX, GangName);
+			PrintToChatGang(ClientGangId[client], "%s The gang was renamed to\x07 %s\x01!", PREFIX, GangName);
 
 			DP = CreateDataPack();
 
@@ -1557,7 +1557,7 @@ public void SQLCB_GangPrefix_CheckTakenPrefix(Handle owner, Handle hndl, char[] 
 	{
 		if (SQL_GetRowCount(hndl) == 0)
 		{
-			UC_PrintToChatGang(ClientGangId[client], "%s The gang's prefix was changed to\x07 %s\x01!", PREFIX, GangPrefix);
+			PrintToChatGang(ClientGangId[client], "%s The gang's prefix was changed to\x07 %s\x01!", PREFIX, GangPrefix);
 
 			DP = CreateDataPack();
 
@@ -1631,7 +1631,7 @@ public Action Command_LeaveGang(int client, int args)
 		return Plugin_Handled;
 	}
 
-	UC_PrintToChatGang(ClientGangId[client], "%s \x03%N \x09has left the gang!", PREFIX, client);
+	PrintToChatGang(ClientGangId[client], "%s \x03%N \x09has left the gang!", PREFIX, client);
 	KickClientFromGang(client, ClientGangId[client], client);
 
 	GangAttemptLeave[client] = false;
@@ -1714,8 +1714,8 @@ public Action Command_StepDown(int client, int args)
 		return Plugin_Handled;
 	}
 
-	UC_PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has stepped down to \x07Co-Leader.", PREFIX, client);
-	UC_PrintToChatGang(ClientGangId[client], "%s \x05%N \x01is now the gang \x07Leader.", PREFIX, NewLeader);
+	PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has stepped down to \x07Co-Leader.", PREFIX, client);
+	PrintToChatGang(ClientGangId[client], "%s \x05%N \x01is now the gang \x07Leader.", PREFIX, NewLeader);
 
 	char AuthId[35], AuthIdNewLeader[35];
 	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
@@ -2662,7 +2662,7 @@ void TryUpgradePerk(int client, int item, int upgradecost)    // Safety accompli
 
 	dbGangs.Execute(transaction, SQLTrans_GangDonated, SQLTrans_SetFailState, DP);
 
-	UC_PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has upgraded the gang perk \x07%s!", PREFIX, client, PerkNick);
+	PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has upgraded the gang perk \x07%s!", PREFIX, client, PerkNick);
 }
 
 public void SQLCB_UpdateGang(Handle owner, DBResultSet hndl, char[] error, Handle DP)
@@ -2831,7 +2831,7 @@ public int ChooseRank_MenuHandler(Handle hMenu, MenuAction action, int client, i
 		{
 			char NewRank[32];
 			GetRankName(item, NewRank, sizeof(NewRank));
-			UC_PrintToChatGang(ClientGangId[client], " %s has been \x07promoted \x01to \x05%s", Name, NewRank);
+			PrintToChatGang(ClientGangId[client], " %s has been \x07promoted \x01to \x05%s", Name, NewRank);
 			SetAuthIdRank(iAuthId, ClientGangId[client], item, client);
 		}
 		else
@@ -2975,7 +2975,7 @@ public int ConfirmKick_MenuHandler(Handle hMenu, MenuAction action, int client, 
 			GetMenuItem(hMenu, 0, iAuthId, sizeof(iAuthId));
 			GetMenuItem(hMenu, 1, Name, sizeof(Name));
 
-			UC_PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has kicked \x07%s \x01from the gang!", PREFIX, client, Name);
+			PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has kicked \x07%s \x01from the gang!", PREFIX, client, Name);
 
 			KickAuthIdFromGang(iAuthId, ClientGangId[client], client);
 		}
@@ -3319,7 +3319,7 @@ public int AcceptInvite_MenuHandler(Handle hMenu, MenuAction action, int client,
 			int LastGangId = ClientGangId[client];
 
 			ClientGangId[client] = GangId;
-			UC_PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has joined the \x07gang!", PREFIX, client);
+			PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has joined the \x07gang!", PREFIX, client);
 			ClientGangId[client] = LastGangId;
 
 			AddClientToGang(client, AuthIdInviter, GangId);
@@ -3637,7 +3637,7 @@ public void SQLCB_AuthIdAddToGang_CheckMemberCount(Handle owner, DBResultSet hnd
 	{
 		CloseHandle(DP);
 
-		UC_PrintToChatGang(GangId, "%s \x03The gang is full!", PREFIX);
+		PrintToChatGang(GangId, "%s \x03The gang is full!", PREFIX);
 		return;
 	}
 
@@ -3774,7 +3774,7 @@ stock void DonateToGang(int client, int amount)
 
 	dbGangs.Execute(transaction, SQLTrans_GangDonated, SQLTrans_SetFailState, DP);
 
-	UC_PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has donated \x07%i \x01to the gang!", PREFIX, client, amount);
+	PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has donated \x07%i \x01to the gang!", PREFIX, client, amount);
 }
 
 public void SQLTrans_SetFailState(Database db, any data, int numQueries, const char[] error, int failIndex, any[] queryData)
@@ -3860,7 +3860,7 @@ stock bool AreClientsSameGang(int client, int otherclient)
 	return ClientGangId[client] == ClientGangId[otherclient];
 }
 
-stock void UC_PrintToChatGang(int GangId, const char[] format, any...)
+stock void PrintToChatGang(int GangId, const char[] format, any...)
 {
 	char buffer[291];
 	VFormat(buffer, sizeof(buffer), format, 3);
@@ -3995,7 +3995,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("Gangs_GiveGangHonor", Native_GiveGangHonor);
 	CreateNative("Gangs_GiveClientHonor", Native_GiveClientHonor);
 	CreateNative("Gangs_AddClientDonations", Native_AddClientDonations);
-	CreateNative("Gangs_UC_PrintToChatGang", Native_UC_PrintToChatGang);
+	CreateNative("Gangs_PrintToChatGang", Native_PrintToChatGang);
 	CreateNative("Gangs_TryDestroyGlow", Native_TryDestroyGlow);
 	CreateNative("Gangs_GetFFDamageDecrease", Native_GetFFDamageDecrease);
 	CreateNative("Gangs_GetCooldownPercent", Native_GetCooldownPercent);
@@ -4049,14 +4049,14 @@ public int Native_GetClientGangName(Handle plugin, int numParams)
 	SetNativeString(2, ClientGang[client], len, false);
 }
 
-public int Native_UC_PrintToChatGang(Handle plugin, int numParams)
+public int Native_PrintToChatGang(Handle plugin, int numParams)
 {
 	int  GangId = GetNativeCell(1);
 	char buffer[192];
 
 	FormatNativeString(0, 2, 3, sizeof(buffer), _, buffer);
 
-	UC_PrintToChatGang(GangId, buffer);
+	PrintToChatGang(GangId, buffer);
 }
 
 public int Native_TryDestroyGlow(Handle plugin, int numParams)
