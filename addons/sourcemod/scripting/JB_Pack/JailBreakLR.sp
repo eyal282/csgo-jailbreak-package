@@ -466,7 +466,7 @@ public Action CS_OnCSWeaponDrop(int client, int weapon)
 
 		return Plugin_Continue;
 	}
-	PrintToChat(client, "%s \x05You \x01cannot drop your \x07deagle \x01while standing on water.", PREFIX);
+	UC_PrintToChat(client, "%s \x05You \x01cannot drop your \x07deagle \x01while standing on water.", PREFIX);
 	return Plugin_Handled;
 }
 
@@ -986,13 +986,13 @@ public Action Listener_Say(int client, const char[] command, int args)
 				int Health = StringToInt(HealthStr);
 				if (Health < 100)
 				{
-					PrintToChat(client, "%s \x05You \x01can't select more than \x07100 \x01health!", PREFIX);
+					UC_PrintToChat(client, "%s \x05You \x01can't select more than \x07100 \x01health!", PREFIX);
 					HPamount = 100;
 				}
 				else if (Health > GetMaxHealthValue())
 				{
 					HPamount = GetMaxHealthValue();
-					PrintToChat(client, "%s \x05You \x01can't select more than \x07%i \x01health!", PREFIX, HPamount);
+					UC_PrintToChat(client, "%s \x05You \x01can't select more than \x07%i \x01health!", PREFIX, HPamount);
 				}
 				else
 				{
@@ -1005,7 +1005,7 @@ public Action Listener_Say(int client, const char[] command, int args)
 			}
 			else
 			{
-				PrintToChat(client, "%s Health has to be a \x07number.", PREFIX);
+				UC_PrintToChat(client, "%s Health has to be a \x07number.", PREFIX);
 			}
 		}
 		else
@@ -1035,18 +1035,18 @@ public Action Listener_Say(int client, const char[] command, int args)
 	else if((firstwrites && firstwritesmoveable && !StrEquali(Message, firstchars)) || (mathcontest && mathcontestmoveable && !StrEquali(Message, mathresult)) || (typestages && typestagesmoveable && !StrEquali(Message, StageWord)) || (opposite && oppositemoveable && !StrEquali(Message, OppositeWords2[ oppositewords ])))
 	{
 	    if(firstwrites && firstwritesmoveable)
-	        PrintToChat(client, "%s \x05Your answer is wrong!\x01 Answer: \x03%s", PREFIX, firstchars);
+	        UC_PrintToChat(client, "%s \x05Your answer is wrong!\x01 Answer: \x03%s", PREFIX, firstchars);
 
 	    else if(typestages && typestagesmoveable)
 	    {
-	        PrintToChat(client, "%s \x05Your answer is wrong!\x01 Answer: \x03%s", PREFIX, StageWord);
+	        UC_PrintToChat(client, "%s \x05Your answer is wrong!\x01 Answer: \x03%s", PREFIX, StageWord);
 	    }
 
 	    else if(mathcontest && mathcontestmoveable)
-	        PrintToChat(client, "%s \x05Your answer is wrong!\x01 Question:\x03 %i %s %i = ?", PREFIX, mathnum[0], mathplus ? "+" : "-", mathnum[1]);
+	        UC_PrintToChat(client, "%s \x05Your answer is wrong!\x01 Question:\x03 %i %s %i = ?", PREFIX, mathnum[0], mathplus ? "+" : "-", mathnum[1]);
 
 	    else if(opposite && oppositemoveable)
-	        PrintToChat(client, "%s \x05Your answer is wrong!\x01 Question: What is the opposite of \x03%s?", PREFIX, OppositeWords1[ oppositewords ]);
+	        UC_PrintToChat(client, "%s \x05Your answer is wrong!\x01 Question: What is the opposite of \x03%s?", PREFIX, OppositeWords1[ oppositewords ]);
 	}
 	*/
 	if (typestages && typestagesmoveable && StrEquali(Message, StageWord))
@@ -1058,7 +1058,7 @@ public Action Listener_Say(int client, const char[] command, int args)
 		{
 			typestagescount[client]++;
 			GetUserStageWord(client, StageWord, sizeof(StageWord));    // Get it again since it now changed.
-			PrintToChat(client, "%s \x07Good job! \x01Answer: \x05%s, \x01%i \x01left.", PREFIX, StageWord, typestagesmaxstages - typestagescount[client] + 1);
+			UC_PrintToChat(client, "%s \x07Good job! \x01Answer: \x05%s, \x01%i \x01left.", PREFIX, StageWord, typestagesmaxstages - typestagescount[client] + 1);
 		}
 	}
 	if (Rekt)
@@ -1090,7 +1090,7 @@ public Action SetGlow(Handle hTimer, int UserId)
 {
 	int client = GetClientOfUserId(UserId);
 	// SetEntityGlow(client, true, GetRandomInt(0, 255), GetRandomInt(0, 255), GetRandomInt(0, 255));
-	PrintToChatAll("%s \x05%N \x01is freeday in the round.", PREFIX, client);
+	UC_PrintToChatAll("%s \x05%N \x01is freeday in the round.", PREFIX, client);
 
 	ServerCommand("sm_vip #%i", UserId);
 }
@@ -1100,7 +1100,7 @@ public Action Command_InfoMsg(int client, int args)
 	bool val = ShowMessage[client];
 
 	ShowMessage[client] = SetClientInfoMessage(client, !val);
-	PrintToChat(client, "%s \x01Your info message status is now \x07%sabled.", PREFIX, ShowMessage[client] ? "En" : "Dis");
+	UC_PrintToChat(client, "%s \x01Your info message status is now \x07%sabled.", PREFIX, ShowMessage[client] ? "En" : "Dis");
 }
 
 public Action Command_LOL(int client, int args)
@@ -1158,12 +1158,12 @@ public Action Command_StopLR(int client, int args)
 {
 	if (!LRStarted)
 	{
-		PrintToChat(client, "%s Could not find a running \x07LR!", PREFIX);
+		UC_PrintToChat(client, "%s Could not find a running \x07LR!", PREFIX);
 		return Plugin_Handled;
 	}
 
 	EndLR();
-	PrintToChatAll("%s \x05%N has stopped the current \x07LR!", PREFIX, client);
+	UC_PrintToChatAll("%s \x05%N has stopped the current \x07LR!", PREFIX, client);
 
 	return Plugin_Handled;
 }
@@ -1172,12 +1172,12 @@ public Action Command_StopBall(int client, int args)
 {
 	if (!LRStarted)
 	{
-		PrintToChat(client, "%s \x07LR \x01has not started!", PREFIX);
+		UC_PrintToChat(client, "%s \x07LR \x01has not started!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_checkcommandaccess_kick", ADMFLAG_KICK))
 	{
-		PrintToChat(client, "%s \x07Only CT \x01can use this command!", PREFIX);
+		UC_PrintToChat(client, "%s \x07Only CT \x01can use this command!", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -1194,7 +1194,7 @@ public Action Command_StopBall(int client, int args)
 
 		AcceptEntityInput(ent, "Sleep");
 	}
-	PrintToChat(client, "%s \x05%N \x01stopped all moving \x05balls!", PREFIX, client);
+	UC_PrintToChat(client, "%s \x05%N \x01stopped all moving \x05balls!", PREFIX, client);
 	return Plugin_Handled;
 }
 
@@ -1652,7 +1652,7 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 			SQL_AddClientLRWins(attacker);
 
 		else
-			PrintToChat(attacker, "%s \x07LR \x01Wins are registered only with \x075 \x01players or above.", PREFIX);
+			UC_PrintToChat(attacker, "%s \x07LR \x01Wins are registered only with \x075 \x01players or above.", PREFIX);
 
 		if (Gangs_HasGang(attacker) && GetPlayerCount() >= 5)
 		{
@@ -1667,7 +1667,7 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 	}
 
 	ShowHudMessage(0, HUD_WIN, "%N\nhas won the duel against\n%N", victimct ? Prisoner : Guard, victimct ? Guard : Prisoner);
-	PrintToChatAll("%s \x05%N \x01has won the LR against \x07%N!", PREFIX, victimct ? Prisoner : Guard, victimct ? Guard : Prisoner);
+	UC_PrintToChatAll("%s \x05%N \x01has won the LR against \x07%N!", PREFIX, victimct ? Prisoner : Guard, victimct ? Guard : Prisoner);
 
 	if (LRPart(victim) && norambo)
 	{
@@ -1768,7 +1768,7 @@ public Action Timer_CheckChokeRound(Handle hTimer)
 		if (Prisoner == 0 || Guard == 0)
 			return Plugin_Stop;
 
-		PrintToChatAll("%s \x01Prisoner \x05%N \x01died for not starting \x07LR! ", PREFIX, Prisoner);
+		UC_PrintToChatAll("%s \x01Prisoner \x05%N \x01died for not starting \x07LR! ", PREFIX, Prisoner);
 
 		LRStarted = true;
 
@@ -2366,7 +2366,7 @@ public Action Command_LR(int client, int args)
 
 		if (TCount == 1)
 		{
-			PrintToChatAll("%N has shown the last T the LR menu!", client);
+			UC_PrintToChatAll("%N has shown the last T the LR menu!", client);
 
 			Command_LR(LastT, 0);
 		}
@@ -2704,7 +2704,7 @@ public int Custom_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 		{
 			case 1:
 			{
-				PrintToChat(client, "%s Please write in the chat the \x07amount \x01of health you want.", PREFIX);
+				UC_PrintToChat(client, "%s Please write in the chat the \x07amount \x01of health you want.", PREFIX);
 
 				ShowCustomMenu(client);
 			}
@@ -2839,7 +2839,7 @@ public int Rules_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 				if (HPamount > GetMaxHealthValue())
 				{
 					HPamount = GetMaxHealthValue();
-					PrintToChat(client, "%s Duel \x07HP \x01was set to \x05%i \x01to avoid never ending duel.", PREFIX, HPamount);
+					UC_PrintToChat(client, "%s Duel \x07HP \x01was set to \x05%i \x01to avoid never ending duel.", PREFIX, HPamount);
 				}
 			}
 			case 2:
@@ -2856,7 +2856,7 @@ public int Rules_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 				if (HPamount > GetMaxHealthValue())
 				{
 					HPamount = GetMaxHealthValue();
-					PrintToChat(client, "%s Duel \x07HP \x01was set to \x05%i to avoid never ending duel.", PREFIX, HPamount);
+					UC_PrintToChat(client, "%s Duel \x07HP \x01was set to \x05%i to avoid never ending duel.", PREFIX, HPamount);
 				}
 			}
 			case 4:
@@ -3014,12 +3014,12 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 						StartRambo();
 
 						// BAR COLOR!!!
-						PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
-						PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
-						PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
+						UC_PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
+						UC_PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
+						UC_PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
 					}
 					else
-						PrintToChat(client, "%s You can only start Rambo when there are \x073 \x01or more total terror.", PREFIX);
+						UC_PrintToChat(client, "%s You can only start Rambo when there are \x073 \x01or more total terror.", PREFIX);
 				}
 			}
 			case 4:
@@ -3241,19 +3241,19 @@ public int Race_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 			{
 				if (IsVectorEmpty(raceStartOrigin))
 				{
-					PrintToChat(client, "Error: No start position found!");
+					UC_PrintToChat(client, "Error: No start position found!");
 
 					ChooseRaceCoords(client);
 				}
 				else if (IsVectorEmpty(raceEndOrigin))
 				{
-					PrintToChat(client, "Error: No end position found!");
+					UC_PrintToChat(client, "Error: No end position found!");
 
 					ChooseRaceCoords(client);
 				}
 				else if (GetVectorDistance(raceStartOrigin, raceEndOrigin) < 256.0)
 				{
-					PrintToChat(client, "Error: Start and End positions are too close!");
+					UC_PrintToChat(client, "Error: Start and End positions are too close!");
 
 					ChooseRaceCoords(client);
 				}
@@ -3360,7 +3360,7 @@ public void ChooseOpponent(int client)
 	if (HPamount > GetMaxHealthValue())
 	{
 		HPamount = GetMaxHealthValue();
-		PrintToChat(client, "%s Duel \x07HP \x01was set to \x05%i \x01to avoid never ending duel.", PREFIX, HPamount);
+		UC_PrintToChat(client, "%s Duel \x07HP \x01was set to \x05%i \x01to avoid never ending duel.", PREFIX, HPamount);
 	}
 	char   UID[20], Name[64];
 	Handle hMenu = CreateMenu(Opponent_MenuHandler);
@@ -3440,7 +3440,7 @@ public int Opponent_MenuHandler(Handle hMenu, MenuAction action, int client, int
 			FinishTimers();
 			StartDuel();
 
-			PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N ", PREFIX, DuelName, Prisoner, Guard);
+			UC_PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N ", PREFIX, DuelName, Prisoner, Guard);
 		}
 		else ChooseOpponent(client);
 	}
@@ -3489,7 +3489,7 @@ public void StartRambo()
 
 	TIMER_SLAYALL = CreateTimer(420.0, SlayAllParts, _, TIMER_FLAG_NO_MAPCHANGE);
 
-	PrintToChatAll("%s All \x05participants \x01will be slayed in \x077 \x01minutes!", PREFIX);
+	UC_PrintToChatAll("%s All \x05participants \x01will be slayed in \x077 \x01minutes!", PREFIX);
 }
 
 public void StartDuel()
@@ -3612,7 +3612,7 @@ public void ContinueStartDuel()
 
 		BleedTarget = 0;
 
-		PrintToChatAll("Last Hit Bleed has started. You must not be the last stabbed");
+		UC_PrintToChatAll("Last Hit Bleed has started. You must not be the last stabbed");
 
 		TIMER_COUNTDOWN = CreateTimer(1.0, BleedTimer, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
@@ -3669,10 +3669,10 @@ public void ContinueStartDuel()
 
 		PlaySoundToAll(LR_SOUNDS_BACKSTAB);
 
-		PrintToChatAll("%s \x07Stab! Stab! Stab! ", PREFIX);
-		PrintToChatAll("%s \x07Stab! Stab! Stab! ", PREFIX);
-		PrintToChatAll("%s \x07Stab! Stab! Stab! ", PREFIX);
-		PrintToChatAll("%s \x07Stab! Stab! Stab! ", PREFIX);
+		UC_PrintToChatAll("%s \x07Stab! Stab! Stab! ", PREFIX);
+		UC_PrintToChatAll("%s \x07Stab! Stab! Stab! ", PREFIX);
+		UC_PrintToChatAll("%s \x07Stab! Stab! Stab! ", PREFIX);
+		UC_PrintToChatAll("%s \x07Stab! Stab! Stab! ", PREFIX);
 	}
 
 	else if (StrContains(DuelName, "Race") != -1)
@@ -3711,7 +3711,7 @@ public void ContinueStartDuel()
 
 		TIMER_100MILISECONDS = CreateTimer(0.1, DisallowGunTossPickup, _, TIMER_FLAG_NO_MAPCHANGE);
 
-		PrintToChatAll("Tip: Mutually holding R makes Guard teleport to Prisoner");
+		UC_PrintToChatAll("Tip: Mutually holding R makes Guard teleport to Prisoner");
 	}
 
 	else if (StrContains(DuelName, "Shoot The Bomb") != -1)
@@ -3781,7 +3781,7 @@ public void ContinueStartDuel()
 		mostjumpscountdown = 5;
 		TIMER_REACTION     = CreateTimer(1.0, MostJumpsCountDown, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
-		PrintToChatAll("%s All players have \x0715 \x01seconds to jump as much as they can!", PREFIX);
+		UC_PrintToChatAll("%s All players have \x0715 \x01seconds to jump as much as they can!", PREFIX);
 	}
 	else if (StrContains(DuelName, "Auto") != -1)
 	{
@@ -3795,13 +3795,13 @@ public void ContinueStartDuel()
 
 		TIMER_FAILREACTION = CreateTimer(Time, FailReaction, _, TIMER_FLAG_NO_MAPCHANGE);
 
-		PrintToChatAll("%s A random \x05participant \x01will be killed in \x07%i \x01seconds!", PREFIX, RoundFloat(Time));
+		UC_PrintToChatAll("%s A random \x05participant \x01will be killed in \x07%i \x01seconds!", PREFIX, RoundFloat(Time));
 	}
 	else
 	{
 		TIMER_SLAYALL = CreateTimer(300.0, SlayAllParts, _, TIMER_FLAG_NO_MAPCHANGE);
 
-		PrintToChatAll("%s All \x05participants \x01will be slayed in \x075 \x01minutes!", PREFIX);
+		UC_PrintToChatAll("%s All \x05participants \x01will be slayed in \x075 \x01minutes!", PREFIX);
 	}
 	bool NC;
 
@@ -3825,7 +3825,7 @@ public void ContinueStartDuel()
 
 	// Teleport();
 
-	PrintToChat(TruePrisoner, "LR Sequence: !lr %s %s", SavedLRArguments[Prisoner], SavedLRHealthArgument[Prisoner][0] == EOS ? "" : SavedLRHealthArgument[Prisoner]);
+	UC_PrintToChat(TruePrisoner, "LR Sequence: !lr %s %s", SavedLRArguments[Prisoner], SavedLRHealthArgument[Prisoner][0] == EOS ? "" : SavedLRHealthArgument[Prisoner]);
 }
 
 public void DeleteAllGuns()
@@ -3910,7 +3910,7 @@ public Action SlayAllParts(Handle hTimer)
 	if (Pris != -1)
 		ForcePlayerSuicide(Pris);
 
-	PrintToChatAll("%s All \x07LR \x01Participants were slayed for taking too long.", PREFIX);
+	UC_PrintToChatAll("%s All \x07LR \x01Participants were slayed for taking too long.", PREFIX);
 	TIMER_SLAYALL = INVALID_HANDLE;
 
 	return Plugin_Stop;
@@ -3937,13 +3937,13 @@ public Action FailReaction(Handle hTimer)
 
 	    else
 	    {
-	        PrintToChatAll("Last Request error occured. Tell to Eyal282 ASAP please.");
+	        UC_PrintToChatAll("Last Request error occured. Tell to Eyal282 ASAP please.");
 	        SetFailState("Last request error");
 	    }
 	    FinishHim(target == Guard ? Prisoner : Guard, target);
 	}
 	*/
-	PrintToChatAll("%s Duel time has \x07expired! \x01Winner is \x05%N!", PREFIX, target);
+	UC_PrintToChatAll("%s Duel time has \x07expired! \x01Winner is \x05%N!", PREFIX, target);
 
 	TIMER_FAILREACTION = INVALID_HANDLE;
 }
@@ -3952,14 +3952,14 @@ public Action EndMostJumps(Handle hTimer)
 {
 	if (GuardJumps > PrisonerJumps)
 	{
-		PrintToChatAll("%s \x05%N \x01won the duel!", PREFIX, Guard);
-		PrintToChatAll("%s \x05%N \x01had \x07%i \x01jumps while \x05%N \x01had \x05%i \x01jumps", PREFIX, Guard, GuardJumps, Prisoner, PrisonerJumps);
+		UC_PrintToChatAll("%s \x05%N \x01won the duel!", PREFIX, Guard);
+		UC_PrintToChatAll("%s \x05%N \x01had \x07%i \x01jumps while \x05%N \x01had \x05%i \x01jumps", PREFIX, Guard, GuardJumps, Prisoner, PrisonerJumps);
 		FinishHim(Prisoner, Guard);
 	}
 	else if (PrisonerJumps > GuardJumps)
 	{
-		PrintToChatAll("%s \x05%N \x01won the duel!", PREFIX, Prisoner);
-		PrintToChatAll("%s \x05%N \x01had \x05%i \x01jumps while \x05%N \x01had \x05%i \x01jumps", PREFIX, Prisoner, PrisonerJumps, Guard, GuardJumps);
+		UC_PrintToChatAll("%s \x05%N \x01won the duel!", PREFIX, Prisoner);
+		UC_PrintToChatAll("%s \x05%N \x01had \x05%i \x01jumps while \x05%N \x01had \x05%i \x01jumps", PREFIX, Prisoner, PrisonerJumps, Guard, GuardJumps);
 		FinishHim(Guard, Prisoner);
 	}
 	else
@@ -3978,8 +3978,8 @@ public Action EndMostJumps(Handle hTimer)
 		}
 
 		jumps = PrisonerJumps;
-		PrintToChatAll("%s \x05%N \x01randomly won the duel!", PREFIX, winner);
-		PrintToChatAll("%s \x01Both players had \x05%i \x01jumps!", PREFIX, jumps);
+		UC_PrintToChatAll("%s \x05%N \x01randomly won the duel!", PREFIX, winner);
+		UC_PrintToChatAll("%s \x01Both players had \x05%i \x01jumps!", PREFIX, jumps);
 		FinishHim(loser, winner);
 	}
 
@@ -4008,7 +4008,7 @@ public Action:OnCustomSpray_Post(client, Float:HeightFromGround, Cheater)
 
         if(GuardSprayHeight > PrisonerSprayHeight)
         {
-            PrintToChatAll("\x01Guard\x03 %N\x01 wins the duel!", Guard);
+            UC_PrintToChatAll("\x01Guard\x03 %N\x01 wins the duel!", Guard);
 
             FinishHim(Prisoner, Guard);
         }
@@ -4016,7 +4016,7 @@ public Action:OnCustomSpray_Post(client, Float:HeightFromGround, Cheater)
         else if(PrisonerSprayHeight > GuardSprayHeight)
         {
 
-            PrintToChatAll("\x01Prisoner\x03 %N\x01 wins the duel!", Prisoner);
+            UC_PrintToChatAll("\x01Prisoner\x03 %N\x01 wins the duel!", Prisoner);
 
             FinishHim(Guard, Prisoner);
         }
@@ -4025,7 +4025,7 @@ public Action:OnCustomSpray_Post(client, Float:HeightFromGround, Cheater)
         {
             SetEntPropFloat(Guard, Prop_Send, "m_flNextDecalTime", 0.0);
             SetEntPropFloat(Prisoner, Prop_Send, "m_flNextDecalTime", 0.0);
-            PrintToChatAll("\x01Spray heights are identical! Resetting spray timer for all players!");
+            UC_PrintToChatAll("\x01Spray heights are identical! Resetting spray timer for all players!");
         }
 
         GuardSprayHeight = 0.0;
@@ -4939,7 +4939,7 @@ public Action BleedTimer(Handle hTimer)
 
 public void SetFreeday(int client)
 {
-	PrintToChatAll("%s \x05%N \x01selected \x07Free Day \x01for the next round!", PREFIX, client);
+	UC_PrintToChatAll("%s \x05%N \x01selected \x07Free Day \x01for the next round!", PREFIX, client);
 	ForcePlayerSuicide(client);
 	FreeDayUID = GetClientUserId(client);
 }
@@ -4978,19 +4978,19 @@ stock bool LastRequest(int client)
 	}
 
 	if (GetClientTeam(client) != CS_TEAM_T)
-		PrintToChat(client, "%s Only prisoners may use this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s Only prisoners may use this \x07command!", PREFIX);
 
 	else if (!IsPlayerAlive(client))
-		PrintToChat(client, "%s You must be alive to use this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s You must be alive to use this \x07command!", PREFIX);
 
 	else if (LRStarted)
-		PrintToChat(client, "%s \x05LR \x01has already \x07started!", PREFIX);
+		UC_PrintToChat(client, "%s \x05LR \x01has already \x07started!", PREFIX);
 
 	else if (Prisoners != 1)
-		PrintToChat(client, "%s You are not the last \x07prisoner!", PREFIX);
+		UC_PrintToChat(client, "%s You are not the last \x07prisoner!", PREFIX);
 
 	else if (Guards <= 0)
-		PrintToChat(client, "%s There are no guards to play \x07with!", PREFIX);
+		UC_PrintToChat(client, "%s There are no guards to play \x07with!", PREFIX);
 
 	else
 	{
@@ -5005,7 +5005,7 @@ stock bool LastRequest(int client)
 
 		if (Value > Plugin_Continue)
 		{
-			PrintToChat(client, "%s %s", PREFIX, Message);
+			UC_PrintToChat(client, "%s %s", PREFIX, Message);
 			return false;
 		}
 
@@ -5538,7 +5538,7 @@ public void SQL_QueryGetLRWins(Database db, DBResultSet hResults, const char[] s
 			hResults.FetchRow();
 
 			/* Here we transform the existing data found in the database and store it into a variable.
-			Which basically means we can use this variable in eg. PrintToChat and it'll tell us how many kills we've got. */
+			Which basically means we can use this variable in eg. UC_PrintToChat and it'll tell us how many kills we've got. */
 
 			LRWins[client] = hResults.FetchInt(1);
 
@@ -5565,12 +5565,12 @@ public void SQL_QueryGetLRWins(Database db, DBResultSet hResults, const char[] s
 		{
 			case CM_ShowWins:
 			{
-				PrintToChat(client, "%s You have\x05 %i\x04 LR Wins!", PREFIX, LRWins[client]);
+				UC_PrintToChat(client, "%s You have\x05 %i\x04 LR Wins!", PREFIX, LRWins[client]);
 			}
 			case CM_ShowTargetWins:
 			{
 				int peeker = GetClientOfUserId(ReadPackCell(DP));
-				PrintToChat(peeker, "%s \x03%N\x01 has\x05 %i\x04 LR Wins!", PREFIX, client, LRWins[client]);
+				UC_PrintToChat(peeker, "%s \x03%N\x01 has\x05 %i\x04 LR Wins!", PREFIX, client, LRWins[client]);
 			}
 		}
 	}
@@ -5678,7 +5678,7 @@ public void SQL_QueryGetTopPlayers(Database db, DBResultSet hResults, const char
 			{
 				SetMenuTitle(hMenu, "%s Top players", MENU_PREFIX);
 				DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
-				PrintToChat(client, "%s You are \x05#%i \x01in the \x07top!", PREFIX, Rank);
+				UC_PrintToChat(client, "%s You are \x05#%i \x01in the \x07top!", PREFIX, Rank);
 			}
 		}
 	}
@@ -5696,7 +5696,7 @@ public int SQL_QueryGetTopPlayersMenuHandler(Handle hMenu, MenuAction action, in
 		hMenu = INVALID_HANDLE;
 	}
 }
-stock void PrintToChatEyal(const char[] format, any...)
+stock void UC_PrintToChatEyal(const char[] format, any...)
 {
 	char buffer[291];
 	VFormat(buffer, sizeof(buffer), format, 2);
@@ -5712,7 +5712,7 @@ stock void PrintToChatEyal(const char[] format, any...)
 		GetClientAuthId(i, AuthId_Steam2, steamid, sizeof(steamid));
 
 		if (StrEqual(steamid, "STEAM_1:0:49508144"))
-			PrintToChat(i, buffer);
+			UC_PrintToChat(i, buffer);
 	}
 }
 

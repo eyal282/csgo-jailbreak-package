@@ -3,6 +3,7 @@
 */
 
 #include <cstrike>
+#include <eyal-jailbreak>
 #include <sdkhooks>
 #include <sdktools>
 #include <sourcemod>
@@ -337,7 +338,7 @@ public Action Command_AssignOpen(int client, int args)
 
 	if (ent < 0)
 	{
-		PrintToChat(client, "%s Couldn't find a \x07func_button \x01entity at your aim, please try \x07again", PREFIX);
+		UC_PrintToChat(client, "%s Couldn't find a \x07func_button \x01entity at your aim, please try \x07again", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -346,7 +347,7 @@ public Action Command_AssignOpen(int client, int args)
 
 	if (!StrEqual(Classname, "func_button", true))
 	{
-		PrintToChat(client, "%s Couldn't find a \x07func_button \x01entity at your aim, please try \x07again", PREFIX);
+		UC_PrintToChat(client, "%s Couldn't find a \x07func_button \x01entity at your aim, please try \x07again", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -358,7 +359,7 @@ public Action Command_AssignOpen(int client, int args)
 
 	SQL_TQuery(dbLocal, SQLCB_Error, sQuery, _, DBPrio_Normal);
 
-	PrintToChat(client, "%s \x05Successfully \x01made the button you're aiming at as the button that opens the cells for \x07!open");
+	UC_PrintToChat(client, "%s \x05Successfully \x01made the button you're aiming at as the button that opens the cells for \x07!open");
 	return Plugin_Handled;
 }
 
@@ -368,7 +369,7 @@ public Action Command_AssignIsolation(int client, int args)
 
 	if (ent < 0)
 	{
-		PrintToChat(client, "%s Couldn't find a \x07func_door \x01entity at your aim, please try \x07again", PREFIX);
+		UC_PrintToChat(client, "%s Couldn't find a \x07func_door \x01entity at your aim, please try \x07again", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -377,7 +378,7 @@ public Action Command_AssignIsolation(int client, int args)
 
 	if (!StrEqual(Classname, "func_door", true))
 	{
-		PrintToChat(client, "%s Couldn't find a func_door entity at your aim, please try again", PREFIX);
+		UC_PrintToChat(client, "%s Couldn't find a func_door entity at your aim, please try again", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -389,7 +390,7 @@ public Action Command_AssignIsolation(int client, int args)
 
 	SQL_TQuery(dbLocal, SQLCB_Error, sQuery, _, DBPrio_Normal);
 
-	PrintToChat(client, "%s \x05Successfully \x01made the door you're aiming at as the door of the isolation for \x07!hardopen", PREFIX);
+	UC_PrintToChat(client, "%s \x05Successfully \x01made the door you're aiming at as the door of the isolation for \x07!hardopen", PREFIX);
 
 	return Plugin_Handled;
 }
@@ -409,27 +410,27 @@ public Action Command_Open(int client, int args)
 	}
 	else if (client != 0 && GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false) && !CanEmptyRebel() && !CanLRChainsaw())
 	{
-		PrintToChat(client, "%s You must be \x0BCT \x01to use this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s You must be \x0BCT \x01to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 
 	else if (OpenedThisRound)
 	{
-		PrintToChat(client, "%s Cells were \x07already \x01opened this round!", PREFIX);
+		UC_PrintToChat(client, "%s Cells were \x07already \x01opened this round!", PREFIX);
 		return Plugin_Handled;
 	}
 
 	else if (ButtonHID == -1 && GetConVarInt(hcv_Mode) == 0)
 	{
-		PrintToChat(client, "Map does not have an assigned open button!");
-		PrintToChat(client, "An admin must use !assignopen to assign a button.");
-		PrintToChat(client, "An admin can also use !assignisolation to assign a button to open isolation room");
+		UC_PrintToChat(client, "Map does not have an assigned open button!");
+		UC_PrintToChat(client, "An admin must use !assignopen to assign a button.");
+		UC_PrintToChat(client, "An admin can also use !assignisolation to assign a button to open isolation room");
 		return Plugin_Handled;
 	}
 
 	if (!OpenCells())
 	{
-		PrintToChat(client, "The map's assigned open button is bugged!");
+		UC_PrintToChat(client, "The map's assigned open button is bugged!");
 		return Plugin_Handled;
 	}
 
@@ -455,7 +456,7 @@ public Action Command_Open(int client, int args)
 		Title = "Admin";
 
 	if (client != 0)
-		PrintToChatAll("%s %s \x05%N \x01opened the \x07jail \x01cells!", PREFIX, Title, client);
+		UC_PrintToChatAll("%s %s \x05%N \x01opened the \x07jail \x01cells!", PREFIX, Title, client);
 
 	return Plugin_Handled;
 }
@@ -464,26 +465,26 @@ public Action Command_HardOpen(int client, int args)
 {
 	if (client != 0 && GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false) && !CanEmptyRebel())
 	{
-		PrintToChat(client, "%s You must be \x0BCT \x01to use this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s You must be \x0BCT \x01to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 
 	else if (ButtonHID == -1 && GetConVarInt(hcv_Mode) == 0)
 	{
-		PrintToChat(client, "Map does not have an assigned open button!");
-		PrintToChat(client, "An admin must use !assignopen to assign a button.");
+		UC_PrintToChat(client, "Map does not have an assigned open button!");
+		UC_PrintToChat(client, "An admin must use !assignopen to assign a button.");
 		return Plugin_Handled;
 	}
 
 	else if (OpenedThisRound)
 	{
 		OpenIsolation();
-		PrintToChat(client, "%s Cells were \x07already \x01opened this \x05round!", PREFIX);
+		UC_PrintToChat(client, "%s Cells were \x07already \x01opened this \x05round!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (!OpenCells())
 	{
-		PrintToChat(client, "The map's assigned open button is bugged!");
+		UC_PrintToChat(client, "The map's assigned open button is bugged!");
 		return Plugin_Handled;
 	}
 
@@ -509,7 +510,7 @@ public Action Command_HardOpen(int client, int args)
 		Title = "Admin";
 
 	if (client != 0)
-		PrintToChatAll("%s %s \x05%N \x01hard opened the \x07jail \x01cells!", PREFIX, Title, client);
+		UC_PrintToChatAll("%s %s \x05%N \x01hard opened the \x07jail \x01cells!", PREFIX, Title, client);
 
 	OpenIsolation();
 	return Plugin_Handled;
