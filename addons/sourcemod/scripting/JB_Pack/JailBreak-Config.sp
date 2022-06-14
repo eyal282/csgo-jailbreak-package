@@ -30,6 +30,7 @@ enCvarList cvarList[] = {
 	{ "mp_startmoney",       "0" },
 	{ "mp_solid_teammates",  "1" },
 	{ "mp_roundtime",        "15"},
+	{ "mp_warmuptime",       "0" },
 
  // These two remove the money hud.
 	{ "mp_playercashawards", "0" },
