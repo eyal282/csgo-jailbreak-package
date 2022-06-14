@@ -120,7 +120,7 @@ public void SmartOpen_OnCellsOpened(bool cmd)
 		{
 			if (IsClientInGame(i))
 			{
-				PrintToChat(i, "%s The \x02terrorists \x01got unmuted through\x05 sm_open", PREFIX);
+				UC_PrintToChat(i, "%s The \x02terrorists \x01got unmuted through\x05 sm_open", PREFIX);
 			}
 			if (IsClientInGame(i) && (IsPlayerAlive(i) || GetConVarBool(hcv_DeadTalk)) && !BaseComm_IsClientMuted(i))
 			{
@@ -220,7 +220,7 @@ public void OnButtonRelease(int client, int button, float holdTime)
 		CreateMarker(client);
 
 		if (GetArraySize(aMarkers) == 1)
-			PrintToChat(client, "Hint: Hold +attack2 for a second to clear all marks.")
+			UC_PrintToChat(client, "Hint: Hold +attack2 for a second to clear all marks.")
 	}
 	else if (holdTime >= 1.0)
 	{
@@ -301,7 +301,7 @@ public Action Event_RoundStart(Event hEvent, const char[] Name, bool dontBroadca
 			hTimer_ExpireMute = INVALID_HANDLE;
 		}
 
-		PrintToChatAll("%s The \x02terrorist \x01are not muted, they can talk now.", PREFIX);
+		UC_PrintToChatAll("%s The \x02terrorist \x01are not muted, they can talk now.", PREFIX);
 		return;
 	}
 	for (int i = 1; i <= MaxClients; i++)
@@ -325,7 +325,7 @@ public Action Event_RoundStart(Event hEvent, const char[] Name, bool dontBroadca
 	}
 	hTimer_ExpireMute = CreateTimer(g_SetTimeMute.FloatValue, MuteHandler);
 
-	PrintToChatAll("%s The \x02terrorist \x01have been muted, they will be able to speak in \x05%d \x01seconds", PREFIX, g_SetTimeMute.IntValue);
+	UC_PrintToChatAll("%s The \x02terrorist \x01have been muted, they will be able to speak in \x05%d \x01seconds", PREFIX, g_SetTimeMute.IntValue);
 }
 
 public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -415,7 +415,7 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 		ServerCommand("mp_teammates_are_enemies 0");
 		for (int i = 1; i <= MaxClients; i++)
 			if (IsClientInGame(i))
-				PrintToChat(i, "%s the friendly fire turned off automatically!", PREFIX);
+				UC_PrintToChat(i, "%s the friendly fire turned off automatically!", PREFIX);
 
 		if (hTimer_ExpireMute != INVALID_HANDLE)
 			TriggerTimer(hTimer_ExpireMute, true);
@@ -446,7 +446,7 @@ public Action Command_FD(int client, int args)
 
 	IsVIP[target] = !IsVIP[target];
 
-	PrintToChatAll(" %s \x05%N \x01%s \x10Freeday \x01%s \x05%N ", PREFIX, client, IsVIP[target] ? "Gave" : "Took", IsVIP[target] ? "To" : "From", target);
+	UC_PrintToChatAll(" %s \x05%N \x01%s \x10Freeday \x01%s \x05%N ", PREFIX, client, IsVIP[target] ? "Gave" : "Took", IsVIP[target] ? "To" : "From", target);
 
 	SetEntityRenderColor(target, 0, 128, 128, 255);
 
@@ -539,7 +539,7 @@ public int Box_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 		bool Enable = (item == 0);
 		SetConVarBool(hcv_TeammatesAreEnemies, Enable);
 
-		PrintToChatAll(" %s \x05%N \x01%s \x02box! ", PREFIX, client, Enable ? "enabled" : "disabled");
+		UC_PrintToChatAll(" %s \x05%N \x01%s \x02box! ", PREFIX, client, Enable ? "enabled" : "disabled");
 	}
 }
 
@@ -808,19 +808,19 @@ public Action cmd_medic(int client, int args)
 		/*
 		if (hp >= 100)
 		{
-		    PrintToChat(client, "%s you cant call a medic because you have \x02100 HP!", PREFIX);
+		    UC_PrintToChat(client, "%s you cant call a medic because you have \x02100 HP!", PREFIX);
 		    return Plugin_Handled;
 		}
 		*/
 		if (nospam[client])
 		{
-			PrintToChat(client, "%s you cant call a medic because you still have \x02%d \x05cooldown!", PREFIX, g_SetTimeCooldown.IntValue);
+			UC_PrintToChat(client, "%s you cant call a medic because you still have \x02%d \x05cooldown!", PREFIX, g_SetTimeCooldown.IntValue);
 			return Plugin_Handled;
 		}
 		if (!nospam[client])
 		{
 			nospam[client] = true;
-			PrintToChatAll("%s \x05%s\x01 wants a \x07medic!", PREFIX, name);
+			UC_PrintToChatAll("%s \x05%s\x01 wants a \x07medic!", PREFIX, name);
 			CreateTimer(g_SetTimeCooldown.FloatValue, medicHandler, client);
 			return Plugin_Handled;
 		}
@@ -841,17 +841,17 @@ public Action cmd_deagle(int client, args)
 {
 	if (IsClientInGame(client) && GetClientTeam(client) == CS_TEAM_T && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
-		PrintToChat(client, "%s \x05You \x01are not in the guards team you cant active this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01are not in the guards team you cant active this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 	if (IsClientInGame(client) && GetClientTeam(client) == CS_TEAM_CT && !IsPlayerAlive(client) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
-		PrintToChat(client, "%s \x5You \x01are need to be alive to active this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s \x5You \x01are need to be alive to active this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 	if (IsClientInGame(client) && GetClientTeam(client) == CS_TEAM_CT || IsClientInGame(client) && GetClientTeam(client) == CS_TEAM_T && CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
-		PrintToChatAll("%s \x01All \x07terrorist \x01alive got a empty \x05deagle! \x01Have Fun", PREFIX);
+		UC_PrintToChatAll("%s \x01All \x07terrorist \x01alive got a empty \x05deagle! \x01Have Fun", PREFIX);
 		for (int i = 1; i <= MaxClients; i++)
 			if (IsClientInGame(i) && GetClientTeam(i) == CS_TEAM_T && IsPlayerAlive(i))
 			{
@@ -868,7 +868,7 @@ public Action MuteHandler(Handle timer, any client)
 	{
 		if (IsClientInGame(i))
 		{
-			PrintToChat(i, "%s The \x02terrorists \x01can talk right \x05now!", PREFIX);
+			UC_PrintToChat(i, "%s The \x02terrorists \x01can talk right \x05now!", PREFIX);
 		}
 		if (IsClientInGame(i) && (IsPlayerAlive(i) || GetConVarBool(hcv_DeadTalk)) && !BaseComm_IsClientMuted(i))
 		{
@@ -929,12 +929,12 @@ public int BoxMenuHandler(Menu menu, MenuAction action, int client, int item)
 			if (!isbox)
 			{
 				ServerCommand("mp_teammates_are_enemies 1");
-				PrintToChatAll("%s friendly fire turned on!", PREFIX);
+				UC_PrintToChatAll("%s friendly fire turned on!", PREFIX);
 			}
 			if (isbox)
 			{
 				ServerCommand("mp_teammates_are_enemies 0");
-				PrintToChatAll("%s friendly fire turned off!", PREFIX);
+				UC_PrintToChatAll("%s friendly fire turned off!", PREFIX);
 			}
 		}
 	}
@@ -948,22 +948,22 @@ public Action cmd_givelr(int client, int args)
 {
 	if (args == 0)
 	{
-		PrintToChat(client, "Usage: sm_givelr <#userid|name>");
+		UC_PrintToChat(client, "Usage: sm_givelr <#userid|name>");
 		return Plugin_Handled;
 	}
 	else if (!IsPlayerAlive(client))
 	{
-		PrintToChat(client, "%s You are dead you cant give some one lastrequest", PREFIX);
+		UC_PrintToChat(client, "%s You are dead you cant give some one lastrequest", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (GetTeamAliveCount(CS_TEAM_T) != 1)
 	{
-		PrintToChat(client, "%s you are not the last terrorist!", PREFIX);
+		UC_PrintToChat(client, "%s you are not the last terrorist!", PREFIX);
 		return Plugin_Handled;
 	}
 	if (LR_isActive())
 	{
-		PrintToChat(client, "%s LR is already active!", PREFIX);
+		UC_PrintToChat(client, "%s LR is already active!", PREFIX);
 		return Plugin_Handled;
 	}
 	if (GetClientTeam(client) == CS_TEAM_T && IsPlayerAlive(client) && GetTeamAliveCount(CS_TEAM_T) == 1)
@@ -986,7 +986,7 @@ public Action cmd_givelr(int client, int args)
 			ForcePlayerSuicide(client);
 			GetClientName(client, clientname, sizeof(clientname));
 			GetClientName(target, targetname, sizeof(targetname));
-			PrintToChatAll("%s %s gave to %s the lastrequest", PREFIX, clientname, targetname);
+			UC_PrintToChatAll("%s %s gave to %s the lastrequest", PREFIX, clientname, targetname);
 		}
 	}
 	return Plugin_Handled;
