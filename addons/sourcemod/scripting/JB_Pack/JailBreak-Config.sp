@@ -20,21 +20,22 @@ enum struct enCvarList
 
 // Cvar, Value
 enCvarList cvarList[] = {
-	{"sm_vote_delay",        "0" },
-	{ "uc_party_mode",       "0" },
-	{ "mp_autokick",         "0" },
-	{ "mp_freezetime",       "0" },
-	{ "mp_friendlyfire",     "0" },
-	{ "mp_timelimit",        "60"},
-	{ "mp_teamcashawards",   "0" },
-	{ "mp_startmoney",       "0" },
-	{ "mp_solid_teammates",  "1" },
-	{ "mp_roundtime",        "15"},
-	{ "mp_warmuptime",       "0" },
+	{"sm_vote_delay",        "0"         },
+	{ "uc_party_mode",       "0"         },
+	{ "mp_autokick",         "0"         },
+	{ "mp_freezetime",       "0"         },
+	{ "mp_friendlyfire",     "0"         },
+	{ "mp_timelimit",        "60"        },
+	{ "mp_teamcashawards",   "0"         },
+	{ "mp_startmoney",       "0"         },
+	{ "mp_solid_teammates",  "1"         },
+	{ "mp_roundtime",        "15"        },
+	{ "mp_warmuptime",       "0"         },
+	{ "sv_airaccelerate",    "2147483647"},
 
  // These two remove the money hud.
-	{ "mp_playercashawards", "0" },
-	{ "mp_teamcashawards",   "0" }
+	{ "mp_playercashawards", "0"         },
+	{ "mp_teamcashawards",   "0"         }
 };
 
 public void OnMapStart()
