@@ -2,15 +2,13 @@
 {
 	"Version"
 	{
-		"Latest"	"1.6"
+		"Latest"	"1.0"
 	}
 	
-	"Notes"	"Fourth Major Overhaul - Karma kills are registered mid-air. Bird charge is back, known as the old karma charge."
+	"Notes"	"Updater setup"
 }
 	
 "Files"
 {
-	"Plugin"	"Path_SM/plugins/l4d2_karma_kill_system.smx"
-	
-	"Source"	"Path_SM/scripting/l4d2_karma_kill_system.sp"
+	"Plugin"	"Path_SM/plugins/JBPack/JailBreakCore.smx"
 }
