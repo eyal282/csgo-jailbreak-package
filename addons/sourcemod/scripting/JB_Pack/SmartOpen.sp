@@ -7,11 +7,12 @@
 #include <sdktools>
 #include <sourcemod>
 
-#define PREFIX " \x04[WePlay #JB]\x01 "
-
 #define PLUGIN_VERSION "1.1"
 
 #pragma newdecls required
+
+char   PREFIX[64];
+Handle hcv_Prefix = INVALID_HANDLE;
 
 Handle hcv_Mode            = INVALID_HANDLE;
 Handle hcv_Auto            = INVALID_HANDLE;
@@ -101,12 +102,22 @@ public void OnPluginStart()
 	hcv_EmptyRebel      = CreateConVar("open_cells_allow_empty_rebel", "1", "If there are no CT ( probably server empty ) terrorists are able to use !open");
 	hcv_LRChainsaw      = CreateConVar("open_cells_lr_chainsaw", "1", "Last terrorist can execute !open with his lr chainsaw");
 
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+
+	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
+	HookConVarChange(hcv_Prefix, cvChange_Prefix);
+
 	// cmd = Were the cells opened by command or with button.
 	// note: This forward will fire if sm_open was used in any way.
 	// note: This forward will NOT fire if the cells were opened without being assigned.
 	// public void SmartOpen_OnCellsOpened(bool cmd)
 	fw_OnCellsOpened = CreateGlobalForward("SmartOpen_OnCellsOpened", ET_Ignore, Param_Cell);
 	Trie_Retriers    = CreateTrie();
+}
+
+public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	FormatEx(PREFIX, sizeof(PREFIX), newValue);
 }
 
 public void OnMapStart()

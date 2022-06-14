@@ -105,6 +105,12 @@ int g_RedBeamSprite    = -1;
 int g_OrangeBeamSprite = -1;
 int g_HaloSprite       = -1;
 
+char PREFIX[64];
+char MENU_PREFIX[64];
+
+Handle hcv_Prefix     = INVALID_HANDLE;
+Handle hcv_MenuPrefix = INVALID_HANDLE;
+
 Handle cpInfoMsg = INVALID_HANDLE;
 Handle cpLRWins  = INVALID_HANDLE;
 
@@ -346,23 +352,29 @@ public void OnPluginStart()
 
 	AddNormalSoundHook(Event_Sound);
 
-	// RegisterHam(Ham_TraceAttack, "player", "_Ham_TraceAttack");
-	// RegisterHam(Ham_Touch, "weaponbox", "_Ham_Touch"); // Weapon pickup
-	// RegisterHam(Ham_Touch, "armoury_entity", "_Ham_Touch");
-	// RegisterHam(Ham_Use, "func_button", "_Ham_Use");
-	// register_forward(FM_SetModel, "fw_SetModel");
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
 
-	// register_forward(FM_SetModel, "preDeagleDropped");
-	// register_forward(FM_SetModel, "postDeagleDropped", 1);
-	// register_clcmd("drop", "BlockDrop");
+	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
+	HookConVarChange(hcv_Prefix, cvChange_Prefix);
 
-	// register_forward(FM_PlayerPreThink, "fw_Player_PreThink");
+	hcv_MenuPrefix = CreateConVar("sm_menu_prefix_cvar", "[JBPack]");
 
-	// g_synchud = CreateHudSyncObj();
+	GetConVarString(hcv_MenuPrefix, MENU_PREFIX, sizeof(MENU_PREFIX));
+	HookConVarChange(hcv_MenuPrefix, cvChange_MenuPrefix);
 
 	TriggerTimer(CreateTimer(10.0, ConnectDatabase, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT), true);
 
 	LoadTranslations("common.phrases");    // Fixing errors in target
+}
+
+public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	FormatEx(PREFIX, sizeof(PREFIX), newValue);
+}
+
+public void cvChange_MenuPrefix(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	FormatEx(MENU_PREFIX, sizeof(MENU_PREFIX), newValue);
 }
 
 public Action ConnectDatabase(Handle hTimer)

@@ -70,7 +70,7 @@ native int   Gangs_HasGang(int client);
 native int   Gangs_GetClientGangId(int client);
 native int   Gangs_GetClientGlowColorSlot(int client);
 native int   Gangs_GetClientGangName(int client, char[] GangName, int len);
-native int   Gangs_PrintToChatGang(char[] GangName, char[] format, any...);
+native int   Gangs_UC_PrintToChatGang(char[] GangName, char[] format, any...);
 native int   Gangs_AddClientDonations(int client, int amount);
 native int   Gangs_GiveGangCredits(const char[] GangName, int amount);
 native int   Gangs_GiveClientCredits(int client, int amount);
@@ -78,7 +78,8 @@ native int   Gangs_AreClientsSameGang(int client, int otherClient);
 native int   Gangs_TryDestroyGlow(int client);
 native float Gangs_GetFFDamageDecrease(int client);
 
-char BotName[] = "JBPack Bot";
+char   PREFIX[64];
+Handle hcv_Prefix = INVALID_HANDLE;
 
 #define PLUGIN_VERSION "1.0"
 
@@ -99,8 +100,7 @@ Handle hcv_TaserRechargeTime        = INVALID_HANDLE;
 
 Handle fw_OnDayStatus = INVALID_HANDLE;
 
-Handle hTimer_StartDay    = INVALID_HANDLE;
-Handle hTimer_InfoMessage = INVALID_HANDLE;
+Handle hTimer_StartDay = INVALID_HANDLE;
 
 Handle hVoteDayMenu;
 
@@ -121,8 +121,6 @@ char DayWeapon[64];
 bool DayHSOnly;
 
 int DayCountDown;
-
-int Bot;
 
 bool GlowRemoved;
 
@@ -271,6 +269,11 @@ public void OnPluginStart()
 	hcv_IgnoreRoundWinConditions = FindConVar("mp_ignore_round_win_conditions");
 	hcv_TaserRechargeTime        = FindConVar("mp_taser_recharge_time");
 
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+
+	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
+	HookConVarChange(hcv_Prefix, cvChange_Prefix);
+
 	// Called when there's a need to inform plugins of day status. Not guaranteed to be the exact start or stop.
 	// public void JailBreakDays_OnDayStatus(bool DayActive)
 
@@ -283,6 +286,11 @@ public void OnPluginStart()
 
 		OnClientPutInServer(i);
 	}
+}
+
+public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	FormatEx(PREFIX, sizeof(PREFIX), newValue);
 }
 
 public void OnClientCookiesCached(int client)
@@ -323,19 +331,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 
 public void OnMapStart()
 {
-	hTimer_StartDay    = INVALID_HANDLE;
-	hTimer_InfoMessage = INVALID_HANDLE;
-}
-
-public void OnClientDisconnect(int client)
-{
-	if (client == Bot && Bot != 0)
-	{
-		Bot = 0;
-
-		if (DayActive > LR_DAY)
-			CreateBot();
-	}
+	hTimer_StartDay = INVALID_HANDLE;
 }
 
 public void OnClientPutInServer(int client)
@@ -530,7 +526,7 @@ public Action Command_StartVoteDay(int client, int args)
 
 	StartVoteDay();
 
-	PrintToChatAll("%s \x05%N \x01started \x07Vote Day! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x05%N \x01started \x07Vote Day! ", PREFIX, client, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
@@ -546,7 +542,7 @@ public Action Command_StartFSDay(int client, int args)
 
 	StartFSDay();
 
-	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
@@ -562,7 +558,7 @@ public Action Command_StartZeusDay(int client, int args)
 
 	StartZeusDay();
 
-	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
@@ -578,7 +574,7 @@ public Action Command_StartDodgeballDay(int client, int args)
 
 	StartDodgeballDay();
 
-	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
@@ -594,7 +590,7 @@ public Action Command_StartScoutDay(int client, int args)
 
 	StartScoutDay();
 
-	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
@@ -609,7 +605,7 @@ public Action Command_StartKnifeDay(int client, int args)
 
 	SelectHSKnifeDay();
 
-	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
@@ -620,7 +616,7 @@ void SelectHSKnifeDay()
 	{
 		ServerCommand("mp_restartgame 1");
 
-		PrintToChatAll("%s Error couldn't start vote for \x07Backstab \x01only, contact \x05Eyal282!", PREFIX);
+		UC_PrintToChatAll("%s Error couldn't start vote for \x07Backstab \x01only, contact \x05Eyal282!", PREFIX);
 		return;
 	}
 
@@ -716,7 +712,7 @@ void CheckVoteHSKnifeResult()
 	else
 		DayHSOnly = false;
 
-	PrintToChatAll("%s Backstab Only is \x07%sactive!", PREFIX, DayHSOnly ? "" : "not ");
+	UC_PrintToChatAll("%s Backstab Only is \x07%sactive!", PREFIX, DayHSOnly ? "" : "not ");
 
 	StartKnifeDay();
 }
@@ -731,7 +727,7 @@ public Action Command_StartWarDay(int client, int args)
 
 	SelectWeaponWarDay();
 
-	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
@@ -747,7 +743,7 @@ public Action Command_StartSDeagleDay(int client, int args)
 
 	StartSDeagleDay();
 
-	PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
@@ -1063,7 +1059,7 @@ void CheckVoteWeaponResult()
 
 	FormatEx(DayWeapon, sizeof(DayWeapon), WarDayWeapons[winnerWeapon].classname);
 
-	PrintToChatAll("%s The winning weapon is \x07%s", PREFIX, WarDayWeapons[winnerWeapon].nickname);
+	UC_PrintToChatAll("%s The winning weapon is \x07%s", PREFIX, WarDayWeapons[winnerWeapon].nickname);
 
 	SelectHSWarDay();
 }
@@ -1074,7 +1070,7 @@ void SelectHSWarDay()
 	{
 		ServerCommand("mp_restartgame 1");
 
-		PrintToChatAll("%s Error couldn't start vote for \x07HS \x01only, contact \x05Eyal282!", PREFIX);
+		UC_PrintToChatAll("%s Error couldn't start vote for \x07HS \x01only, contact \x05Eyal282!", PREFIX);
 		return;
 	}
 
@@ -1172,7 +1168,7 @@ void CheckVoteHSResult()
 	else
 		DayHSOnly = false;
 
-	PrintToChatAll("%s HS Only is \x07%sactive!", PREFIX, DayHSOnly ? "" : "not ");
+	UC_PrintToChatAll("%s HS Only is \x07%sactive!", PREFIX, DayHSOnly ? "" : "not ");
 
 	StartWarDay();
 }
@@ -1210,8 +1206,6 @@ public Action Timer_StartDay(Handle hTimer)
 {
 	DayCountDown--;
 
-	KickBotImposters();
-
 	if (DayCountDown == 0)
 	{
 		hTimer_StartDay = INVALID_HANDLE;
@@ -1244,7 +1238,7 @@ public Action Timer_StartDay(Handle hTimer)
 			ShowMessage[i] = true;
 		}
 
-		hTimer_InfoMessage = CreateTimer(0.1, Timer_InfoMessage, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+		CreateTimer(0.1, Timer_InfoMessage, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 
 		return Plugin_Stop;
 	}
@@ -1257,11 +1251,7 @@ public Action Timer_StartDay(Handle hTimer)
 public Action Timer_InfoMessage(Handle hTimer)
 {
 	if (DayActive <= LR_DAY)
-	{
-		hTimer_InfoMessage = INVALID_HANDLE;
-
 		return Plugin_Stop;
-	}
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -1399,7 +1389,7 @@ stock void StartVoteDay()
 
 	CreateTimer(1.0, Timer_DrawVoteDayMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT)
 }
-stock void StopDay(bool Restart = true, bool ShouldKickBot = true)
+stock void StopDay(bool Restart = true)
 {
 	GlowRemoved = false;
 
@@ -1423,96 +1413,11 @@ stock void StopDay(bool Restart = true, bool ShouldKickBot = true)
 		hTimer_StartDay = INVALID_HANDLE;
 	}
 
-	if (ShouldKickBot)
-	{
-		KickBot();
-	}
-
 	Call_StartForward(fw_OnDayStatus);
 
 	Call_PushCell(false);
 
 	Call_Finish();
-}
-
-void CreateBot()
-{
-	KickBot();
-
-	Bot = CreateFakeClient(BotName);
-
-	KickBotImposters();
-
-	if (Bot != 0)
-	{
-		DispatchSpawn(Bot);
-
-		ActivateEntity(Bot);
-
-		ChangeClientTeam(Bot, CS_TEAM_CT);
-
-		CS_RespawnPlayer(Bot);
-
-		SetEntProp(Bot, Prop_Data, "m_takedamage", 0);
-
-		SetEntityRenderMode(Bot, RENDER_NONE);
-
-		float Origin[3];
-		GetEntPropVector(Bot, Prop_Data, "m_vecOrigin", Origin);
-
-		Origin[2] = -32767.0;
-		TeleportEntity(Bot, Origin, NULL_VECTOR, NULL_VECTOR);
-	}
-}
-void KickBot()
-{
-	if (Bot != 0)
-	{
-		ChangeClientTeam(Bot, CS_TEAM_SPECTATOR);
-
-		KickClient(Bot);
-
-		Bot = 0;
-	}
-	else
-	{
-		for (int i = 1; i <= MaxClients; i++)
-		{
-			if (!IsClientInGame(i))
-				continue;
-
-			else if (!IsFakeClient(i))
-				continue;
-
-			char Name[64];
-			GetClientName(i, Name, sizeof(Name));
-
-			if (StrEqual(Name, BotName))
-			{
-				ChangeClientTeam(i, CS_TEAM_SPECTATOR);
-
-				KickClient(i);
-			}
-		}
-	}
-}
-
-void KickBotImposters()
-{
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientInGame(i))
-			continue;
-
-		else if (IsFakeClient(i))
-			continue;
-
-		char Name[64];
-		GetClientName(i, Name, sizeof(Name));
-
-		if (StrEqual(Name, BotName))
-			KickClient(i, "This name is restricted");
-	}
 }
 
 public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -1545,7 +1450,7 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 
 	if (DayActive == LR_DAY)
 	{
-		StopDay(true, true);
+		StopDay(true);
 
 		return;
 	}
@@ -1602,7 +1507,7 @@ void ProcessPlayerDeath(int victim)
 		char GangName[32];
 		Gangs_GetClientGangName(refClient, GangName, sizeof(GangName));
 
-		PrintToChatAll("%s The gang \x07%s \x01won the \x05day! \x01it will now fight eachother.", PREFIX, GangName);
+		UC_PrintToChatAll("%s The gang \x07%s \x01won the \x05day! \x01it will now fight eachother.", PREFIX, GangName);
 
 		GlowRemoved = true;
 	}
@@ -1617,11 +1522,11 @@ void ProcessPlayerDeath(int victim)
 			GivePlayerItem(i, "weapon_knife");
 		}
 
-		PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
-		PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
-		PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
-		PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
-		PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
+		UC_PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
+		UC_PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
+		UC_PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
+		UC_PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
+		UC_PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
 	}
 
 	if (LivingT != 1)
@@ -1646,7 +1551,7 @@ void ProcessPlayerDeath(int victim)
 
 	if (Winner != 0)
 	{
-		PrintToChatAll("%s \x05%N \x01won the \x07%s! ", PREFIX, Winner, DayName[DayActive]);
+		UC_PrintToChatAll("%s \x05%N \x01won the \x07%s! ", PREFIX, Winner, DayName[DayActive]);
 		PrintCenterTextAll("<font color='#FF0000'>%N</font><font color='#FFFFFF'> won the %s!</font>", Winner, DayName[DayActive]);
 
 		int Reward = 50 * GetPlayersCount();
@@ -1659,20 +1564,18 @@ void ProcessPlayerDeath(int victim)
 			Gangs_GiveGangCredits(GangName, Reward);
 			Gangs_AddClientDonations(Winner, Reward);
 
-			Gangs_PrintToChatGang(GangName, " \x0B[JB Gangs] \x05%N \x01has earned \x07%i \x01credits for his gang by winning the \x07%s! ", Winner, Reward, DayName[DayActive]);
+			Gangs_UC_PrintToChatGang(GangName, " \x0B[JB Gangs] \x05%N \x01has earned \x07%i \x01credits for his gang by winning the \x07%s! ", Winner, Reward, DayName[DayActive]);
 		}
 
 		Reward = RoundFloat(float(Reward) / 1.5);
 
-		PrintToChatAll(" \x0B[JB Gangs] \x05%N \x01has earned \x07%i \x01gang credits by winning the \x07%s! ", Winner, Reward, DayName[DayActive]);
+		UC_PrintToChatAll(" \x0B[JB Gangs] \x05%N \x01has earned \x07%i \x01gang credits by winning the \x07%s! ", Winner, Reward, DayName[DayActive]);
 
 		Gangs_GiveClientCredits(Winner, Reward);
 
 		ChangeClientTeam(victim, CS_TEAM_CT);
 
 		RequestFrame(Frame_RespawnASAP, victim);
-
-		KickBot();
 
 		DayActive = LR_DAY;
 	}

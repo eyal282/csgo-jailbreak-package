@@ -27,6 +27,9 @@ public Plugin myinfo =
 	url         = ""
 };
 
+char   PREFIX[64];
+Handle hcv_Prefix = INVALID_HANDLE;
+
 bool IsVIP[MAXPLAYERS + 1];
 
 int BeamIndex, HaloIdx;    // HaloIndex is stolen by an include.
@@ -84,6 +87,11 @@ public void OnPluginStart()
 
 	aMarkers = CreateArray(sizeof(markerEntry));
 
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+
+	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
+	HookConVarChange(hcv_Prefix, cvChange_Prefix);
+
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientInGame(i))
@@ -91,6 +99,11 @@ public void OnPluginStart()
 
 		OnClientPutInServer(i);
 	}
+}
+
+public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	FormatEx(PREFIX, sizeof(PREFIX), newValue);
 }
 
 // cmd = Were the cells opened by command or with button.

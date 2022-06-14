@@ -95,6 +95,12 @@ Handle hcv_HonorPerKill = INVALID_HANDLE;
 #define GANG_SIZECOST     6500
 #define GANG_SIZEMAX      3
 
+char PREFIX[64];
+char MENU_PREFIX[64];
+
+Handle hcv_Prefix     = INVALID_HANDLE;
+Handle hcv_MenuPrefix = INVALID_HANDLE;
+
 // Admin Variables.
 
 bool ClientSpyGang[MAXPLAYERS + 1];
@@ -187,8 +193,28 @@ public void OnPluginStart()
 
 	ServerCommand("sm_cvar protect %s", CvarCostWeekly);
 
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+
+	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
+	HookConVarChange(hcv_Prefix, cvChange_Prefix);
+
+	hcv_MenuPrefix = CreateConVar("sm_menu_prefix_cvar", "[JBPack]");
+
+	GetConVarString(hcv_MenuPrefix, MENU_PREFIX, sizeof(MENU_PREFIX));
+	HookConVarChange(hcv_MenuPrefix, cvChange_MenuPrefix);
+
 	Trie_Donated     = CreateTrie();
 	Trie_DonatedWeek = CreateTrie();
+}
+
+public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	FormatEx(PREFIX, sizeof(PREFIX), newValue);
+}
+
+public void cvChange_MenuPrefix(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	FormatEx(MENU_PREFIX, sizeof(MENU_PREFIX), newValue);
 }
 
 public Action Event_PlayerPingPre(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -356,7 +382,7 @@ public void Event_PlayerSpawnPlusFrame(int UserId)
 						case 3: GivePlayerItem(client, "weapon_decoy");
 					}
 
-					PrintToChat(client, " %s \x05You \x01spawned with a random nade for being in a \x07gang! ", PREFIX);
+					UC_PrintToChat(client, " %s \x05You \x01spawned with a random nade for being in a \x07gang! ", PREFIX);
 				}
 			}
 
@@ -630,7 +656,7 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 		if (IsVIP)
 			honor *= 2;
 
-		PrintToChat(attacker, "%s \x05You \x01gained \x02%i%s \x01Honor for your \x07kill.", PREFIX, GetConVarInt(hcv_HonorPerKill), IsVIP ? " x 2" : "");
+		UC_PrintToChat(attacker, "%s \x05You \x01gained \x02%i%s \x01Honor for your \x07kill.", PREFIX, GetConVarInt(hcv_HonorPerKill), IsVIP ? " x 2" : "");
 
 		GiveClientHonor(attacker, honor);
 	}
@@ -646,7 +672,7 @@ public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcas
 		CanGetHonor[i] = true;
 
 		if (IsClientGang(i) && ClientGetHonorPerk[i] > 0 && GetPlayerCount() >= MIN_PLAYERS_FOR_GC)
-			PrintToChat(i, " %s \x05You \x01can write \x07!gc \x01in the chat to get \x10%i \x01Honor!", PREFIX, ClientGetHonorPerk[i] * GANG_GETCREDITSINCREASE);
+			UC_PrintToChat(i, " %s \x05You \x01can write \x07!gc \x01in the chat to get \x10%i \x01Honor!", PREFIX, ClientGetHonorPerk[i] * GANG_GETCREDITSINCREASE);
 	}
 }
 void TryDestroyGlow(int client)
@@ -1010,10 +1036,10 @@ public void SQLCB_LoadGangByClient(Handle owner, DBResultSet hndl, char[] error,
 
 				if (ClientMotd[client][0] != EOS && !MotdShown[client])
 				{
-					PrintToChat(client, " \x01=======\x07GANG MOTD\x01=========");
-					PrintToChat(client, " %s", ClientGang[client]);
-					PrintToChat(client, " %s", ClientMotd[client]);
-					PrintToChat(client, " \x01=======\x07GANG MOTD\x01=========");
+					UC_PrintToChat(client, " \x01=======\x07GANG MOTD\x01=========");
+					UC_PrintToChat(client, " %s", ClientGang[client]);
+					UC_PrintToChat(client, " %s", ClientMotd[client]);
+					UC_PrintToChat(client, " \x01=======\x07GANG MOTD\x01=========");
 					MotdShown[client] = true;
 				}
 
@@ -1133,13 +1159,13 @@ public Action CommandListener_Say(int client, const char[] command, int args)
 
 		if (Args[0] == EOS)
 		{
-			PrintToChat(client, " %s \x01Gang message cannot be \x07empty.", PREFIX);
+			UC_PrintToChat(client, " %s \x01Gang message cannot be \x07empty.", PREFIX);
 			return Plugin_Handled;
 		}
 		char RankName[32];
 		GetRankName(GetClientRank(client), RankName, sizeof(RankName));
 
-		PrintToChatGang(ClientGangId[client], "\x04[Gang Chat] \x05%s \x04%N\x01 : %s", RankName, client, Args);
+		UC_PrintToChatGang(ClientGangId[client], "\x04[Gang Chat] \x05%s \x04%N\x01 : %s", RankName, client, Args);
 
 		for (int i = 1; i <= MaxClients; i++)
 		{
@@ -1147,7 +1173,7 @@ public Action CommandListener_Say(int client, const char[] command, int args)
 				continue;
 
 			if (ClientSpyGang[i])
-				PrintToChat(i, " \x04[\x05Spy Gang Chat\x01] \x05%s \x04%N\x01 : %s", RankName, client, Args);
+				UC_PrintToChat(i, " \x04[\x05Spy Gang Chat\x01] \x05%s \x04%N\x01 : %s", RankName, client, Args);
 		}
 
 		return Plugin_Handled;
@@ -1164,7 +1190,7 @@ public void ListenerSayPlusFrame(int UserId)
 	if (IsClientGang(client))
 	{
 		if (GangAttemptDisband[client] || GangAttemptLeave[client] || GangAttemptStepDown[client])
-			PrintToChat(client, " %s The operation has been \x07aborted!", PREFIX);
+			UC_PrintToChat(client, " %s The operation has been \x07aborted!", PREFIX);
 
 		GangAttemptDisband[client]  = false;
 		GangAttemptLeave[client]    = false;
@@ -1177,19 +1203,19 @@ public Action Command_MotdGang(int client, int args)
 {
 	if (!IsClientGang(client))
 	{
-		PrintToChat(client, " %s \x05You \x01have to be in a gang to use this \x07command!", PREFIX);
+		UC_PrintToChat(client, " %s \x05You \x01have to be in a gang to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (!CheckGangAccess(client, ClientAccessMOTD[client]))
 	{
 		char RankName[32];
 		GetRankName(ClientAccessMOTD[client], RankName, sizeof(RankName));
-		PrintToChat(client, " %s \x05You \x01have to be a gang \x07%s \x01to use this \x07command!", PREFIX, RankName);
+		UC_PrintToChat(client, " %s \x05You \x01have to be a gang \x07%s \x01to use this \x07command!", PREFIX, RankName);
 		return Plugin_Handled;
 	}
 	else if (ClientNextMOTD[client] > GetGameTime())
 	{
-		PrintToChat(client, " %s \x05You can change the MOTD again in %i seconds.", PREFIX, RoundToFloor(ClientNextMOTD[client] - GetGameTime()));
+		UC_PrintToChat(client, " %s \x05You can change the MOTD again in %i seconds.", PREFIX, RoundToFloor(ClientNextMOTD[client] - GetGameTime()));
 		return Plugin_Handled;
 	}
 
@@ -1199,7 +1225,7 @@ public Action Command_MotdGang(int client, int args)
 
 	if (StringHasInvalidCharacters(Args))
 	{
-		PrintToChat(client, " %s Invalid motd! \x05You \x01can only use \x07SPACEBAR, \x07a-z, A-Z\x01, _, -, \x070-9", PREFIX);
+		UC_PrintToChat(client, " %s Invalid motd! \x05You \x01can only use \x07SPACEBAR, \x07a-z, A-Z\x01, _, -, \x070-9", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -1223,7 +1249,7 @@ public Action Command_MotdGang(int client, int args)
 	// It doesn't really matter to immediately update the MOTD, as it's a login message anyways.
 	dbGangs.Execute(transaction, INVALID_FUNCTION, INVALID_FUNCTION, DP);
 
-	PrintToChat(client, "%s The gang's motd has been changed to \x07%s", PREFIX, Args);
+	UC_PrintToChat(client, "%s The gang's motd has been changed to \x07%s", PREFIX, Args);
 
 	return Plugin_Handled;
 }
@@ -1232,7 +1258,7 @@ public Action Command_DonateGang(int client, int args)
 {
 	if (!IsClientGang(client))
 	{
-		PrintToChat(client, "%s \x05You \x01have to be in a \x07gang \x01to use this command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have to be in a \x07gang \x01to use this command!", PREFIX);
 		return Plugin_Handled;
 	}
 	char Args[20];
@@ -1250,17 +1276,17 @@ public Action Command_DonateGang(int client, int args)
 	}
 	if (!IsStringNumber(Args) || Args[0] == EOS)
 	{
-		PrintToChat(client, "%s Invalid Usage! \x07!donategang \x01<amount>", PREFIX);
+		UC_PrintToChat(client, "%s Invalid Usage! \x07!donategang \x01<amount>", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (amount < 50 || (amount % 50) != 0)
 	{
-		PrintToChat(client, "%s \x05You \x01must donate at least \x0750 \x01honor and in multiples of \x0750!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01must donate at least \x0750 \x01honor and in multiples of \x0750!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (amount > ClientHonor[client])
 	{
-		PrintToChat(client, "%s \x05You \x01cannot donate more honor than you \x07have.", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01cannot donate more honor than you \x07have.", PREFIX);
 		return Plugin_Handled;
 	}
 	Handle hMenu = CreateMenu(DonateGang_MenuHandler);
@@ -1299,12 +1325,12 @@ public Action Command_RenameGang(int client, int args)
 {
 	if (!IsClientGang(client))
 	{
-		PrintToChat(client, "%s \x05You \x01have to be in a \x07gang \x01to use this command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have to be in a \x07gang \x01to use this command!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (!CheckGangAccess(client, RANK_LEADER))
 	{
-		PrintToChat(client, "%s \x05You \x01have to be the gang's leader to use this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have to be the gang's leader to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -1314,12 +1340,12 @@ public Action Command_RenameGang(int client, int args)
 
 	if (Args[0] == EOS)
 	{
-		PrintToChat(client, "%s Invalid Usage! \x07!renamegang \x01<new name>", PREFIX);
+		UC_PrintToChat(client, "%s Invalid Usage! \x07!renamegang \x01<new name>", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (StringHasInvalidCharacters(Args))
 	{
-		PrintToChat(client, "%s Invalid name! \x05You \x01can only use \x07a-z, A-Z\x01, _, -, \x070-9!", PREFIX);
+		UC_PrintToChat(client, "%s Invalid name! \x05You \x01can only use \x07a-z, A-Z\x01, _, -, \x070-9!", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -1355,7 +1381,7 @@ public int RenameGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 
 				AddCommas(GANG_RENAME_PRICE - ClientGangHonor[client], ",", sPriceDifference, sizeof(sPriceDifference));
 
-				PrintToChat(client, "%s \x05You \x01need \x07%s more honor\x01 to rename your gang!", PREFIX, sPriceDifference);
+				UC_PrintToChat(client, "%s \x05You \x01need \x07%s more honor\x01 to rename your gang!", PREFIX, sPriceDifference);
 				return;
 			}
 
@@ -1401,7 +1427,7 @@ public void SQLCB_RenameGang_CheckTakenName(Handle owner, Handle hndl, char[] er
 	{
 		if (SQL_GetRowCount(hndl) == 0)
 		{
-			PrintToChatGang(ClientGangId[client], "%s The gang was renamed to\x07 %s\x01!", PREFIX, GangName);
+			UC_PrintToChatGang(ClientGangId[client], "%s The gang was renamed to\x07 %s\x01!", PREFIX, GangName);
 
 			DP = CreateDataPack();
 
@@ -1415,7 +1441,7 @@ public void SQLCB_RenameGang_CheckTakenName(Handle owner, Handle hndl, char[] er
 		}
 		else    // Gang name is taken.
 		{
-			PrintToChat(client, "%s The selected gang name is \x07already \x01taken!", PREFIX);
+			UC_PrintToChat(client, "%s The selected gang name is \x07already \x01taken!", PREFIX);
 		}
 	}
 }
@@ -1424,12 +1450,12 @@ public Action Command_PrefixGang(int client, int args)
 {
 	if (!IsClientGang(client))
 	{
-		PrintToChat(client, "%s \x05You \x01have to be in a \x07gang \x01to use this command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have to be in a \x07gang \x01to use this command!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (!CheckGangAccess(client, RANK_LEADER))
 	{
-		PrintToChat(client, "%s \x05You \x01have to be the gang's leader to use this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have to be the gang's leader to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -1439,17 +1465,17 @@ public Action Command_PrefixGang(int client, int args)
 
 	if (Args[0] == EOS)
 	{
-		PrintToChat(client, "%s Invalid Usage! \x07!prefixgang \x01<new prefix>", PREFIX);
+		UC_PrintToChat(client, "%s Invalid Usage! \x07!prefixgang \x01<new prefix>", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (StringHasInvalidCharacters(Args))
 	{
-		PrintToChat(client, "%s Invalid prefix! \x05You \x01can only use \x07a-z, A-Z\x01, _, -, \x070-9!", PREFIX);
+		UC_PrintToChat(client, "%s Invalid prefix! \x05You \x01can only use \x07a-z, A-Z\x01, _, -, \x070-9!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (strlen(Args) < 3 || strlen(Args) > 5)
 	{
-		PrintToChat(client, "%s Invalid prefix! \x05You \x01can only use\x03\x01 to\x03 5\x01 characters!", PREFIX);
+		UC_PrintToChat(client, "%s Invalid prefix! \x05You \x01can only use\x03\x01 to\x03 5\x01 characters!", PREFIX);
 
 		return Plugin_Handled;
 	}
@@ -1485,7 +1511,7 @@ public int PrefixGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 
 				AddCommas(GANG_PREFIX_PRICE - ClientGangHonor[client], ",", sPriceDifference, sizeof(sPriceDifference));
 
-				PrintToChat(client, "%s \x05You \x01need \x07$%s more\x01 to change your gang's prefix!", PREFIX, sPriceDifference);
+				UC_PrintToChat(client, "%s \x05You \x01need \x07$%s more\x01 to change your gang's prefix!", PREFIX, sPriceDifference);
 				return;
 			}
 
@@ -1531,7 +1557,7 @@ public void SQLCB_GangPrefix_CheckTakenPrefix(Handle owner, Handle hndl, char[] 
 	{
 		if (SQL_GetRowCount(hndl) == 0)
 		{
-			PrintToChatGang(ClientGangId[client], "%s The gang's prefix was changed to\x07 %s\x01!", PREFIX, GangPrefix);
+			UC_PrintToChatGang(ClientGangId[client], "%s The gang's prefix was changed to\x07 %s\x01!", PREFIX, GangPrefix);
 
 			DP = CreateDataPack();
 
@@ -1545,7 +1571,7 @@ public void SQLCB_GangPrefix_CheckTakenPrefix(Handle owner, Handle hndl, char[] 
 		}
 		else    // Gang name is taken.
 		{
-			PrintToChat(client, "%s The selected gang prefix is \x07already \x01taken!", PREFIX);
+			UC_PrintToChat(client, "%s The selected gang prefix is \x07already \x01taken!", PREFIX);
 		}
 	}
 }
@@ -1554,12 +1580,12 @@ public Action Command_CreateGang(int client, int args)
 {
 	if (!ClientLoadedFromDb[client])
 	{
-		PrintToChat(client, "%s \x05You \x01weren't loaded from the database \x07yet!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01weren't loaded from the database \x07yet!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (IsClientGang(client))
 	{
-		PrintToChat(client, "%s \x05You \x01have to leave your current \x07gang \x01to create a new \x07one!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have to leave your current \x07gang \x01to create a new \x07one!", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -1569,12 +1595,12 @@ public Action Command_CreateGang(int client, int args)
 
 	if (Args[0] == EOS)
 	{
-		PrintToChat(client, "%s Invalid Usage! \x07!creategang \x01<name>", PREFIX);
+		UC_PrintToChat(client, "%s Invalid Usage! \x07!creategang \x01<name>", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (StringHasInvalidCharacters(Args))
 	{
-		PrintToChat(client, "%s Invalid name! \x05You \x01can only use \x07a-z, A-Z\x01, _, -, \x070-9!", PREFIX);
+		UC_PrintToChat(client, "%s Invalid name! \x05You \x01can only use \x07a-z, A-Z\x01, _, -, \x070-9!", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -1596,16 +1622,16 @@ public Action Command_LeaveGang(int client, int args)
 {
 	if (!IsClientGang(client))
 	{
-		PrintToChat(client, "%s \x05You \x01have to be in a gang to use this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have to be in a gang to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (!GangAttemptLeave[client])
 	{
-		PrintToChat(client, "%s \x05You \x01have not made an attempt to leave your gang with \x07!gang.", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have not made an attempt to leave your gang with \x07!gang.", PREFIX);
 		return Plugin_Handled;
 	}
 
-	PrintToChatGang(ClientGangId[client], "%s \x03%N \x09has left the gang!", PREFIX, client);
+	UC_PrintToChatGang(ClientGangId[client], "%s \x03%N \x09has left the gang!", PREFIX, client);
 	KickClientFromGang(client, ClientGangId[client], client);
 
 	GangAttemptLeave[client] = false;
@@ -1617,21 +1643,21 @@ public Action Command_DisbandGang(int client, int args)
 {
 	if (!IsClientGang(client))
 	{
-		PrintToChat(client, "%s \x05You \x01have to be in a gang to use this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have to be in a gang to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (!CheckGangAccess(client, RANK_LEADER))
 	{
-		PrintToChat(client, "%s \x05You \x01have to be the gang's leader to use this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have to be the gang's leader to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (!GangAttemptDisband[client])
 	{
-		PrintToChat(client, "%s \x05You \x01have not made an attempt to disband your gang with \x07!gang.", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have not made an attempt to disband your gang with \x07!gang.", PREFIX);
 		return Plugin_Handled;
 	}
 
-	PrintToChatAll("%s \x05%N \x01has disbanded the gang \x07%s!", PREFIX, client, ClientGang[client]);
+	UC_PrintToChatAll("%s \x05%N \x01has disbanded the gang \x07%s!", PREFIX, client, ClientGang[client]);
 
 	char        sQuery[256];
 	Transaction transaction = SQL_CreateTransaction();
@@ -1660,17 +1686,17 @@ public Action Command_StepDown(int client, int args)
 {
 	if (!IsClientGang(client))
 	{
-		PrintToChat(client, "%s \x05You \x01have to be in a gang to use this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have to be in a gang to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (!CheckGangAccess(client, RANK_LEADER))
 	{
-		PrintToChat(client, "%s \x05You \x01have to be the gang's leader to use this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have to be the gang's leader to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (!GangAttemptStepDown[client])
 	{
-		PrintToChat(client, "%s \x05You \x01have not made an attempt to step down from your rank with \x07!gang.", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have not made an attempt to step down from your rank with \x07!gang.", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -1678,18 +1704,18 @@ public Action Command_StepDown(int client, int args)
 
 	if (NewLeader == 0)
 	{
-		PrintToChat(client, "%s The selected target has \x07disconnected.", PREFIX);
+		UC_PrintToChat(client, "%s The selected target has \x07disconnected.", PREFIX);
 		return Plugin_Handled;
 	}
 
 	else if (!AreClientsSameGang(client, NewLeader))
 	{
-		PrintToChat(client, "%s The selected target has left the \x07gang.", PREFIX);
+		UC_PrintToChat(client, "%s The selected target has left the \x07gang.", PREFIX);
 		return Plugin_Handled;
 	}
 
-	PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has stepped down to \x07Co-Leader.", PREFIX, client);
-	PrintToChatGang(ClientGangId[client], "%s \x05%N \x01is now the gang \x07Leader.", PREFIX, NewLeader);
+	UC_PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has stepped down to \x07Co-Leader.", PREFIX, client);
+	UC_PrintToChatGang(ClientGangId[client], "%s \x05%N \x01is now the gang \x07Leader.", PREFIX, NewLeader);
 
 	char AuthId[35], AuthIdNewLeader[35];
 	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
@@ -1731,28 +1757,28 @@ public Action Command_GC(int client, int args)
 {
 	if (!IsClientGang(client))
 	{
-		PrintToChat(client, "%s \x05You \x01have to be in a gang to use this \x01command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have to be in a gang to use this \x01command!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (ClientGetHonorPerk[client] <= 0)
 	{
-		PrintToChat(client, "%s Your gang does not have that \x07perk.", PREFIX);
+		UC_PrintToChat(client, "%s Your gang does not have that \x07perk.", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (!CanGetHonor[client])
 	{
-		PrintToChat(client, "%s \x05You \x01have already received honor this \x07round!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01have already received honor this \x07round!", PREFIX);
 		return Plugin_Handled;
 	}
 	else if (GetPlayerCount() < MIN_PLAYERS_FOR_GC)
 	{
-		PrintToChat(client, "%s \x05You \x01can only use \x07!gc \x01from \x103 \x01players and above.", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01can only use \x07!gc \x01from \x103 \x01players and above.", PREFIX);
 		return Plugin_Handled;
 	}
 
 	int received = ClientGetHonorPerk[client] * GANG_GETCREDITSINCREASE;
 	GiveClientHonor(client, received);
-	PrintToChat(client, "%s \x05You \x01have received \x07%i \x01honor with \x07!gc.", PREFIX, received);
+	UC_PrintToChat(client, "%s \x05You \x01have received \x07%i \x01honor with \x07!gc.", PREFIX, received);
 	CanGetHonor[client] = false;
 
 	return Plugin_Handled;
@@ -1762,7 +1788,7 @@ public Action Command_SpyGang(int client, int args)
 {
 	ClientSpyGang[client] = !ClientSpyGang[client];
 
-	PrintToChat(client, "You are no%s spying gang chats", ClientSpyGang[client] ? "w" : " longer");
+	UC_PrintToChat(client, "You are no%s spying gang chats", ClientSpyGang[client] ? "w" : " longer");
 
 	return Plugin_Handled;
 }
@@ -1771,13 +1797,13 @@ public Action Command_BreachGang(int client, int args)
 {
 	if (IsClientGang(client))
 	{
-		PrintToChat(client, "%s \x05You \x01must not be in a gang to move yourself into another \x07gang.", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01must not be in a gang to move yourself into another \x07gang.", PREFIX);
 		return Plugin_Handled;
 	}
 
 	if (args == 0)
 	{
-		PrintToChat(client, "Usage: \x07sm_breachgang \x01<gang id>");
+		UC_PrintToChat(client, "Usage: \x07sm_breachgang \x01<gang id>");
 		return Plugin_Handled;
 	}
 
@@ -1799,13 +1825,13 @@ public Action Command_BreachGangRank(int client, int args)
 {
 	if (!IsClientGang(client))
 	{
-		PrintToChat(client, "%s \x05You \x01must be in a gang to set your gang \x07rank.", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01must be in a gang to set your gang \x07rank.", PREFIX);
 		return Plugin_Handled;
 	}
 
 	if (args == 0)
 	{
-		PrintToChat(client, "Usage: sm_breachgangrank <rank {0~%i}>", RANK_COLEADER + 1);
+		UC_PrintToChat(client, "Usage: sm_breachgangrank <rank {0~%i}>", RANK_COLEADER + 1);
 		return Plugin_Handled;
 	}
 
@@ -1829,7 +1855,7 @@ public Action Command_Gang(int client, int args)
 {
 	if (!ClientLoadedFromDb[client])
 	{
-		PrintToChat(client, "%s \x05You \x01weren't loaded from the database \x07yet!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01weren't loaded from the database \x07yet!", PREFIX);
 		return Plugin_Handled;
 	}
 	GangAttemptLeave[client]   = false;
@@ -1894,11 +1920,11 @@ public int Gang_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 
 		if (StrEqual(Info, "Create"))
 		{
-			PrintToChat(client, "%s Use \x07!creategang \x01<name> to create a \x07gang.", PREFIX);
+			UC_PrintToChat(client, "%s Use \x07!creategang \x01<name> to create a \x07gang.", PREFIX);
 		}
 		else if (StrEqual(Info, "Donate"))
 		{
-			PrintToChat(client, "%s Use \x07!donategang \x01<amount> to donate to your \x07gang.", PREFIX);
+			UC_PrintToChat(client, "%s Use \x07!donategang \x01<amount> to donate to your \x07gang.", PREFIX);
 		}
 		else if (StrEqual(Info, "Member List"))
 		{
@@ -1921,9 +1947,9 @@ public int Gang_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 				return;
 
 			GangAttemptDisband[client] = true;
-			PrintToChat(client, "%s Write \x07!confirmdisbandgang \x01to confirm DELETION of the \x05gang.", PREFIX);
-			PrintToChat(client, "%s Write anything else in the chat to abort deleting the \x05gang.", PREFIX);
-			PrintToChat(client, "%s ATTENTION! THIS ACTION WILL PERMANENTLY DELETE YOUR \x07GANG\x01, IT IS NOT UNDOABLE AND YOU WILL NOT BE \x07REFUNDED!!!", PREFIX);
+			UC_PrintToChat(client, "%s Write \x07!confirmdisbandgang \x01to confirm DELETION of the \x05gang.", PREFIX);
+			UC_PrintToChat(client, "%s Write anything else in the chat to abort deleting the \x05gang.", PREFIX);
+			UC_PrintToChat(client, "%s ATTENTION! THIS ACTION WILL PERMANENTLY DELETE YOUR \x07GANG\x01, IT IS NOT UNDOABLE AND YOU WILL NOT BE \x07REFUNDED!!!", PREFIX);
 		}
 		else if (StrEqual(Info, "Leave"))
 		{
@@ -1931,8 +1957,8 @@ public int Gang_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 				return;
 
 			GangAttemptLeave[client] = true;
-			PrintToChat(client, "%s Write \x07!confirmleavegang \x01if you are absolutely sure you want to leave the \x07gang.", PREFIX);
-			PrintToChat(client, "%s Write anything else in the chat to \x07abort.", PREFIX);
+			UC_PrintToChat(client, "%s Write \x07!confirmleavegang \x01if you are absolutely sure you want to leave the \x07gang.", PREFIX);
+			UC_PrintToChat(client, "%s Write anything else in the chat to \x07abort.", PREFIX);
 		}
 		else if (StrEqual(Info, "Top"))
 		{
@@ -1979,7 +2005,7 @@ public void SQLCB_ShowTopGangsMenu(Handle owner, DBResultSet hndl, char[] error,
 		FormatEx(TempFormat, sizeof(TempFormat), "%s [Net worth: %i]", GangName, NetWorth);
 
 		if (ClientGangId[client] == GangId)
-			PrintToChat(client, " %s \x01Your gang \x07%s \x01is ranked \x07[%i]. \x01Net Worth: \x07%i \x01honor", PREFIX, GangName, Rank, NetWorth);    // BAR COLOR
+			UC_PrintToChat(client, " %s \x01Your gang \x07%s \x01is ranked \x07[%i]. \x01Net Worth: \x07%i \x01honor", PREFIX, GangName, Rank, NetWorth);    // BAR COLOR
 
 		char Info[11];
 
@@ -2229,7 +2255,7 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 
 				else if (ClientMembersCount[client] >= (GANG_INITSIZE + (ClientGangSizePerk[client] * GANG_SIZEINCREASE)))
 				{
-					PrintToChat(client, "%s The gang is \x07full!", PREFIX);
+					UC_PrintToChat(client, "%s The gang is \x07full!", PREFIX);
 					return;
 				}
 				ShowInviteMenu(client);
@@ -2261,7 +2287,7 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 				if (!ClientAccessMOTD[client])
 					return;
 
-				PrintToChat(client, "%s Use \x07!motdgang \x01<new motd> to change the gang's \x07motd.", PREFIX);
+				UC_PrintToChat(client, "%s Use \x07!motdgang \x01<new motd> to change the gang's \x07motd.", PREFIX);
 
 				ShowManageGangMenu(client, GetMenuSelectionPosition());
 			}
@@ -2272,9 +2298,9 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 					return;
 
 				GangAttemptDisband[client] = true;
-				PrintToChat(client, "%s Write \x07!confirmdisbandgang \x01to confirm DELETION of the \x05gang.", PREFIX);
-				PrintToChat(client, "%s Write anything else in the chat to abort deleting the \x05gang.", PREFIX);
-				PrintToChat(client, "%s ATTENTION! THIS ACTION WILL PERMANENTLY DELETE YOUR \x07GANG\x01, IT IS NOT UNDOABLE AND YOU WILL NOT BE \x07REFUNDED!!!", PREFIX);
+				UC_PrintToChat(client, "%s Write \x07!confirmdisbandgang \x01to confirm DELETION of the \x05gang.", PREFIX);
+				UC_PrintToChat(client, "%s Write anything else in the chat to abort deleting the \x05gang.", PREFIX);
+				UC_PrintToChat(client, "%s ATTENTION! THIS ACTION WILL PERMANENTLY DELETE YOUR \x07GANG\x01, IT IS NOT UNDOABLE AND YOU WILL NOT BE \x07REFUNDED!!!", PREFIX);
 			}
 
 			case 7:
@@ -2289,7 +2315,7 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 				if (!CheckGangAccess(client, RANK_LEADER))
 					return;
 
-				PrintToChat(client, "%s Use \x07!renamegang \x01<new name> to change the gang's \x07name.", PREFIX);
+				UC_PrintToChat(client, "%s Use \x07!renamegang \x01<new name> to change the gang's \x07name.", PREFIX);
 
 				ShowManageGangMenu(client, GetMenuSelectionPosition());
 			}
@@ -2299,7 +2325,7 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 				if (!CheckGangAccess(client, RANK_LEADER))
 					return;
 
-				PrintToChat(client, "%s Use \x07!prefixgang \x01<new prefix> to change the gang's \x07prefix.", PREFIX);
+				UC_PrintToChat(client, "%s Use \x07!prefixgang \x01<new prefix> to change the gang's \x07prefix.", PREFIX);
 
 				ShowManageGangMenu(client, GetMenuSelectionPosition());
 			}
@@ -2588,7 +2614,7 @@ void TryUpgradePerk(int client, int item, int upgradecost)    // Safety accompli
 {
 	if (ClientGangHonor[client] < upgradecost)
 	{
-		PrintToChat(client, "%s Your gang doesn't have enough honor to \x07upgrade.", PREFIX);
+		UC_PrintToChat(client, "%s Your gang doesn't have enough honor to \x07upgrade.", PREFIX);
 		return;
 	}
 	int  PerkToUse, PerkMax;
@@ -2608,7 +2634,7 @@ void TryUpgradePerk(int client, int item, int upgradecost)    // Safety accompli
 
 	if (PerkToUse >= PerkMax)
 	{
-		PrintToChat(client, "%s Your gang has \x07already \x01maxed this perk!", PREFIX);
+		UC_PrintToChat(client, "%s Your gang has \x07already \x01maxed this perk!", PREFIX);
 		return;
 	}
 
@@ -2636,7 +2662,7 @@ void TryUpgradePerk(int client, int item, int upgradecost)    // Safety accompli
 
 	dbGangs.Execute(transaction, SQLTrans_GangDonated, SQLTrans_SetFailState, DP);
 
-	PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has upgraded the gang perk \x07%s!", PREFIX, client, PerkNick);
+	UC_PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has upgraded the gang perk \x07%s!", PREFIX, client, PerkNick);
 }
 
 public void SQLCB_UpdateGang(Handle owner, DBResultSet hndl, char[] error, Handle DP)
@@ -2805,7 +2831,7 @@ public int ChooseRank_MenuHandler(Handle hMenu, MenuAction action, int client, i
 		{
 			char NewRank[32];
 			GetRankName(item, NewRank, sizeof(NewRank));
-			PrintToChatGang(ClientGangId[client], " %s has been \x07promoted \x01to \x05%s", Name, NewRank);
+			UC_PrintToChatGang(ClientGangId[client], " %s has been \x07promoted \x01to \x05%s", Name, NewRank);
 			SetAuthIdRank(iAuthId, ClientGangId[client], item, client);
 		}
 		else
@@ -2816,18 +2842,18 @@ public int ChooseRank_MenuHandler(Handle hMenu, MenuAction action, int client, i
 
 			if (target == 0)
 			{
-				PrintToChat(client, "%s The target must be \x05connected \x01for a step-down action for security \x07reasons.", PREFIX);
+				UC_PrintToChat(client, "%s The target must be \x05connected \x01for a step-down action for security \x07reasons.", PREFIX);
 
 				return;
 			}
 
 			GangStepDownTarget[client] = GetClientUserId(target);
 
-			PrintToChat(client, "%s Attention! \x05You are attempting to promote a player to be the \x07Leader.", PREFIX);
-			PrintToChat(client, "%s By doing so you will become a \x07Co-Leader \x01in the gang.", PREFIX);
-			PrintToChat(client, "%s This action is irreversible, the new \x07leader \x01can kick you if he wants.", PREFIX);
-			PrintToChat(client, "%s If you read all above and sure you want to continue, write \x07!confirmstepdowngang.", PREFIX);
-			PrintToChat(client, "%s Write anything else in the chat to abort the \x07action", PREFIX);
+			UC_PrintToChat(client, "%s Attention! \x05You are attempting to promote a player to be the \x07Leader.", PREFIX);
+			UC_PrintToChat(client, "%s By doing so you will become a \x07Co-Leader \x01in the gang.", PREFIX);
+			UC_PrintToChat(client, "%s This action is irreversible, the new \x07leader \x01can kick you if he wants.", PREFIX);
+			UC_PrintToChat(client, "%s If you read all above and sure you want to continue, write \x07!confirmstepdowngang.", PREFIX);
+			UC_PrintToChat(client, "%s Write anything else in the chat to abort the \x07action", PREFIX);
 		}
 	}
 }
@@ -2949,7 +2975,7 @@ public int ConfirmKick_MenuHandler(Handle hMenu, MenuAction action, int client, 
 			GetMenuItem(hMenu, 0, iAuthId, sizeof(iAuthId));
 			GetMenuItem(hMenu, 1, Name, sizeof(Name));
 
-			PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has kicked \x07%s \x01from the gang!", PREFIX, client, Name);
+			UC_PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has kicked \x07%s \x01from the gang!", PREFIX, client, Name);
 
 			KickAuthIdFromGang(iAuthId, ClientGangId[client], client);
 		}
@@ -3147,17 +3173,17 @@ public int ModLogs_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 
 				if (Rank == RANK_MEMBER)
 				{
-					PrintToChat(client, "%s [%s] was invited by %s [%s] at %s", TargetLastName, TargetAuthId, LastName, AuthId, sTime);
+					UC_PrintToChat(client, "%s [%s] was invited by %s [%s] at %s", TargetLastName, TargetAuthId, LastName, AuthId, sTime);
 				}
 				else
 				{
-					PrintToChat(client, "%s [%s] was invited as %s by %s [%s] at %s", TargetLastName, TargetAuthId, RankName, LastName, AuthId, sTime);
+					UC_PrintToChat(client, "%s [%s] was invited as %s by %s [%s] at %s", TargetLastName, TargetAuthId, RankName, LastName, AuthId, sTime);
 				}
 			}
 
 			case MODACTION_KICK:
 			{
-				PrintToChat(client, "%s [%s] was kicked by %s [%s] at %s", TargetLastName, TargetAuthId, LastName, AuthId, sTime);
+				UC_PrintToChat(client, "%s [%s] was kicked by %s [%s] at %s", TargetLastName, TargetAuthId, LastName, AuthId, sTime);
 			}
 
 			case MODACTION_PROMOTE:
@@ -3166,7 +3192,7 @@ public int ModLogs_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 				char RankName[32];
 				GetRankName(Rank, RankName, sizeof(RankName));
 
-				PrintToChat(client, "%s [%s] was promoted to %s by %s [%s] at %s", TargetLastName, TargetAuthId, RankName, LastName, AuthId, sTime);
+				UC_PrintToChat(client, "%s [%s] was promoted to %s by %s [%s] at %s", TargetLastName, TargetAuthId, RankName, LastName, AuthId, sTime);
 			}
 
 			case MODACTION_MOTD:
@@ -3174,8 +3200,8 @@ public int ModLogs_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 				char MOTD[100];
 				ReadPackString(DP, MOTD, sizeof(MOTD));
 
-				PrintToChat(client, "%s [%s] changed the MOTD at %s to:", LastName, AuthId, sTime);
-				PrintToChat(client, "%s", MOTD);
+				UC_PrintToChat(client, "%s [%s] changed the MOTD at %s to:", LastName, AuthId, sTime);
+				UC_PrintToChat(client, "%s", MOTD);
 			}
 			case MODACTION_UPGRADE:
 			{
@@ -3184,7 +3210,7 @@ public int ModLogs_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 				char PerkNick[32];
 				ReadPackString(DP, PerkNick, sizeof(PerkNick));
 
-				PrintToChat(client, "%s [%s] upgraded perk %s to level %i", LastName, AuthId, PerkNick, PerkLevel);
+				UC_PrintToChat(client, "%s [%s] upgraded perk %s to level %i", LastName, AuthId, PerkNick, PerkLevel);
 			}
 				// Not needed to put disband here, we must restore the gang from MySQL anyways...
 		}
@@ -3245,7 +3271,7 @@ public int Invite_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 					char AuthId[35];
 					GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 					ShowAcceptInviteMenu(target, AuthId, ClientGangId[client], ClientGang[client]);
-					PrintToChat(client, "%s \x05You \x01have invited \x07%N \x01to join the gang!", PREFIX, target);
+					UC_PrintToChat(client, "%s \x05You \x01have invited \x07%N \x01to join the gang!", PREFIX, target);
 				}
 				else
 				{
@@ -3293,7 +3319,7 @@ public int AcceptInvite_MenuHandler(Handle hMenu, MenuAction action, int client,
 			int LastGangId = ClientGangId[client];
 
 			ClientGangId[client] = GangId;
-			PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has joined the \x07gang!", PREFIX, client);
+			UC_PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has joined the \x07gang!", PREFIX, client);
 			ClientGangId[client] = LastGangId;
 
 			AddClientToGang(client, AuthIdInviter, GangId);
@@ -3382,7 +3408,7 @@ public int Members_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 		AddCommas(amount, ",", sHonor, sizeof(sHonor));
 		AddCommas(amountWeek, ",", sHonorWeek, sizeof(sHonorWeek));
 
-		PrintToChat(client, "Total donations: %s. Weekly Donations: %s", sHonor, sHonorWeek);
+		UC_PrintToChat(client, "Total donations: %s. Weekly Donations: %s", sHonor, sHonorWeek);
 
 		ShowMembersMenu(client);
 	}
@@ -3393,13 +3419,13 @@ void TryCreateGang(int client, const char[] GangName)
 	if (GangName[0] == EOS)
 	{
 		GangCreateName[client] = GANG_NULL;
-		PrintToChat(client, "%s The selected gang name is \x07invalid.", PREFIX);
+		UC_PrintToChat(client, "%s The selected gang name is \x07invalid.", PREFIX);
 		return;
 	}
 	else if (ClientHonor[client] < GANG_COSTCREATE)
 	{
 		GangCreateName[client] = GANG_NULL;
-		PrintToChat(client, "%s \x05You \x01need \x07%i \x01more honor to open a gang!", PREFIX, GANG_COSTCREATE - ClientHonor[client]);
+		UC_PrintToChat(client, "%s \x05You \x01need \x07%i \x01more honor to open a gang!", PREFIX, GANG_COSTCREATE - ClientHonor[client]);
 		return;
 	}
 	Handle DP = CreateDataPack();
@@ -3435,7 +3461,7 @@ public void SQLCB_CreateGang_CheckTakenName(Handle owner, DBResultSet hndl, char
 		if (SQL_GetRowCount(hndl) == 0)
 		{
 			CreateGang(client, GangName);
-			PrintToChat(client, "%s The gang was \x07created!", PREFIX);
+			UC_PrintToChat(client, "%s The gang was \x07created!", PREFIX);
 		}
 		else    // Gang name is taken.
 		{
@@ -3453,7 +3479,7 @@ public void SQLCB_CreateGang_CheckTakenName(Handle owner, DBResultSet hndl, char
 			if (NameTaken)
 			{
 				GangCreateName[client] = GANG_NULL;
-				PrintToChat(client, "%s The selected gang name is \x07already \x01taken!", PREFIX);
+				UC_PrintToChat(client, "%s The selected gang name is \x07already \x01taken!", PREFIX);
 			}
 		}
 	}
@@ -3611,7 +3637,7 @@ public void SQLCB_AuthIdAddToGang_CheckMemberCount(Handle owner, DBResultSet hnd
 	{
 		CloseHandle(DP);
 
-		PrintToChatGang(GangId, "%s \x03The gang is full!", PREFIX);
+		UC_PrintToChatGang(GangId, "%s \x03The gang is full!", PREFIX);
 		return;
 	}
 
@@ -3748,7 +3774,7 @@ stock void DonateToGang(int client, int amount)
 
 	dbGangs.Execute(transaction, SQLTrans_GangDonated, SQLTrans_SetFailState, DP);
 
-	PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has donated \x07%i \x01to the gang!", PREFIX, client, amount);
+	UC_PrintToChatGang(ClientGangId[client], "%s \x05%N \x01has donated \x07%i \x01to the gang!", PREFIX, client, amount);
 }
 
 public void SQLTrans_SetFailState(Database db, any data, int numQueries, const char[] error, int failIndex, any[] queryData)
@@ -3834,7 +3860,7 @@ stock bool AreClientsSameGang(int client, int otherclient)
 	return ClientGangId[client] == ClientGangId[otherclient];
 }
 
-stock void PrintToChatGang(int GangId, const char[] format, any...)
+stock void UC_PrintToChatGang(int GangId, const char[] format, any...)
 {
 	char buffer[291];
 	VFormat(buffer, sizeof(buffer), format, 3);
@@ -3849,7 +3875,7 @@ stock void PrintToChatGang(int GangId, const char[] format, any...)
 		else if (ClientGangId[i] != GangId)
 			continue;
 
-		PrintToChat(i, buffer);
+		UC_PrintToChat(i, buffer);
 	}
 }
 
@@ -3969,7 +3995,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("Gangs_GiveGangHonor", Native_GiveGangHonor);
 	CreateNative("Gangs_GiveClientHonor", Native_GiveClientHonor);
 	CreateNative("Gangs_AddClientDonations", Native_AddClientDonations);
-	CreateNative("Gangs_PrintToChatGang", Native_PrintToChatGang);
+	CreateNative("Gangs_UC_PrintToChatGang", Native_UC_PrintToChatGang);
 	CreateNative("Gangs_TryDestroyGlow", Native_TryDestroyGlow);
 	CreateNative("Gangs_GetFFDamageDecrease", Native_GetFFDamageDecrease);
 	CreateNative("Gangs_GetCooldownPercent", Native_GetCooldownPercent);
@@ -4023,14 +4049,14 @@ public int Native_GetClientGangName(Handle plugin, int numParams)
 	SetNativeString(2, ClientGang[client], len, false);
 }
 
-public int Native_PrintToChatGang(Handle plugin, int numParams)
+public int Native_UC_PrintToChatGang(Handle plugin, int numParams)
 {
 	int  GangId = GetNativeCell(1);
 	char buffer[192];
 
 	FormatNativeString(0, 2, 3, sizeof(buffer), _, buffer);
 
-	PrintToChatGang(GangId, buffer);
+	UC_PrintToChatGang(GangId, buffer);
 }
 
 public int Native_TryDestroyGlow(Handle plugin, int numParams)
@@ -4118,7 +4144,7 @@ public void SQLCB_GiveGangHonor(Handle owner, DBResultSet hndl, char[] error, Ha
 		LoadClientGang(i);
 	}
 }
-stock void PrintToChatEyal(const char[] format, any...)
+stock void UC_PrintToChatEyal(const char[] format, any...)
 {
 	char buffer[291];
 	VFormat(buffer, sizeof(buffer), format, 2);
@@ -4134,7 +4160,7 @@ stock void PrintToChatEyal(const char[] format, any...)
 		GetClientAuthId(i, AuthId_Steam2, steamid, sizeof(steamid));
 
 		if (StrEqual(steamid, "STEAM_1:0:49508144"))
-			PrintToChat(i, buffer);
+			UC_PrintToChat(i, buffer);
 	}
 }
 

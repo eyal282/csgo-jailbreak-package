@@ -75,26 +75,6 @@ stock void UC_PrintToChatAll(const char[] format, any ...)
 	}
 }
 
-stock void UC_ShowActivity2(int client, const char[] Tag, const char[] format, any ...)
-{
-	char buffer[256], TagBuffer[256];
-	VFormat(buffer, sizeof(buffer), format, 4);
-	
-	Format(TagBuffer, sizeof(TagBuffer), Tag);
-	
-	for(int i=0;i < sizeof(Colors);i++)
-	{
-		ReplaceString(buffer, sizeof(buffer), Colors[i], ColorEquivalents[i]);
-	}
-	
-	for(int i=0;i < sizeof(Colors);i++)
-	{
-		ReplaceString(TagBuffer, sizeof(TagBuffer), Colors[i], ColorEquivalents[i]);
-	}
-	
-	ShowActivity2(client, TagBuffer, buffer);
-}
-
 stock void UC_StringToUpper(char[] buffer)
 {
 	int length = strlen(buffer);
