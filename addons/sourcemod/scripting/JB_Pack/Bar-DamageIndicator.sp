@@ -8,7 +8,7 @@
 public Plugin myinfo =
 {
 	name        = "Damage Indicator",
-	author      = "Eyal282 ( FuckTheSchool )",
+	author      = "Eyal282",
 	description = "Shows where you damage and who you damage and how much.",
 	version     = "1.0",
 	url         = "NULL"
