@@ -1,0 +1,35 @@
+"Information"
+{
+    "Version"
+    {
+        "Latest"	"1.1"
+    }
+    
+    "Notes"	"Updater setup"
+}
+    
+"Files"
+{
+    "Plugin"	"Path_SM/plugins/noblock.smx"
+    "Plugin"	"Path_SM/plugins/csgo_movement_unlocker.smx"
+    "Plugin"	"Path_SM/plugins/DisableRadar.smx"
+    "Plugin"	"Path_SM/plugins/noradiochat.smx"
+    "Plugin"	"Path_SM/plugins/updater.smx"
+
+    "Plugin"	"Path_SM/plugins/JB_Pack/Bar-DamageIndicator.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/BL-Weapons.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/DisableRadar.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/Eyal282-VoteCT.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/JailBreak-BanCT.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/JailBreak-Config.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakAutoJoinT.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakCore.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakDays.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakGangs.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakJackpot.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakLR.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/JB-CTCommands.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/noradiochat.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/SmartOpen.smx"
+    
+}
