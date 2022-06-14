@@ -1056,7 +1056,7 @@ public Action Command_GiveChosen(int client, int args)
 }
 void StartVoteCT()
 {
-	if (!IsNewVoteAllowed())
+	if (!IsNewVoteAllowed() || NextRoundSpecialDay)
 		return;
 
 	Call_StartForward(fw_VoteCTStart);
