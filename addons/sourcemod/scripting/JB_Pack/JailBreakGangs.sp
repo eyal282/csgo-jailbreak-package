@@ -168,6 +168,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_confirmdisbandgang", Command_DisbandGang);
 	RegConsoleCmd("sm_confirmstepdowngang", Command_StepDown);
 	RegConsoleCmd("sm_gang", Command_Gang);
+	RegConsoleCmd("sm_gangs", Command_Gang);
 	RegConsoleCmd("sm_gethonor", Command_GC);
 	RegConsoleCmd("sm_gc", Command_GC);
 
