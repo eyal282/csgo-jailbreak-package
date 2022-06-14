@@ -27,7 +27,7 @@ public Plugin myinfo =
 	url         = ""
 };
 
-char   PREFIX[64];
+char   PREFIX[256];
 Handle hcv_Prefix = INVALID_HANDLE;
 
 bool IsVIP[MAXPLAYERS + 1];
@@ -87,7 +87,7 @@ public void OnPluginStart()
 
 	aMarkers = CreateArray(sizeof(markerEntry));
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
 
 	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
 	HookConVarChange(hcv_Prefix, cvChange_Prefix);

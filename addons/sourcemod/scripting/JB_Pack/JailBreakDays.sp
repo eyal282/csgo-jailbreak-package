@@ -78,7 +78,7 @@ native int   Gangs_AreClientsSameGang(int client, int otherClient);
 native int   Gangs_TryDestroyGlow(int client);
 native float Gangs_GetFFDamageDecrease(int client);
 
-char   PREFIX[64];
+char   PREFIX[256];
 Handle hcv_Prefix = INVALID_HANDLE;
 
 #define PLUGIN_VERSION "1.0"
@@ -269,7 +269,7 @@ public void OnPluginStart()
 	hcv_IgnoreRoundWinConditions = FindConVar("mp_ignore_round_win_conditions");
 	hcv_TaserRechargeTime        = FindConVar("mp_taser_recharge_time");
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
 
 	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
 	HookConVarChange(hcv_Prefix, cvChange_Prefix);

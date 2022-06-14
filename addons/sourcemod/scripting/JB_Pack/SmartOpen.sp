@@ -11,7 +11,7 @@
 
 #pragma newdecls required
 
-char   PREFIX[64];
+char   PREFIX[256];
 Handle hcv_Prefix = INVALID_HANDLE;
 
 Handle hcv_Mode            = INVALID_HANDLE;
@@ -102,7 +102,7 @@ public void OnPluginStart()
 	hcv_EmptyRebel      = CreateConVar("open_cells_allow_empty_rebel", "1", "If there are no CT ( probably server empty ) terrorists are able to use !open");
 	hcv_LRChainsaw      = CreateConVar("open_cells_lr_chainsaw", "1", "Last terrorist can execute !open with his lr chainsaw");
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
 
 	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
 	HookConVarChange(hcv_Prefix, cvChange_Prefix);

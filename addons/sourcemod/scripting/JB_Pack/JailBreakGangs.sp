@@ -95,7 +95,7 @@ Handle hcv_HonorPerKill = INVALID_HANDLE;
 #define GANG_SIZECOST     6500
 #define GANG_SIZEMAX      3
 
-char PREFIX[64];
+char PREFIX[256];
 char MENU_PREFIX[64];
 
 Handle hcv_Prefix     = INVALID_HANDLE;
@@ -193,7 +193,7 @@ public void OnPluginStart()
 
 	ServerCommand("sm_cvar protect %s", CvarCostWeekly);
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
 
 	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
 	HookConVarChange(hcv_Prefix, cvChange_Prefix);

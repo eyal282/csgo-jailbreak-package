@@ -17,7 +17,7 @@
 #define semicolon 1
 #define newdecls  required
 
-char   PREFIX[64];
+char   PREFIX[256];
 Handle hcv_Prefix = INVALID_HANDLE;
 
 int  g_iBanCTUnix[MAXPLAYERS + 1];
@@ -71,7 +71,7 @@ public void OnPluginStart()
 	RegAdminCmd("sm_ctunban", Command_UnbanCT, ADMFLAG_BAN, "Unban player from the counter-terrorist team.");
 	RegAdminCmd("sm_ctbanlist", Command_CTBanList, ADMFLAG_BAN, "List of CT Bans");
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
 
 	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
 	HookConVarChange(hcv_Prefix, cvChange_Prefix);

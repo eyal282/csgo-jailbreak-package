@@ -40,7 +40,7 @@ char GameInfo[Game_MAX][] = {
 	"Election Day {VOTE_COUNT}\nThe players will vote on who will become CT"
 }
 
-char   PREFIX[64];
+char   PREFIX[256];
 Handle hcv_Prefix = INVALID_HANDLE;
 
 char GameTitle[Game_MAX][] = { "First Writes\nBe the first player to repeat the text to become CT", "Random Number\nChoose a number between 1-300, closest result to the chosen number becomes CT", "Combo Contest\nRepeat the moves before everybody else to become CT", "Random Player\nWould you like to become CT?", "Math Contest\nA very easy question from the multiplication table e.g. 9x3", "Election Day\nWould you like to become CT?" }
@@ -238,7 +238,7 @@ public void OnPluginStart()
 	SetConVarInt(hcv_ForcePickTime, MAX_INT);
 	SetConVarBool(hcv_AutoTeamBalance, false);
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
 
 	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
 	HookConVarChange(hcv_Prefix, cvChange_Prefix);

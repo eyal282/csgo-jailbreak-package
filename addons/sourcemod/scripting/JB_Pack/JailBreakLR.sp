@@ -105,7 +105,7 @@ int g_RedBeamSprite    = -1;
 int g_OrangeBeamSprite = -1;
 int g_HaloSprite       = -1;
 
-char PREFIX[64];
+char PREFIX[256];
 char MENU_PREFIX[64];
 
 Handle hcv_Prefix     = INVALID_HANDLE;
@@ -352,7 +352,7 @@ public void OnPluginStart()
 
 	AddNormalSoundHook(Event_Sound);
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
 
 	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
 	HookConVarChange(hcv_Prefix, cvChange_Prefix);
