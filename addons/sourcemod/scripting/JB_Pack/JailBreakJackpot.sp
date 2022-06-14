@@ -1,6 +1,7 @@
 #include <sdkhooks>
 #include <sdktools>
 #include <sourcemod>
+#include <store>
 
 #undef REQUIRE_PLUGIN
 #undef REQUIRE_EXTENSIONS
@@ -10,9 +11,6 @@
 
 #define semicolon 1
 #define newdecls  required
-
-native int JailBreakShop_GiveClientCash(int client, int amount, bool includeMultipliers);
-native int JailBreakShop_GetClientCash(int client);
 
 #define PLUGIN_VERSION "1.0"
 
@@ -45,8 +43,8 @@ public void OnPluginStart()
 
 #endif
 
-	hcv_MinCredits = UC_CreateConVar("shop_jackpot_min_cash", "25", "Jackpot Minimum");
-	hcv_MaxCredits = UC_CreateConVar("shop_jackpot_max_cash", "65000", "Jackpot Maximum");
+	hcv_MinCredits = UC_CreateConVar("shop_jackpot_min_credits", "25", "Jackpot Minimum");
+	hcv_MaxCredits = UC_CreateConVar("shop_jackpot_max_credits", "65000", "Jackpot Maximum");
 
 	Trie_Jackpot = CreateTrie();
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
@@ -94,7 +92,7 @@ void ConnectToDatabase()
 		SetFailState(Error);
 
 	else
-		SQL_TQuery(dbJackpot, SQLCB_Error, "CREATE TABLE IF NOT EXISTS Jackpot_Debt (AuthId VARCHAR(35) NOT NULL UNIQUE, cash INT(11) NOT NULL)");
+		SQL_TQuery(dbJackpot, SQLCB_Error, "CREATE TABLE IF NOT EXISTS Jackpot_Debt (AuthId VARCHAR(35) NOT NULL UNIQUE, credits INT(11) NOT NULL)");
 }
 
 public int SQLCB_Error(Handle db, Handle hResults, const char[] Error, int data)
@@ -156,13 +154,13 @@ public void CheckJackpotEnd()
 	if (Winner == 0)
 	{
 		SaveJackpotDebt(WinnerAuthId, JackpotCredits);
-		PrintToChatAll("\x01The winner \x07disconnected, \x01saving his \x07%i \x01cash for next time he joins. Winner's \x01Steam ID: \x07%s", JackpotCredits, WinnerAuthId);
+		PrintToChatAll("\x01The winner \x07disconnected, \x01saving his \x07%i \x01credits for next time he joins. Winner's \x01Steam ID: \x07%s", JackpotCredits, WinnerAuthId);
 	}
 	else
 	{
-		JailBreakShop_GiveClientCash(Winner, JackpotCredits, false);
+		Store_SetClientCredits(Winner, Store_GetClientCredits(Winner) + JackpotCredits);
 
-		PrintToChatAll("The jackpot winner is %N, he won %i cash ( %.1f%% )", Winner, JackpotCredits, GetJackpotChance(WinnerAuthId));
+		PrintToChatAll("The jackpot winner is %N, he won %i credits ( %.1f%% )", Winner, JackpotCredits, GetJackpotChance(WinnerAuthId));
 	}
 
 	JackpotStarted = false;
@@ -191,7 +189,7 @@ public Action Command_Jackpot(int client, int args)
 
 	int joinCredits = StringToInt(Arg);
 
-	int credits = JailBreakShop_GetClientCash(client);
+	int credits = Store_GetClientCredits(client);
 
 	if (StrEqual(Arg, "all", false))
 	{
@@ -203,23 +201,23 @@ public Action Command_Jackpot(int client, int args)
 
 	if (credits < joinCredits)
 	{
-		ReplyToCommand(client, "You \x07don't \x01have enough \x07cash.");
+		ReplyToCommand(client, "You \x07don't \x01have enough \x07credits.");
 		return Plugin_Handled;
 	}
 
 	else if (GetConVarInt(hcv_MinCredits) > joinCredits)
 	{
-		ReplyToCommand(client, " \x01The \x07Minimum \x01amount of \x07cash \x01to join the jackpot is \x05%i", GetConVarInt(hcv_MinCredits));
+		ReplyToCommand(client, " \x01The \x07Minimum \x01amount of \x07credits \x01to join the jackpot is \x05%i", GetConVarInt(hcv_MinCredits));
 		return Plugin_Handled;
 	}
 
 	else if (GetConVarInt(hcv_MaxCredits) < joinCredits)
 	{
-		ReplyToCommand(client, " \x01The \x07Maximum \x01amount of \x07cash \x01to join the jackpot is \x05%i", GetConVarInt(hcv_MaxCredits));
+		ReplyToCommand(client, " \x01The \x07Maximum \x01amount of \x07credits \x01to join the jackpot is \x05%i", GetConVarInt(hcv_MaxCredits));
 		return Plugin_Handled;
 	}
 
-	JailBreakShop_GiveClientCash(client, -joinCredits, false);
+	Store_SetClientCredits(client, Store_GetClientCredits(client) - joinCredits);
 
 	SetTrieValue(Trie_Jackpot, AuthId, joinCredits);
 
@@ -227,7 +225,7 @@ public Action Command_Jackpot(int client, int args)
 
 	JackpotCredits += joinCredits;
 
-	PrintToChatAll(" \x04%N \x01joined the \x07jackpot \x01with \x07%i \x01cash! \x07Total: \x05%i \x07( %.2f%% )", client, joinCredits, JackpotCredits, GetJackpotChance(AuthId));
+	PrintToChatAll(" \x04%N \x01joined the \x07jackpot \x01with \x07%i \x01credits! \x07Total: \x05%i \x07( %.2f%% )", client, joinCredits, JackpotCredits, GetJackpotChance(AuthId));
 
 	return Plugin_Handled;
 }
@@ -236,10 +234,10 @@ public void SaveJackpotDebt(const char[] AuthId, int amount)
 {
 	char sQuery[256];
 
-	Format(sQuery, sizeof(sQuery), "UPDATE OR IGNORE Jackpot_Debt SET cash = cash + %i WHERE AuthId = '%s'", amount, AuthId);
+	Format(sQuery, sizeof(sQuery), "UPDATE OR IGNORE Jackpot_Debt SET credits = credits + %i WHERE AuthId = '%s'", amount, AuthId);
 	SQL_TQuery(dbJackpot, SQLCB_Error, sQuery);
 
-	Format(sQuery, sizeof(sQuery), "INSERT OR IGNORE INTO Jackpot_Debt (AuthId, cash) VALUES ('%s', %d)", AuthId, amount);
+	Format(sQuery, sizeof(sQuery), "INSERT OR IGNORE INTO Jackpot_Debt (AuthId, credits) VALUES ('%s', %d)", AuthId, amount);
 	SQL_TQuery(dbJackpot, SQLCB_Error, sQuery);
 }
 
@@ -285,9 +283,9 @@ public int SQLCB_LoadDebt(Handle db, Handle hResults, const char[] Error, int Us
 
 		SQL_TQuery(dbJackpot, SQLCB_Error, sQuery, _, DBPrio_High);
 
-		PrintToChat(client, "Jackpot system owed you \x07%i \x01cash because you left before you \x04WON", debt);
+		PrintToChat(client, "Jackpot system owed you \x07%i \x01credits because you left before you \x04WON", debt);
 
-		JailBreakShop_GiveClientCash(client, debt, false);
+		Store_SetClientCredits(client, Store_GetClientCredits(client) + debt);
 	}
 }
 
