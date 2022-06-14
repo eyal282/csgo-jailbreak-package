@@ -20,15 +20,18 @@ public Plugin myinfo =
 	url         = ""
 };
 
-public void OnPluginEnd()
+public void OnMapEnd()
 {
 	RemoveServerTag2("JBPack");
 }
 
-public void OnPluginStart()
+public void OnMapStart()
 {
 	AddServerTag2("JBPack");
+}
 
+public void OnPluginStart()
+{
 #if defined _updater_included
 
 	if (LibraryExists("updater"))
