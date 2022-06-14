@@ -70,7 +70,7 @@ native int   Gangs_HasGang(int client);
 native int   Gangs_GetClientGangId(int client);
 native int   Gangs_GetClientGlowColorSlot(int client);
 native int   Gangs_GetClientGangName(int client, char[] GangName, int len);
-native int   Gangs_UC_PrintToChatGang(char[] GangName, char[] format, any...);
+native int   Gangs_PrintToChatGang(char[] GangName, char[] format, any...);
 native int   Gangs_AddClientDonations(int client, int amount);
 native int   Gangs_GiveGangCredits(const char[] GangName, int amount);
 native int   Gangs_GiveClientCredits(int client, int amount);
@@ -1564,7 +1564,7 @@ void ProcessPlayerDeath(int victim)
 			Gangs_GiveGangCredits(GangName, Reward);
 			Gangs_AddClientDonations(Winner, Reward);
 
-			Gangs_UC_PrintToChatGang(GangName, " \x0B[JB Gangs] \x05%N \x01has earned \x07%i \x01credits for his gang by winning the \x07%s! ", Winner, Reward, DayName[DayActive]);
+			Gangs_PrintToChatGang(GangName, " \x0B[JB Gangs] \x05%N \x01has earned \x07%i \x01credits for his gang by winning the \x07%s! ", Winner, Reward, DayName[DayActive]);
 		}
 
 		Reward = RoundFloat(float(Reward) / 1.5);
