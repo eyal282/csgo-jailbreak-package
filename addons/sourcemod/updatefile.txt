@@ -10,5 +10,5 @@
 	
 "Files"
 {
-	"Plugin"	"Path_SM/plugins/JBPack/JailBreakCore.smx"
+	"Plugin"	"Path_SM/plugins/JB_Pack/JailBreakCore.smx"
 }
