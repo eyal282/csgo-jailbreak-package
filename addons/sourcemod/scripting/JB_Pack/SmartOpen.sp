@@ -463,7 +463,7 @@ public Action Command_Open(int client, int args)
 
 public Action Command_HardOpen(int client, int args)
 {
-	if (client != 0 && GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false) && !CanEmptyRebel())
+	if (client != 0 && GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false) && !CanEmptyRebel() && !CanLRChainsaw())
 	{
 		UC_PrintToChat(client, "%s You must be \x0BCT \x01to use this \x07command!", PREFIX);
 		return Plugin_Handled;
