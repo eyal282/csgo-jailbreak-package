@@ -3657,7 +3657,7 @@ public void ContinueStartDuel()
 		int weapon = GivePlayerItem(Guard, "weapon_m4a1");
 		SetClientAmmo(Guard, weapon, 10000);
 
-		GeneralTimer = 60;
+		GeneralTimer = 60 + 1;
 
 		SetConVarFloat(hcv_NoclipSpeed, 1.3);
 		TIMER_COUNTDOWN = CreateTimer(1.0, DecrementTimer, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
@@ -3685,7 +3685,7 @@ public void ContinueStartDuel()
 		StripPlayerWeapons(Prisoner);
 		StripPlayerWeapons(Guard);
 
-		GeneralTimer = 5;
+		GeneralTimer = 5 + 1;
 
 		SetEntityMoveType(Prisoner, MOVETYPE_NONE);
 		SetEntityMoveType(Guard, MOVETYPE_NONE);
@@ -4884,6 +4884,8 @@ public void ShowReactionInfo(int client)
 
 public Action DecrementTimer(Handle hTimer)
 {
+	GeneralTimer--;
+
 	if (GeneralTimer <= 0)
 	{
 		bool HNS;
@@ -4902,8 +4904,6 @@ public Action DecrementTimer(Handle hTimer)
 		TIMER_COUNTDOWN = INVALID_HANDLE;
 		return Plugin_Stop;
 	}
-
-	GeneralTimer--;
 
 	return Plugin_Continue;
 }
