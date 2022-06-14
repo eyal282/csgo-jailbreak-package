@@ -17,6 +17,9 @@
 #define semicolon 1
 #define newdecls  required
 
+char   PREFIX[64];
+Handle hcv_Prefix = INVALID_HANDLE;
+
 int  g_iBanCTUnix[MAXPLAYERS + 1];
 bool g_bBanCTBool[MAXPLAYERS + 1];
 
@@ -67,6 +70,16 @@ public void OnPluginStart()
 	RegAdminCmd("sm_unctban", Command_UnbanCT, ADMFLAG_BAN, "Unban player from the counter-terrorist team.");
 	RegAdminCmd("sm_ctunban", Command_UnbanCT, ADMFLAG_BAN, "Unban player from the counter-terrorist team.");
 	RegAdminCmd("sm_ctbanlist", Command_CTBanList, ADMFLAG_BAN, "List of CT Bans");
+
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+
+	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
+	HookConVarChange(hcv_Prefix, cvChange_Prefix);
+}
+
+public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	FormatEx(PREFIX, sizeof(PREFIX), newValue);
 }
 
 /* Hooks, etc.. */
@@ -195,7 +208,7 @@ public Action Command_BanCT(int client, int args)
 {
 	if (args < 3)
 	{
-		PrintToChat(client, "%s Syntax error: /banct <target> <time (in minutes)> <reason>", PREFIX);
+		UC_PrintToChat(client, "%s Syntax error: /banct <target> <time (in minutes)> <reason>", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -211,7 +224,7 @@ public Action Command_BanCT(int client, int args)
 
 	if (g_bBanCTBool[target])
 	{
-		PrintToChat(client, "%s \x02%N\x01 is already banned from the \x0Ccounter-terrorist team.", PREFIX, target);
+		UC_PrintToChat(client, "%s \x02%N\x01 is already banned from the \x0Ccounter-terrorist team.", PREFIX, target);
 		return Plugin_Handled;
 	}
 
@@ -222,7 +235,7 @@ public Action Command_BanCT(int client, int args)
 
 	if (time <= 0)
 	{
-		PrintToChat(client, "%s You cant ban player for less than \x021\x01 minute.", PREFIX);
+		UC_PrintToChat(client, "%s You cant ban player for less than \x021\x01 minute.", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -241,7 +254,7 @@ public Action Command_BanCT(int client, int args)
 	}
 	else
 	{
-		PrintToChat(client, "%s You cant ban player for without giving a reason!", PREFIX);
+		UC_PrintToChat(client, "%s You cant ban player for without giving a reason!", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -253,8 +266,8 @@ public Action Command_BanCT(int client, int args)
 	char TimeFormat[64];
 	FormatTime(TimeFormat, sizeof(TimeFormat), "%d/%m/%y %H:%M:%S", g_iBanCTUnix[target]);
 
-	PrintToChatAll("%s \x02%N\x01 has banned \x02%N\x01 from the \x0Ccounter-terrorist team.", PREFIX, client, target);
-	PrintToChatAll("%s The ban will expire at: \x02%s\x01.", PREFIX, TimeFormat);
+	UC_PrintToChatAll("%s \x02%N\x01 has banned \x02%N\x01 from the \x0Ccounter-terrorist team.", PREFIX, client, target);
+	UC_PrintToChatAll("%s The ban will expire at: \x02%s\x01.", PREFIX, TimeFormat);
 
 	if (GetClientTeam(target) == CS_TEAM_CT)
 	{
@@ -277,7 +290,7 @@ public Action Command_UnbanCT(int client, int args)
 {
 	if (args < 1)
 	{
-		PrintToChat(client, "%s Syntax error: /unbanct <target>", PREFIX);
+		UC_PrintToChat(client, "%s Syntax error: /unbanct <target>", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -293,14 +306,14 @@ public Action Command_UnbanCT(int client, int args)
 
 	if (!g_bBanCTBool[target])
 	{
-		PrintToChat(client, "%s \x02%\x01 is not banned from the \x0Ccounter-terrorist team.", PREFIX, target);
+		UC_PrintToChat(client, "%s \x02%\x01 is not banned from the \x0Ccounter-terrorist team.", PREFIX, target);
 		return Plugin_Handled;
 	}
 
 	g_bBanCTBool[target] = false;
 	g_iBanCTUnix[target] = 0;
 
-	PrintToChatAll("%s \x02%N\x01 has unbanned \x02%N\x01 from the \x0Ccounter-terrorist team.", PREFIX, client, target);
+	UC_PrintToChatAll("%s \x02%N\x01 has unbanned \x02%N\x01 from the \x0Ccounter-terrorist team.", PREFIX, client, target);
 
 	char SteamID[32];
 	GetClientAuthId(client, AuthId_Steam2, SteamID, sizeof(SteamID));
@@ -414,7 +427,7 @@ public int MenuHandler_DeleteBan(Handle hMenu, MenuAction action, int client, in
 
 		GetMenuItem(hMenu, item, AuthId, sizeof(AuthId));
 
-		PrintToChat(client, "%s \x02Unbanned Auth Id %s", PREFIX, AuthId);
+		UC_PrintToChat(client, "%s \x02Unbanned Auth Id %s", PREFIX, AuthId);
 
 		char aQuery[255];
 		SQL_FormatQuery(dbCTBan, aQuery, sizeof(aQuery), "DELETE FROM jb_banct where auth='%s'", AuthId);

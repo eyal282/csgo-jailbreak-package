@@ -40,6 +40,9 @@ char GameInfo[Game_MAX][] = {
 	"Election Day {VOTE_COUNT}\nThe players will vote on who will become CT"
 }
 
+char   PREFIX[64];
+Handle hcv_Prefix = INVALID_HANDLE;
+
 char GameTitle[Game_MAX][] = { "First Writes\nBe the first player to repeat the text to become CT", "Random Number\nChoose a number between 1-300, closest result to the chosen number becomes CT", "Combo Contest\nRepeat the moves before everybody else to become CT", "Random Player\nWould you like to become CT?", "Math Contest\nA very easy question from the multiplication table e.g. 9x3", "Election Day\nWould you like to become CT?" }
 
 float ExpireGraceTime = 0.0;
@@ -235,6 +238,11 @@ public void OnPluginStart()
 	SetConVarInt(hcv_ForcePickTime, MAX_INT);
 	SetConVarBool(hcv_AutoTeamBalance, false);
 
+	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[JBPack]");
+
+	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
+	HookConVarChange(hcv_Prefix, cvChange_Prefix);
+
 	HookConVarChange(hcv_ForcePickTime, cvChange_ForcePickTime);
 	HookConVarChange(hcv_AutoTeamBalance, cvChange_AutoTeamBalance);
 
@@ -276,6 +284,11 @@ public Action LastRequest_OnCanStartLR(int client, char Message[256], Handle hTi
 	return Plugin_Continue;
 }
 
+public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	FormatEx(PREFIX, sizeof(PREFIX), newValue);
+}
+
 public void cvChange_ForcePickTime(Handle convar, const char[] oldValue, const char[] newValue)
 {
 	if (StringToInt(newValue) < MAX_INT)
@@ -315,7 +328,7 @@ public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float
 
 		if (ComboProgress[client] == ComboCount)
 		{
-			PrintToChatAll("%s  \x05%N \x01won \x07Combo Contest! \x01He becomes CT. ", PREFIX, client);
+			UC_PrintToChatAll("%s  \x05%N \x01won \x07Combo Contest! \x01He becomes CT. ", PREFIX, client);
 
 			EndVoteCT();
 
@@ -439,7 +452,7 @@ public Action Listener_Say(int client, const char[] command, int args)
 
 	else if (IsPlayerBannedFromGuardsTeam(client))
 	{
-		PrintToChat(client, "%s You're \x07banned \x01from \x0BCT, \x01you cannot attempt to win it ", PREFIX);
+		UC_PrintToChat(client, "%s You're \x07banned \x01from \x0BCT, \x01you cannot attempt to win it ", PREFIX);
 
 		return Plugin_Continue;
 	}
@@ -457,10 +470,10 @@ public Action Listener_Say(int client, const char[] command, int args)
 				SetChosenCT(client);
 
 				if (ChosenGame == Game_FirstWrites)
-					PrintToChatAll("%s  \x05%N \x01won \x07First Writes! \x01He becomes CT. ", PREFIX, client);
+					UC_PrintToChatAll("%s  \x05%N \x01won \x07First Writes! \x01He becomes CT. ", PREFIX, client);
 
 				else
-					PrintToChatAll("%5 \x05%N \x01won \x07Math Contest! \x01He becomes CT. ", PREFIX, client);
+					UC_PrintToChatAll("%5 \x05%N \x01won \x07Math Contest! \x01He becomes CT. ", PREFIX, client);
 
 				return Plugin_Handled;
 			}
@@ -472,12 +485,12 @@ public Action Listener_Say(int client, const char[] command, int args)
 
 			if (NumberSelected[client] != 0)
 			{
-				PrintToChat(client, "%s \x05You \x01have already selected a \x05number. ", PREFIX);
+				UC_PrintToChat(client, "%s \x05You \x01have already selected a \x05number. ", PREFIX);
 				return Plugin_Continue;
 			}
 			if (number < 1 || number > 300)
 			{
-				PrintToChat(client, "%s Number is out of \x07allowed \x01range! Choose a number between \x071-300. ", PREFIX);
+				UC_PrintToChat(client, "%s Number is out of \x07allowed \x01range! Choose a number between \x071-300. ", PREFIX);
 				return Plugin_Continue;
 			}
 
@@ -496,13 +509,13 @@ public Action Listener_Say(int client, const char[] command, int args)
 
 			if (NumberTaken)
 			{
-				PrintToChat(client, "%s Number is \x07already \x01taken by another player. ", PREFIX);
+				UC_PrintToChat(client, "%s Number is \x07already \x01taken by another player. ", PREFIX);
 				return Plugin_Handled;
 			}
 
 			NumberSelected[client] = number;
 
-			PrintToChat(client, "%s \x07Successfully \x01chose \x05%i \x01as your number. ", PREFIX, number);
+			UC_PrintToChat(client, "%s \x07Successfully \x01chose \x05%i \x01as your number. ", PREFIX, number);
 
 			return Plugin_Handled;
 		}
@@ -520,7 +533,7 @@ public Action Listener_JoinTeam(int client, const char[] command, int args)
 	{
 		ClientCommand(client, "play buttons/button11");
 
-		PrintToChat(client, "%s \x04You \x01can not join this team. ", PREFIX);
+		UC_PrintToChat(client, "%s \x04You \x01can not join this team. ", PREFIX);
 		return Plugin_Stop;
 	}
 
@@ -545,7 +558,7 @@ public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcas
 	{
 		StartVoteCT();
 
-		PrintToChatAll("%s \x01CT's time is over, \x05starting \x01a new \x07Vote-CT. ", PREFIX);
+		UC_PrintToChatAll("%s \x01CT's time is over, \x05starting \x01a new \x07Vote-CT. ", PREFIX);
 
 		RoundsLeft = GetConVarInt(hcv_MaxRounds);
 
@@ -558,7 +571,7 @@ public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcas
 	}
 
 	IsPreviewRound = false;
-	PrintToChatAll("%s \x05Vote-CT \x01will start in \x07%i \x01round%s. ", PREFIX, RoundsLeft, RoundsLeft == 1 ? "" : "s");
+	UC_PrintToChatAll("%s \x05Vote-CT \x01will start in \x07%i \x01round%s. ", PREFIX, RoundsLeft, RoundsLeft == 1 ? "" : "s");
 }
 
 public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -582,7 +595,7 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 
 		hTimer_PreviewRound = CreateTimer(1.0, Timer_CheckPreviewRound, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 		// Color
-		PrintToChatAll("%s Preview Round has started. It will \x05end \x01in \x07%i seconds. ", PREFIX, GetConVarInt(hcv_PreviewRoundTime));
+		UC_PrintToChatAll("%s Preview Round has started. It will \x05end \x01in \x07%i seconds. ", PREFIX, GetConVarInt(hcv_PreviewRoundTime));
 
 		AlreadyDonePreviewRound = true;
 	}
@@ -690,7 +703,7 @@ public Action Command_KickCT(int client, int args)
 
 	if (client != Chosen)
 	{
-		PrintToChat(client, "%s \x05You \x01are not the chosen \x07CT. ", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01are not the chosen \x07CT. ", PREFIX);
 
 		return Plugin_Handled;
 	}
@@ -741,7 +754,7 @@ public int KickCT_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 
 		if (target == 0 || GetClientTeam(target) != CS_TEAM_CT)
 		{
-			PrintToChat(client, "%s \x01Target player is not \x05connected. ", PREFIX);
+			UC_PrintToChat(client, "%s \x01Target player is not \x05connected. ", PREFIX);
 
 			return;
 		}
@@ -762,14 +775,14 @@ public Action Command_TList(int client, int args)
 
 	if (client != Chosen)
 	{
-		PrintToChat(client, "%s \x05You \x01are not the chosen \x07CT. ", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01are not the chosen \x07CT. ", PREFIX);
 
 		return Plugin_Handled;
 	}
 
 	else if (GetAvailableInviteCT() == 0)
 	{
-		PrintToChat(client, "%s \x01There are not enough terrorists to bring another \x07CT. ", PREFIX);
+		UC_PrintToChat(client, "%s \x01There are not enough terrorists to bring another \x07CT. ", PREFIX);
 
 		return Plugin_Handled;
 	}
@@ -823,7 +836,7 @@ public int TList_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 
 		if (target == 0 || GetClientTeam(target) != CS_TEAM_T || IsPlayerBannedFromGuardsTeam(target))
 		{
-			PrintToChat(client, "%s \x01Target player is not \x05connected. ", PREFIX);
+			UC_PrintToChat(client, "%s \x01Target player is not \x05connected. ", PREFIX);
 
 			return;
 		}
@@ -887,7 +900,7 @@ public int AcceptInvite_MenuHandler(Handle hMenu, MenuAction action, int client,
 
 		else if (IsPlayerBannedFromGuardsTeam(client))
 		{
-			PrintToChat(client, "%s \x01You're \x07banned \x01from \x05CT ", PREFIX);
+			UC_PrintToChat(client, "%s \x01You're \x07banned \x01from \x05CT ", PREFIX);
 			return;
 		}
 
@@ -907,12 +920,12 @@ public Action Command_Chosen(int client, int args)
 
 	if (Chosen == 0)
 	{
-		PrintToChat(client, "%s \x01There is no chosen \x05CT. ", PREFIX);
+		UC_PrintToChat(client, "%s \x01There is no chosen \x05CT. ", PREFIX);
 
 		return Plugin_Handled;
 	}
 
-	PrintToChat(client, "%s \x01The chosen CT is \x05%N ", PREFIX, Chosen);
+	UC_PrintToChat(client, "%s \x01The chosen CT is \x05%N ", PREFIX, Chosen);
 
 	return Plugin_Handled;
 }
@@ -925,7 +938,7 @@ public Action Command_DisableVoteCT(int client, int args)
 		return Plugin_Handled;
 	}
 
-	PrintToChatAll("%s \x05%N \x01has disabled \x07Vote CT \x01system. ", PREFIX, client);
+	UC_PrintToChatAll("%s \x05%N \x01has disabled \x07Vote CT \x01system. ", PREFIX, client);
 
 	VoteCTDisabled = true;
 	VoteCTRunning  = false;
@@ -951,14 +964,14 @@ public Action Command_VoteCT(int client, int args)
 	{
 		EndVoteCT();
 
-		PrintToChat(client, "A vote is already in progress, try !cancelvote to stop it.");
+		UC_PrintToChat(client, "A vote is already in progress, try !cancelvote to stop it.");
 		return Plugin_Handled;
 	}
 	VoteCTDisabled = false;
 
 	StartVoteCT();
 
-	PrintToChatAll("%s \x05%N \x01started a \x07Vote CT. ", PREFIX, client);
+	UC_PrintToChatAll("%s \x05%N \x01started a \x07Vote CT. ", PREFIX, client);
 
 	return Plugin_Handled;
 }
@@ -971,7 +984,7 @@ public Action Command_StopVoteCT(int client, int args)
 		return Plugin_Handled;
 	}
 
-	PrintToChatAll("%s \x05%N \x01stopped current \x07Vote CT.", PREFIX, client);
+	UC_PrintToChatAll("%s \x05%N \x01stopped current \x07Vote CT.", PREFIX, client);
 
 	EndVoteCT();
 
@@ -997,7 +1010,7 @@ public Action Command_SetChosen(int client, int args)
 
 	SetChosenCT(target);
 
-	PrintToChatAll("%s \x05%N \x01set the new chosen CT as \x07%N! ", PREFIX, client, target);
+	UC_PrintToChatAll("%s \x05%N \x01set the new chosen CT as \x07%N! ", PREFIX, client, target);
 	return Plugin_Handled;
 }
 
@@ -1021,7 +1034,7 @@ public Action Command_GiveChosen(int client, int args)
 
 	if (client != Chosen)
 	{
-		PrintToChat(client, "%s \x05You \x01are not the chosen \x07CT. ", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01are not the chosen \x07CT. ", PREFIX);
 
 		return Plugin_Handled;
 	}
@@ -1038,7 +1051,7 @@ public Action Command_GiveChosen(int client, int args)
 
 	SetChosenCT(target, false, true);
 
-	PrintToChatAll("%s \x05%N \x01gave the chosen CT to \x07%N! ", PREFIX, client, target);
+	UC_PrintToChatAll("%s \x05%N \x01gave the chosen CT to \x07%N! ", PREFIX, client, target);
 	return Plugin_Handled;
 }
 void StartVoteCT()
@@ -1209,7 +1222,7 @@ void StartGameTimer()
 		else if (!IsPlayerBannedFromGuardsTeam(i))
 			continue;
 
-		PrintToChat(i, "%s You're \x07banned \x01from CT. You won't be able to participate.", PREFIX);
+		UC_PrintToChat(i, "%s You're \x07banned \x01from CT. You won't be able to participate.", PREFIX);
 	}
 }
 
@@ -1336,7 +1349,7 @@ public int RandomPlayer_MenuHandler(Handle hMenu, MenuAction action, int client,
 	{
 		if (IsPlayerBannedFromGuardsTeam(client))
 		{
-			PrintToChat(client, "%s You're \x07banned \x01from CT, you cannot attempt to win it", PREFIX);
+			UC_PrintToChat(client, "%s You're \x07banned \x01from CT, you cannot attempt to win it", PREFIX);
 
 			return;
 		}
@@ -1411,7 +1424,7 @@ void StartGame(Handle hTimer_Ignore)
 
 			if (MultipleWinnersNum > 1)
 			{
-				PrintToChatAll("%s \x05%N \x01and \x05%N \x01both won, picking the numbers \x07%i \x01and \x07%i. \x01Selecting a random winner... ", PREFIX, MultipleWinners[0], MultipleWinners[1], NumberSelected[MultipleWinners[0]], NumberSelected[MultipleWinners[1]]);
+				UC_PrintToChatAll("%s \x05%N \x01and \x05%N \x01both won, picking the numbers \x07%i \x01and \x07%i. \x01Selecting a random winner... ", PREFIX, MultipleWinners[0], MultipleWinners[1], NumberSelected[MultipleWinners[0]], NumberSelected[MultipleWinners[1]]);
 				winner = MultipleWinners[GetRandomInt(0, 1)];
 			}
 
@@ -1421,7 +1434,7 @@ void StartGame(Handle hTimer_Ignore)
 			{
 				SetChosenCT(0);
 
-				PrintToChatAll("%s Nobody won the \x07Random Number \x01game, as nobody chose a number. ", PREFIX);
+				UC_PrintToChatAll("%s Nobody won the \x07Random Number \x01game, as nobody chose a number. ", PREFIX);
 
 				ServerCommand("mp_restartgame 1");
 			}
@@ -1429,7 +1442,7 @@ void StartGame(Handle hTimer_Ignore)
 			{
 				SetChosenCT(winner);
 
-				PrintToChatAll("%s \x05%N won \x07Random Number! \x01He becomes CT. His number was \x07%i, \x01with the random number being \x07%i. ", PREFIX, winner, NumberSelected[winner], WinningNumber);
+				UC_PrintToChatAll("%s \x05%N won \x07Random Number! \x01He becomes CT. His number was \x07%i, \x01with the random number being \x07%i. ", PREFIX, winner, NumberSelected[winner], WinningNumber);
 			}
 		}
 
@@ -1470,7 +1483,7 @@ void StartGame(Handle hTimer_Ignore)
 
 			if (count == 0)
 			{
-				PrintToChatAll("%s Nobody won the \x07Random Player, \x01as nobody wanted to win. ", PREFIX);
+				UC_PrintToChatAll("%s Nobody won the \x07Random Player, \x01as nobody wanted to win. ", PREFIX);
 
 				ServerCommand("mp_restartgame 1");
 
@@ -1484,7 +1497,7 @@ void StartGame(Handle hTimer_Ignore)
 
 			if (winner == 0)
 			{
-				PrintToChatAll("%s Nobody won the \x07Random Player, \x01as nobody wanted to win. ", PREFIX);
+				UC_PrintToChatAll("%s Nobody won the \x07Random Player, \x01as nobody wanted to win. ", PREFIX);
 
 				ServerCommand("mp_restartgame 1");
 
@@ -1493,7 +1506,7 @@ void StartGame(Handle hTimer_Ignore)
 
 			SetChosenCT(winner);
 
-			PrintToChatAll("%s \x05%N \x01was selected as the \x07Random Player! \x01He becomes CT. ", PREFIX, winner);
+			UC_PrintToChatAll("%s \x05%N \x01was selected as the \x07Random Player! \x01He becomes CT. ", PREFIX, winner);
 		}
 
 		case Game_MathContest:
@@ -1537,7 +1550,7 @@ void StartGame(Handle hTimer_Ignore)
 
 				SetChosenCT(0);
 
-				PrintToChatAll(" %s \x01Nobody won the \x07Election Day, \x01as nobody wanted to win. ", PREFIX);
+				UC_PrintToChatAll(" %s \x01Nobody won the \x07Election Day, \x01as nobody wanted to win. ", PREFIX);
 
 				ServerCommand("mp_restartgame 1");
 
@@ -1550,7 +1563,7 @@ void StartGame(Handle hTimer_Ignore)
 				int winner = candidates[0];
 
 				// BAR COLOR
-				PrintToChatAll(" %s \x04%N \x01won the \x07Election Day, \x01as he was the only participant that wanted to \x05win. ", PREFIX, winner);
+				UC_PrintToChatAll(" %s \x04%N \x01won the \x07Election Day, \x01as he was the only participant that wanted to \x05win. ", PREFIX, winner);
 
 				SetChosenCT(winner);
 
@@ -1692,14 +1705,14 @@ void CheckElectionDayResult()
 		SetChosenCT(0);
 
 		// BAR COLOR
-		PrintToChatAll(" \x01No votes were casted at \x07all, \x01not even someone voting for \x05himself...");
+		UC_PrintToChatAll(" \x01No votes were casted at \x07all, \x01not even someone voting for \x05himself...");
 
 		return;
 	}
 
 	EndVoteCT();
 
-	PrintToChatAll("%s \x05%N \x01was elected in \x07Election Day! \x01He becomes CT. ", PREFIX, winner);
+	UC_PrintToChatAll("%s \x05%N \x01was elected in \x07Election Day! \x01He becomes CT. ", PREFIX, winner);
 
 	SetChosenCT(winner);
 }
@@ -1711,7 +1724,7 @@ public Action Timer_FailGame(Handle hTimer)
 	SetChosenCT(0);
 
 	// BAR COLOR
-	PrintToChatAll(" \x01Nobody won the \x05Vote CT! \x01Picking another game...");
+	UC_PrintToChatAll(" \x01Nobody won the \x05Vote CT! \x01Picking another game...");
 
 	EndVoteCT(hTimer_FailGame);
 }

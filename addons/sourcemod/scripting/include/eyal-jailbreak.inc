@@ -3,10 +3,6 @@
 #endif
 #define _JAILBREAK_included
 
-#define PREFIX " \x05[WePlay]\x01"
-#define MENU_PREFIX "[WePlay]"
-#define PREFIX_ACTIVITY " \x04[WePlay]\x01 "
-
 #define GANG_NULL ""
 #define GANGID_NULL 0
 
@@ -24,3 +20,84 @@
 #define MODACTION_MOTD 3
 #define MODACTION_UPGRADE 4
 #define MODACTION_DISBAND 5
+
+char Colors[][] = 
+{
+	"{NORMAL}", "{RED}", "{GREEN}", "{LIGHTGREEN}", "{OLIVE}", "{LIGHTRED}", "{GRAY}", "{YELLOW}", "{ORANGE}", "{BLUE}", "{PINK}"
+};
+
+char ColorEquivalents[][] =
+{
+	"\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x09", "\x10", "\x0C", "\x0E"
+};
+
+stock void UC_ReplyToCommand(int client, const char[] format, any ...)
+{
+	SetGlobalTransTarget(client);
+	char buffer[256];
+
+	VFormat(buffer, sizeof(buffer), format, 3);
+	for(int i=0;i < sizeof(Colors);i++)
+	{
+		ReplaceString(buffer, sizeof(buffer), Colors[i], ColorEquivalents[i]);
+	}
+	
+	ReplyToCommand(client, buffer);
+}
+
+stock void UC_PrintToChat(int client, const char[] format, any ...)
+{
+	SetGlobalTransTarget(client);
+	
+	char buffer[256];
+	
+	VFormat(buffer, sizeof(buffer), format, 3);
+	for(int i=0;i < sizeof(Colors);i++)
+	{
+		ReplaceString(buffer, sizeof(buffer), Colors[i], ColorEquivalents[i]);
+	}
+	
+	PrintToChat(client, buffer);
+}
+
+stock void UC_PrintToChatAll(const char[] format, any ...)
+{	
+	char buffer[256];
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+		
+		SetGlobalTransTarget(i);
+		VFormat(buffer, sizeof(buffer), format, 2);
+		
+		UC_PrintToChat(i, buffer);
+	}
+}
+
+stock void UC_ShowActivity2(int client, const char[] Tag, const char[] format, any ...)
+{
+	char buffer[256], TagBuffer[256];
+	VFormat(buffer, sizeof(buffer), format, 4);
+	
+	Format(TagBuffer, sizeof(TagBuffer), Tag);
+	
+	for(int i=0;i < sizeof(Colors);i++)
+	{
+		ReplaceString(buffer, sizeof(buffer), Colors[i], ColorEquivalents[i]);
+	}
+	
+	for(int i=0;i < sizeof(Colors);i++)
+	{
+		ReplaceString(TagBuffer, sizeof(TagBuffer), Colors[i], ColorEquivalents[i]);
+	}
+	
+	ShowActivity2(client, TagBuffer, buffer);
+}
+
+stock void UC_StringToUpper(char[] buffer)
+{
+	int length = strlen(buffer);
+	for(int i=0;i < length;i++)
+		buffer[i] = CharToUpper(buffer[i]);
+}
