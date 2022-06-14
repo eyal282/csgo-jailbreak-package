@@ -10,9 +10,11 @@
     
 "Files"
 {
-    "Plugin"	"Path_SM/plugins/updater.smx"
+    "Plugin"	"Path_SM/plugins/noblock.smx"
+    "Plugin"	"Path_SM/plugins/csgo_movement_unlocker.smx"
     "Plugin"	"Path_SM/plugins/DisableRadar.smx"
     "Plugin"	"Path_SM/plugins/noradiochat.smx"
+    "Plugin"	"Path_SM/plugins/updater.smx"
 
     "Plugin"	"Path_SM/plugins/JB_Pack/Bar-DamageIndicator.smx"
     "Plugin"	"Path_SM/plugins/JB_Pack/BL-Weapons.smx"
