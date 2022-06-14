@@ -2492,7 +2492,7 @@ void ShowUpgradeMenu(int client)
 	Format(TempFormat, sizeof(TempFormat), "Friendly Fire Decrease [ %i / %i ] Cost: %i", ClientFriendlyFirePerk[client], GANG_FRIENDLYFIREMAX, upgradecost);
 	AddMenuItem(hMenu, strUpgradeCost, TempFormat, ClientGangHonor[client] >= upgradecost ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 
-	SetMenuTitle(hMenu, "%s Choose what perks to upgrade:", MENU_PREFIX);
+	SetMenuTitle(hMenu, "%s Choose what perks to upgrade:\nYour Gang's Honor: %i", MENU_PREFIX, ClientGangHonor[client]);
 	SetMenuPagination(hMenu, MENU_NO_PAGINATION);
 	SetMenuExitButton(hMenu, true);
 	SetMenuExitBackButton(hMenu, true);
