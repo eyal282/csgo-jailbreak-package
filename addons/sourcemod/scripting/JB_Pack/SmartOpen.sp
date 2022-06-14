@@ -441,7 +441,7 @@ public Action Command_Open(int client, int args)
 		int Team = GetClientTeam(client);
 
 		if (Team == CS_TEAM_CT)
-			Title = "Warden";
+			Title = "Guard";
 
 		else if (Team == CS_TEAM_T && CanEmptyRebel())
 			Title = "Rebel";
@@ -495,7 +495,7 @@ public Action Command_HardOpen(int client, int args)
 		int Team = GetClientTeam(client);
 
 		if (Team == CS_TEAM_CT)
-			Title = "Warden";
+			Title = "Guard";
 
 		else if (Team == CS_TEAM_T && CanEmptyRebel())
 			Title = "Rebel";
