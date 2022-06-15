@@ -22,11 +22,13 @@
     "Plugin"	"Path_SM/plugins/JB_Pack/JailBreak-BanCT.smx"
     "Plugin"	"Path_SM/plugins/JB_Pack/JailBreak-Config.smx"
     "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakAutoJoinT.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakBhop.smx"
     "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakCore.smx"
     "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakDays.smx"
     "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakGangs.smx"
     "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakJackpot.smx"
     "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakLR.smx"
+    "Plugin"	"Path_SM/plugins/JB_Pack/JailBreakParachute.smx"
     "Plugin"	"Path_SM/plugins/JB_Pack/JB-CTCommands.smx"
     "Plugin"	"Path_SM/plugins/JB_Pack/SmartOpen.smx"
     
