@@ -600,6 +600,7 @@ public Action Command_StartKnifeDay(int client, int args)
 	ServerCommand("sm_silentstopck");
 
 	EndVoteDay();
+	StopDay(false);
 	Eyal282_VoteCT_StopVoteCT();
 	ServerCommand("sm_egr");
 
