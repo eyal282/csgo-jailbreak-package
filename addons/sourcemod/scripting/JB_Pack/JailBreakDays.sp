@@ -621,7 +621,7 @@ void SelectHSKnifeDay()
 		return;
 	}
 
-	DayActive = SCOUT_DAY;
+	DayActive = KNIFE_DAY;
 
 	VoteDayStart = GetGameTime();
 
