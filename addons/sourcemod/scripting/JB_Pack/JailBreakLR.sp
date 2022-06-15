@@ -115,6 +115,7 @@ Handle cpInfoMsg = INVALID_HANDLE;
 Handle cpLRWins  = INVALID_HANDLE;
 
 Handle fw_LRStarted  = INVALID_HANDLE;
+Handle fw_LREnded    = INVALID_HANDLE;
 Handle fw_CanStartLR = INVALID_HANDLE;
 
 Database dbLRWins;
@@ -322,6 +323,9 @@ public void OnPluginStart()
 
 	// public LastRequest_OnLRStarted(Prisoner, Guard)
 	fw_LRStarted = CreateGlobalForward("LastRequest_OnLRStarted", ET_Ignore, Param_Cell, Param_Cell);
+
+	// Check for IsClientInGame for both before taking actions.
+	fw_LREnded = CreateGlobalForward("LastRequest_OnLREnded", ET_Ignore, Param_Cell, Param_Cell);
 
 	// client -> Client index to start the LR.
 	// String:Message[256] -> Message to send the client if he can't start an LR.
@@ -674,6 +678,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("LR_isParticipant", LR_isParticipant);
 	CreateNative("LR_Stop", LR_Stop);
 	CreateNative("LR_FinishTimers", LR_FinishTimers);
+	CreateNative("LR_isAutoBhopEnabled", LR_isAutoBhopEnabled);
 
 	MarkNativeAsOptional("Gangs_GiveGangCredits");
 	MarkNativeAsOptional("Gangs_AddClientDonations");
@@ -716,6 +721,14 @@ public int LR_FinishTimers(Handle plugin, int numParams)
 {
 	Handle hTimer = GetNativeCell(1);
 	FinishTimers(hTimer);
+}
+
+public int LR_isAutoBhopEnabled(Handle plugin, int numParams)
+{
+	if (MostJumps)
+		return false;
+
+	return true;
 }
 
 public void Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -2193,6 +2206,9 @@ public Action Event_WeaponSwitch(int client, int weapon)    // This function is 
 
 stock void EndLR(int EndTimers = true)
 {
+	int originalPrisoner = Prisoner;
+	int originalGuard    = Guard;
+
 	Prisoner     = -1;
 	Guard        = -1;
 	TruePrisoner = -1;
@@ -2278,6 +2294,17 @@ stock void EndLR(int EndTimers = true)
 	BypassBlockers = false;
 
 	LRStarted = false;
+
+	if (originalPrisoner > 0 && originalGuard > 0)
+	{
+		int nullint;
+		Call_StartForward(fw_LREnded);
+
+		Call_PushCell(originalPrisoner);
+		Call_PushCell(originalGuard);
+
+		Call_Finish(nullint);
+	}
 }
 
 void FinishTimers(Handle hTimer_Ignore = INVALID_HANDLE)
@@ -3825,7 +3852,7 @@ public void ContinueStartDuel()
 
 	// Teleport();
 
-	UC_PrintToChat(TruePrisoner, "LR Sequence: !lr %s %s", SavedLRArguments[Prisoner], SavedLRHealthArgument[Prisoner][0] == EOS ? "" : SavedLRHealthArgument[Prisoner]);
+	// UC_PrintToChat(TruePrisoner, "LR Sequence: !lr %s %s", SavedLRArguments[Prisoner], SavedLRHealthArgument[Prisoner][0] == EOS ? "" : SavedLRHealthArgument[Prisoner]);
 }
 
 public void DeleteAllGuns()
