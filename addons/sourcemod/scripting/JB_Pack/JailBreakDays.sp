@@ -1564,12 +1564,12 @@ void ProcessPlayerDeath(int victim)
 			Gangs_GiveGangCredits(GangName, Reward);
 			Gangs_AddClientDonations(Winner, Reward);
 
-			Gangs_PrintToChatGang(GangName, " \x0B[JB Gangs] \x05%N \x01has earned \x07%i \x01credits for his gang by winning the \x07%s! ", Winner, Reward, DayName[DayActive]);
+			Gangs_PrintToChatGang(GangName, " \x0B%s \x05%N \x01has earned \x07%i \x01honor for his gang by winning the \x07%s! ", PREFIX, Winner, Reward, DayName[DayActive]);
 		}
 
 		Reward = RoundFloat(float(Reward) / 1.5);
 
-		UC_PrintToChatAll(" \x0B[JB Gangs] \x05%N \x01has earned \x07%i \x01gang credits by winning the \x07%s! ", Winner, Reward, DayName[DayActive]);
+		UC_PrintToChatAll(" \x0B%s \x05%N \x01has earned \x07%i \x01gang honor by winning the \x07%s! ", PREFIX, Winner, Reward, DayName[DayActive]);
 
 		Gangs_GiveClientCredits(Winner, Reward);
 
