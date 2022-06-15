@@ -621,6 +621,8 @@ void SelectHSKnifeDay()
 		return;
 	}
 
+	DayActive = SCOUT_DAY;
+
 	VoteDayStart = GetGameTime();
 
 	BuildUpVoteHSKnifeMenu();
