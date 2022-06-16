@@ -31,7 +31,14 @@ enCvarList cvarList[] = {
 	{ "mp_solid_teammates",    "1"         },
 	{ "mp_roundtime",          "15"        },
 	{ "mp_warmuptime",         "0"         },
+
+ // Airaccelerate is the ability to turn backwards or sideways mid-air.
 	{ "sv_airaccelerate",      "2147483647"},
+
+ // Removes stamina penalty. Otherwise bunnyhopping would reach lower heights ( also would have caused no footsteps on landing )
+	{ "sv_staminamax",         "0"         },
+
+ // Semi automatic bunnyhopping. For auto bhop, enables better speeds.
 	{ "sv_enablebunnyhopping", "1"         },
 
  // These two remove the money hud.
