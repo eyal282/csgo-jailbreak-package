@@ -613,7 +613,7 @@ public Action Hook_ShouldSeeWhiteGlow(int glow, int viewer)
 	else if (!IsPlayerAlive(client))
 		return Plugin_Handled;
 
-	else if (JailBreakDays_IsDayActive())
+	else if (!JailBreakDays_IsDayActive())
 		return Plugin_Handled;
 
 	else if (!AreClientsSameGang(client, viewer))
