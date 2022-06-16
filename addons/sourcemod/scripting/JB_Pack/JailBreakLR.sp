@@ -3313,10 +3313,7 @@ public void ShowAutoMenu(int client)
 		AddMenuItem(hMenu, "", "First Writes");
 		AddMenuItem(hMenu, "", "Combo Contest");
 		AddMenuItem(hMenu, "", "Math Contest");
-		AddMenuItem(hMenu, "", "Opposite Contest");
-		AddMenuItem(hMenu, "", "Type Stages Contest");
 		AddMenuItem(hMenu, "", "Most Jumps");
-		// AddMenuItem(hMenu, "", "Spray");
 		AddMenuItem(hMenu, "", "Random");
 
 		SetMenuTitle(hMenu, "%s Automatic Contests:", MENU_PREFIX);
@@ -3357,11 +3354,7 @@ public int Auto_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 
 			case 3: DuelName = "Auto | Math Contest";
 
-			case 4: DuelName = "Auto | Opposite Contest";
-
-			case 5: DuelName = "Auto | Type Stages Contest";
-
-			case 6: DuelName = "Auto | Most Jumps";
+			case 4: DuelName = "Auto | Most Jumps";
 			/*
 			case 6:
 			{
@@ -3370,9 +3363,9 @@ public int Auto_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 				PrimNum = CSWeapon_KNIFE;
 			}
 			*/
-			case 7:
+			case 5:
 			{
-				Auto_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 5));
+				Auto_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 3));
 			}
 		}
 

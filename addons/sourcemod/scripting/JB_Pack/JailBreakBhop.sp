@@ -42,11 +42,6 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 		return;
 
 	SetConVarBool(hcv_OriginalAutoBhop, GetConVarBool(hcv_AutoBhop));
-
-	if (!GetConVarBool(hcv_AutoBhop))
-		return;
-
-	SendConVarValue(client, hcv_OriginalAutoBhop, "1");
 }
 
 public void LastRequest_OnLRStarted(int Prisoner, int Guard)
@@ -59,12 +54,10 @@ public void LastRequest_OnLRStarted(int Prisoner, int Guard)
 
 	if (LR_isAutoBhopEnabled())
 	{
-		SendConVarValue(Prisoner, hcv_OriginalAutoBhop, "1");
-		SendConVarValue(Guard, hcv_OriginalAutoBhop, "1");
+		SetConVarBool(hcv_OriginalAutoBhop, true);
 	}
 	else
 	{
-		SendConVarValue(Prisoner, hcv_OriginalAutoBhop, "0");
-		SendConVarValue(Guard, hcv_OriginalAutoBhop, "0");
+		SetConVarBool(hcv_OriginalAutoBhop, false);
 	}
 }
