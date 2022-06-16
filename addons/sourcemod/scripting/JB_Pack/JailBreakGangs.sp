@@ -2360,14 +2360,14 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 		{
 			case 0:
 			{
-				if (!ClientAccessManage[client])
+				if (!CheckGangAccess(client, ClientAccessManage[client]))
 					return;
 
 				ShowModLogs(client);
 			}
 			case 1:
 			{
-				if (!ClientAccessInvite[client])
+				if (!CheckGangAccess(client, ClientAccessInvite[client]))
 					return;
 
 				else if (ClientMembersCount[client] >= (GANG_INITSIZE + (ClientGangSizePerk[client] * GANG_SIZEINCREASE)))
@@ -2380,28 +2380,28 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 
 			case 2:
 			{
-				if (!ClientAccessKick[client])
+				if (!CheckGangAccess(client, ClientAccessKick[client]))
 					return;
 
 				ShowKickMenu(client);
 			}
 			case 3:
 			{
-				if (!ClientAccessPromote[client])
+				if (!CheckGangAccess(client, ClientAccessPromote[client]))
 					return;
 
 				ShowPromoteMenu(client);
 			}
 			case 4:
 			{
-				if (!ClientAccessUpgrade[client])
+				if (!CheckGangAccess(client, ClientAccessUpgrade[client]))
 					return;
 
 				ShowUpgradeMenu(client);
 			}
 			case 5:
 			{
-				if (!ClientAccessMOTD[client])
+				if (!CheckGangAccess(client, ClientAccessMOTD[client]))
 					return;
 
 				UC_PrintToChat(client, "%s Use \x07!motdgang \x01<new motd> to change the gang's \x07motd.", PREFIX);
@@ -2626,7 +2626,7 @@ public int Upgrade_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 
 	else if (action == MenuAction_Select)
 	{
-		if (!CheckGangAccess(client, RANK_MANAGER))
+		if (!CheckGangAccess(client, ClientAccessUpgrade[client]))
 			return;
 
 		char strUpgradeCost[20];
