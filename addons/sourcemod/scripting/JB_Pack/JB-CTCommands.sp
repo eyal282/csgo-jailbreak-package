@@ -52,6 +52,8 @@ bool CKEnabled = false;
 
 bool bCanZoom[MAXPLAYERS + 1] = true, bHasSilencer[MAXPLAYERS + 1] = true, bWrongWeapon[MAXPLAYERS + 1] = true;
 
+float fNextGiveLR;
+
 ArrayList aMarkers = null;
 
 enum struct markerEntry
@@ -132,8 +134,9 @@ public void SmartOpen_OnCellsOpened(bool cmd)
 
 public void OnMapStart()
 {
-	BeamIndex = PrecacheModel("materials/sprites/laserbeam.vmt", true);
-	HaloIdx   = PrecacheModel("materials/sprites/glow01.vmt", true);
+	fNextGiveLR = 0.0;
+	BeamIndex   = PrecacheModel("materials/sprites/laserbeam.vmt", true);
+	HaloIdx     = PrecacheModel("materials/sprites/glow01.vmt", true);
 
 	CKEnabled = false;
 
@@ -946,6 +949,11 @@ public int BoxMenuHandler(Menu menu, MenuAction action, int client, int item)
 
 public Action cmd_givelr(int client, int args)
 {
+	if (fNextGiveLR > GetGameTime())
+	{
+		UC_PrintToChat(client, "%s You must wait\x03 %.1f\x04 seconds to give LR.", PREFIX, fNextGiveLR - GetGameTime());
+		return Plugin_Handled;
+	}
 	if (args == 0)
 	{
 		UC_PrintToChat(client, "Usage: sm_givelr <#userid|name>");
@@ -977,6 +985,7 @@ public Action cmd_givelr(int client, int args)
 			if (target <= 0)
 				return Plugin_Handled;
 
+			fNextGiveLR = GetGameTime() + 5.0;
 			float Origin[3];
 			char  clientname[64];
 			char  targetname[64];
