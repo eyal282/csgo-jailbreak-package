@@ -1629,6 +1629,15 @@ public Action Timer_PlayerSpawn(Handle hTimer, int UserId)
 
 	int client = GetClientOfUserId(UserId);
 
+	if (client == 0)
+		return;
+
+	else if (!IsPlayerAlive(client))
+		return;
+
+	if (DayCountDown <= 0)
+		ForcePlayerSuicide(client);
+
 	switch (DayActive)
 	{
 		case FS_DAY, KNIFE_DAY:
