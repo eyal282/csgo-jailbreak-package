@@ -3077,6 +3077,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				SecNum = CSWeapon_KNIFE;
 
 				HPamount = 30000;
+				BPAmmo   = 10000;
 			}
 			case 7:
 			{
@@ -3805,6 +3806,12 @@ public void ContinueStartDuel()
 		TIMER_REACTION     = CreateTimer(1.0, MostJumpsCountDown, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 		UC_PrintToChatAll("%s All players have \x0715 \x01seconds to jump as much as they can!", PREFIX);
+
+		float fOrigin[3];
+
+		GetEntPropVector(Prisoner, Prop_Data, "m_vecOrigin", fOrigin);
+
+		TeleportEntity(Guard, fOrigin, NULL_VECTOR, NULL_VECTOR);
 	}
 	else if (StrContains(DuelName, "Auto") != -1)
 	{

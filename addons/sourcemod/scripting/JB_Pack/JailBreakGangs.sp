@@ -160,6 +160,7 @@ public void OnPluginStart()
 	AddCommandListener(CommandListener_Say, "say_team");
 
 	RegConsoleCmd("sm_donategang", Command_DonateGang);
+	RegConsoleCmd("sm_gifthonor", Command_GiftHonor);
 	RegConsoleCmd("sm_motdgang", Command_MotdGang);
 	RegConsoleCmd("sm_prefixgang", Command_PrefixGang);
 	RegConsoleCmd("sm_renamegang", Command_RenameGang);
@@ -1264,6 +1265,112 @@ public Action Command_MotdGang(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_GiftHonor(int client, int args)
+{
+	if (args < 1 || args > 2)
+	{
+		ReplyToCommand(client, "[SM] Usage: sm_gifthonor <#userid|name> <amount>");
+		return Plugin_Handled;
+	}
+
+	char arg[MAX_NAME_LENGTH], arg2[10];
+	GetCmdArg(1, arg, sizeof(arg));
+
+	if (args > 1)
+	{
+		GetCmdArg(2, arg2, sizeof(arg2));
+	}
+
+	int amount = StringToInt(arg2);
+
+	if (StrContains(arg2, "all", false) != -1)
+		amount = ClientHonor[client];
+
+	if (amount <= 100)
+	{
+		UC_PrintToChat(client, "%s Error: Min value to send is 100!", PREFIX);
+		return Plugin_Handled;
+	}
+
+	char target_name[MAX_TARGET_LENGTH];
+	int  target_list[MAXPLAYERS + 1], target_count;
+	bool tn_is_ml;
+
+	int targetclient;
+
+	if ((target_count = ProcessTargetString(
+			 arg,
+			 client,
+			 target_list,
+			 MAXPLAYERS,
+			 COMMAND_FILTER_NO_IMMUNITY,
+			 target_name,
+			 sizeof(target_name),
+			 tn_is_ml))
+	    > 0)
+	{
+		for (int i = 0; i < target_count; i++)
+		{
+			targetclient = target_list[i];
+
+			if (targetclient == client || IsFakeClient(targetclient))
+				continue;
+
+			else if (amount > ClientHonor[client])
+			{
+				UC_PrintToChat(client, "%s Error: Not enough honor to send! (Σ: \x05%d\x03)", PREFIX, ClientHonor[client]);
+				return Plugin_Handled;
+			}
+
+			// Guarantee prevention of duplication...
+			ClientHonor[targetclient] = 0;
+			ClientHonor[client]       = 0;
+
+			Transaction transaction = SQL_CreateTransaction();
+
+			Transaction_GiveClientHonor(transaction, client, -1 * amount);
+			Transaction_GiveClientHonor(transaction, targetclient, amount);
+
+			Handle DP = CreateDataPack();
+
+			WritePackCell(DP, GetClientUserId(client));
+			WritePackCell(DP, GetClientUserId(targetclient));
+
+			dbGangs.Execute(transaction, SQLTrans_HonorGifted, SQLTrans_SetFailState, DP);
+
+			char name[33], sendername[33];
+			GetClientName(targetclient, name, sizeof(name));
+			GetClientName(client, sendername, sizeof(sendername));
+			UC_PrintToChat(client, "%s You gave \x05%d\x03 honor to %s.", PREFIX, amount, name);
+			UC_PrintToChat(targetclient, "%s %s gave you \x05%d\x03 honor.", PREFIX, sendername, amount);
+		}
+	}
+	else
+	{
+		ReplyToTargetError(client, target_count);
+	}
+
+	return Plugin_Handled;
+}
+
+public void SQLTrans_HonorGifted(Database db, any DP, int numQueries, DBResultSet[] results, any[] queryData)
+{
+	ResetPack(DP);
+
+	int client1, client2;
+
+	client1 = GetClientOfUserId(ReadPackCell(DP));
+	client2 = GetClientOfUserId(ReadPackCell(DP));
+
+	CloseHandle(DP);
+
+	if (client1 != 0)
+		LoadClientGang(client1);
+
+	if (client2 != 0)
+		LoadClientGang(client2);
+}
+
 public Action Command_DonateGang(int client, int args)
 {
 	if (!IsClientGang(client))
@@ -1884,7 +1991,7 @@ public Action Command_Gang(int client, int args)
 		Format(TempFormat, sizeof(TempFormat), "Create Gang [ %i Honor ]", GANG_COSTCREATE);
 		AddMenuItem(hMenu, "Create", TempFormat, !isGang ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 
-		SetMenuTitle(hMenu, "%s Gang Menu\nYour Honor: %i", MENU_PREFIX, ClientHonor[client]);
+		SetMenuTitle(hMenu, "%s Gang Menu\nYour Honor: %i\nUse !gifthonor to open a gang as a team.", MENU_PREFIX, ClientHonor[client]);
 	}
 	else
 	{
