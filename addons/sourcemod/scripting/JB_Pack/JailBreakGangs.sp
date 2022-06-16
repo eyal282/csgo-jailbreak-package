@@ -1303,7 +1303,7 @@ public Action Command_GiftHonor(int client, int args)
 			 client,
 			 target_list,
 			 MAXPLAYERS,
-			 COMMAND_FILTER_NO_IMMUNITY,
+			 COMMAND_FILTER_NO_IMMUNITY | COMMAND_FILTER_NO_MULTI,
 			 target_name,
 			 sizeof(target_name),
 			 tn_is_ml))
