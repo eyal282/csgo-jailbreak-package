@@ -610,6 +610,9 @@ public Action Hook_ShouldSeeWhiteGlow(int glow, int viewer)
 	if (client == viewer)
 		return Plugin_Handled;
 
+	else if (!IsPlayerAlive(client))
+		return Plugin_Handled;
+
 	else if (JailBreakDays_IsDayActive())
 		return Plugin_Handled;
 
@@ -634,7 +637,13 @@ public Action Hook_ShouldSeeColorfulGlow(int glow, int viewer)
 
 	int client = GetEntPropEnt(glow, Prop_Send, "m_hOwnerEntity");
 
-	if (GetClientTeam(client) != CS_TEAM_T)
+	if (client == viewer)
+		return Plugin_Handled;
+
+	else if (!IsPlayerAlive(client))
+		return Plugin_Handled;
+
+	else if (GetClientTeam(client) != CS_TEAM_T)
 		return Plugin_Handled;
 
 	else if (!JailBreakDays_IsDayActive())
