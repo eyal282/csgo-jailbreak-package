@@ -32,6 +32,9 @@ enCvarList cvarList[] = {
 	{ "mp_roundtime",          "15"        },
 	{ "mp_warmuptime",         "0"         },
 
+	{ "sv_full_alltalk",       "1"         },
+	{ "sv_alltalk",            "1"         },
+
  // Airaccelerate is the ability to turn backwards or sideways mid-air.
 	{ "sv_airaccelerate",      "2147483647"},
 
