@@ -249,14 +249,14 @@ void EndVoteDay()
 
 public void OnPluginStart()
 {
-	RegAdminCmd("sm_startvoteday", Command_StartVoteDay, ADMFLAG_ROOT);
-	RegAdminCmd("sm_startfsday", Command_StartFSDay, ADMFLAG_ROOT);
-	RegAdminCmd("sm_startzeusday", Command_StartZeusDay, ADMFLAG_ROOT);
-	RegAdminCmd("sm_startdodgeballday", Command_StartDodgeballDay, ADMFLAG_ROOT);
-	RegAdminCmd("sm_startscoutday", Command_StartScoutDay, ADMFLAG_ROOT);
-	RegAdminCmd("sm_startknifeday", Command_StartKnifeDay, ADMFLAG_ROOT);
-	RegAdminCmd("sm_startwarday", Command_StartWarDay, ADMFLAG_ROOT);
-	RegAdminCmd("sm_startsdeagleday", Command_StartSDeagleDay, ADMFLAG_ROOT);
+	RegServerCmd("sm_startvoteday", Command_StartVoteDay);
+	RegServerCmd("sm_startfsday", Command_StartFSDay);
+	RegServerCmd("sm_startzeusday", Command_StartZeusDay);
+	RegServerCmd("sm_startdodgeballday", Command_StartDodgeballDay);
+	RegServerCmd("sm_startscoutday", Command_StartScoutDay);
+	RegServerCmd("sm_startknifeday", Command_StartKnifeDay);
+	RegServerCmd("sm_startwarday", Command_StartWarDay);
+	RegServerCmd("sm_startsdeagleday", Command_StartSDeagleDay);
 
 	HookEvent("weapon_fire", Event_WeaponTryFire, EventHookMode_Post);
 	HookEvent("weapon_fire_on_empty", Event_WeaponTryFire, EventHookMode_Post);
@@ -516,7 +516,7 @@ public Action SDKEvent_PostThinkPost(int client)
 	}
 }
 
-public Action Command_StartVoteDay(int client, int args)
+public Action Command_StartVoteDay(int args)
 {
 	ServerCommand("sm_silentstopck");
 
@@ -526,12 +526,12 @@ public Action Command_StartVoteDay(int client, int args)
 
 	StartVoteDay();
 
-	UC_PrintToChatAll("%s \x05%N \x01started \x07Vote Day! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s Vote Day has started! ", PREFIX, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
 
-public Action Command_StartFSDay(int client, int args)
+public Action Command_StartFSDay(int args)
 {
 	ServerCommand("sm_silentstopck");
 
@@ -542,12 +542,12 @@ public Action Command_StartFSDay(int client, int args)
 
 	StartFSDay();
 
-	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x07%s\x05 has started! ", PREFIX, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
 
-public Action Command_StartZeusDay(int client, int args)
+public Action Command_StartZeusDay(int args)
 {
 	ServerCommand("sm_silentstopck");
 
@@ -558,12 +558,12 @@ public Action Command_StartZeusDay(int client, int args)
 
 	StartZeusDay();
 
-	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x07%s\x05 has started! ", PREFIX, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
 
-public Action Command_StartDodgeballDay(int client, int args)
+public Action Command_StartDodgeballDay(int args)
 {
 	ServerCommand("sm_silentstopck");
 
@@ -574,12 +574,12 @@ public Action Command_StartDodgeballDay(int client, int args)
 
 	StartDodgeballDay();
 
-	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x07%s\x05 has started! ", PREFIX, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
 
-public Action Command_StartScoutDay(int client, int args)
+public Action Command_StartScoutDay(int args)
 {
 	ServerCommand("sm_silentstopck");
 
@@ -590,12 +590,12 @@ public Action Command_StartScoutDay(int client, int args)
 
 	StartScoutDay();
 
-	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x07%s\x05 has started! ", PREFIX, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
 
-public Action Command_StartKnifeDay(int client, int args)
+public Action Command_StartKnifeDay(int args)
 {
 	ServerCommand("sm_silentstopck");
 
@@ -606,7 +606,7 @@ public Action Command_StartKnifeDay(int client, int args)
 
 	SelectHSKnifeDay();
 
-	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x07%s\x05 has started! ", PREFIX, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
@@ -720,7 +720,7 @@ void CheckVoteHSKnifeResult()
 	StartKnifeDay();
 }
 
-public Action Command_StartWarDay(int client, int args)
+public Action Command_StartWarDay(int args)
 {
 	ServerCommand("sm_silentstopck");
 
@@ -730,12 +730,12 @@ public Action Command_StartWarDay(int client, int args)
 
 	SelectWeaponWarDay();
 
-	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x07%s\x05 has started! ", PREFIX, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
 
-public Action Command_StartSDeagleDay(int client, int args)
+public Action Command_StartSDeagleDay(int args)
 {
 	ServerCommand("sm_silentstopck");
 
@@ -746,7 +746,7 @@ public Action Command_StartSDeagleDay(int client, int args)
 
 	StartSDeagleDay();
 
-	UC_PrintToChatAll("%s \x05%N \x01started \x07%s! ", PREFIX, client, DayName[DayActive]);
+	UC_PrintToChatAll("%s \x07%s\x05 has started! ", PREFIX, DayName[DayActive]);
 
 	return Plugin_Handled;
 }
@@ -1385,6 +1385,8 @@ public int PanelHandler_InfoMessage(Handle hPanel, MenuAction action, int client
 stock void StartVoteDay()
 {
 	VoteDayStart = GetGameTime();
+
+	ServerCommand("sm_hardopen");
 
 	BuildUpVoteDayMenu();
 

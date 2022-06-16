@@ -1066,6 +1066,8 @@ void StartVoteCT()
 
 	EndVoteCT();
 
+	ServerCommand("sm_hardopen");
+
 	GameValue[0]  = EOS;
 	VoteCTRunning = true;
 	ChosenGame    = Game_MAX;
