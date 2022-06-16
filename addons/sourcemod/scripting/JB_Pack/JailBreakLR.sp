@@ -3629,13 +3629,13 @@ public void ContinueStartDuel()
 		TIMER_COUNTDOWN = CreateTimer(1.0, DecrementTimer, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	}
 
-	else if (StrContains(DuelName, "Bleed") != -1)
+	else if (StrContains(DuelName, "Fast HnR") != -1)
 	{
 		Bleed = true;
 
 		BleedTarget = 0;
 
-		UC_PrintToChatAll("Fast HNR has started. You must not be the last stabbed");
+		UC_PrintToChatAll("Fast HNR has started. You must not be the last hit");
 
 		TIMER_COUNTDOWN = CreateTimer(1.0, BleedTimer, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
@@ -4935,8 +4935,8 @@ public Action BleedTimer(Handle hTimer)
 {
 	if (BleedTarget == 0)
 	{
-		PrintCenterText(Prisoner, "You are not bleeding. Try not to get stabbed last");
-		PrintCenterText(Guard, "You are not bleeding. Try not to get stabbed last");
+		PrintCenterText(Prisoner, "You are not bleeding. Try not to get hit last");
+		PrintCenterText(Guard, "You are not bleeding. Try not to get hit last");
 		return Plugin_Continue;
 	}
 	else
@@ -4945,15 +4945,15 @@ public Action BleedTimer(Handle hTimer)
 		{
 			SDKHooks_TakeDamage(Prisoner, Guard, Guard, 700.0, DMG_POISON);
 
-			PrintCenterText(Prisoner, "You are bleeding. Stab the Guard quickly before you die!");
-			PrintCenterText(Guard, "You are not bleeding. Try not to get stabbed last");
+			PrintCenterText(Prisoner, "You are bleeding. Hit the Guard quickly before you die!");
+			PrintCenterText(Guard, "You are not bleeding. Try not to get hit last");
 		}
 		else if (BleedTarget == Guard)
 		{
 			SDKHooks_TakeDamage(Guard, Prisoner, Prisoner, 700.0, DMG_POISON);
 
-			PrintCenterText(Guard, "You are bleeding. Stab the Guard quickly before you die!");
-			PrintCenterText(Prisoner, "You are not bleeding. Try not to get stabbed last");
+			PrintCenterText(Guard, "You are bleeding. Hit the Guard quickly before you die!");
+			PrintCenterText(Prisoner, "You are not bleeding. Try not to get hit last");
 		}
 	}
 
