@@ -2941,7 +2941,7 @@ public void ShowFunMenu(int client)
 		AddMenuItem(hMenu, "", "RAMBO REBEL");
 		AddMenuItem(hMenu, "", "Night Crawler ( Invisible )");
 		AddMenuItem(hMenu, "", "Hide'N'Seek");
-		AddMenuItem(hMenu, "", "Last Hit Bleeds");
+		AddMenuItem(hMenu, "", "Fast HnR");
 		AddMenuItem(hMenu, "", "Super Deagle");
 		AddMenuItem(hMenu, "", "Negev No Spread");
 		AddMenuItem(hMenu, "", "Gun Toss");
@@ -3069,9 +3069,12 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 			}
 			case 6:
 			{
-				DuelName = "Fun | Last Hit Bleeds";
-				SecWep   = "weapon_knife";
-				SecNum   = CSWeapon_KNIFE;
+				DuelName = "Fun | Fast HnR";
+				PrimWep  = "weapon_ssg08";
+				PrimNum  = CSWeapon_SSG08;
+
+				SecWep = "weapon_knife";
+				SecNum = CSWeapon_KNIFE;
 
 				HPamount = 30000;
 			}
@@ -3632,7 +3635,7 @@ public void ContinueStartDuel()
 
 		BleedTarget = 0;
 
-		UC_PrintToChatAll("Last Hit Bleed has started. You must not be the last stabbed");
+		UC_PrintToChatAll("Fast HNR has started. You must not be the last stabbed");
 
 		TIMER_COUNTDOWN = CreateTimer(1.0, BleedTimer, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
@@ -5318,7 +5321,7 @@ stock void SetRandomRules(int Type)
 
 stock int GetMaxHealthValue()
 {
-	if (StrContains(DuelName, "Last Hit Bleed") != -1)
+	if (StrContains(DuelName, "Fast HnR") != -1)
 		return 30000;
 
 	bool Knife = (StrContains(DuelName, "Knife") != -1);
