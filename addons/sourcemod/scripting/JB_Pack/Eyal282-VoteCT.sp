@@ -1068,6 +1068,18 @@ void StartVoteCT()
 
 	ServerCommand("sm_hardopen");
 
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		else if (GetClientTeam(i) == CS_TEAM_CT)
+		{
+			ChangeClientTeam(i, CS_TEAM_T);
+			CS_RespawnPlayer(i);
+		}
+	}
+
 	GameValue[0]  = EOS;
 	VoteCTRunning = true;
 	ChosenGame    = Game_MAX;
