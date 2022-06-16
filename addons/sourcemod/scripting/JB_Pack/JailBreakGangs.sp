@@ -603,7 +603,7 @@ public Action Timer_CheckGlowPlayerModel(Handle hTimer, int Ref)
 public Action Hook_ShouldSeeWhiteGlow(int glow, int viewer)
 {
 	if (!IsValidEntity(glow))
-		return Plugin_Continue;
+		return Plugin_Handled;
 
 	int client = GetEntPropEnt(glow, Prop_Send, "m_hOwnerEntity");
 
