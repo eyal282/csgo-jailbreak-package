@@ -32,5 +32,6 @@
     "Plugin"	"Path_SM/plugins/JBPack/JB_SmartOpen.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_VoteCT.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_WeaponMenu.smx"
+    "Plugin"	"Path_SM/plugins/JBPack/JB_Wheel.smx"
     
 }
