@@ -476,7 +476,7 @@ public Action Command_HardOpen(int client, int args)
 		return Plugin_Handled;
 	}
 
-	else if (OpenedThisRound && !JailBreakDays_IsDayActive() || !CanEmptyRebel() || !CanLRChainsaw())
+	else if (OpenedThisRound && !JailBreakDays_IsDayActive() && !CanEmptyRebel() && !CanLRChainsaw())
 	{
 		OpenIsolation();
 		UC_PrintToChat(client, "%s Cells were \x07already \x01opened this \x05round!", PREFIX);
