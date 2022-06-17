@@ -518,9 +518,6 @@ public Action Command_HardOpen(int client, int args)
 
 stock bool OpenCells()
 {
-	if (OpenedThisRound)
-		return false;
-
 	int target;
 
 	for (int i = 1; i <= MaxClients; i++)

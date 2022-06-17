@@ -312,7 +312,7 @@ public Action Event_RoundStart(Event hEvent, const char[] Name, bool dontBroadca
 		if (!IsClientInGame(i))
 			continue;
 
-		if (GetClientTeam(i) == CS_TEAM_T && !CheckCommandAccess(i, "sm_admin", ADMFLAG_GENERIC) && GetPlayerCount() > 2)
+		if (GetClientTeam(i) == CS_TEAM_T && !CheckCommandAccess(i, "sm_admin", ADMFLAG_GENERIC))
 		{
 			SetClientListeningFlags(i, VOICE_MUTED);
 		}

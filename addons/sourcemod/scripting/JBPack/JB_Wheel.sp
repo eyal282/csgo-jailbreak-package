@@ -24,7 +24,7 @@ public Plugin myinfo =
 
 }
 
-native int
+native float
 	Gangs_GetCooldownPercent(int client);
 
 enum PrizeTypes
@@ -150,12 +150,12 @@ public void SQLCB_GetPlayerSpins(Handle owner, Handle hndl, char[] error, any da
 
 		if (spins == 0)
 		{
-			if (LastSpinTimestamp + (SPIN_COOLDOWN_HOURS * SECONDS_IN_A_HOUR * (Gangs_GetCooldownPercent(client) / 100)) <= GetTime())
+			if (LastSpinTimestamp + RoundToFloor((float(SPIN_COOLDOWN_HOURS) * float(SECONDS_IN_A_HOUR) * (1.0 - (Gangs_GetCooldownPercent(client))))) <= GetTime())
 				spins = 1;
 
 			else
 			{
-				FormatTime(Time, sizeof(Time), "%H:%M:%S", (SPIN_COOLDOWN_HOURS * SECONDS_IN_A_HOUR * (Gangs_GetCooldownPercent(client) / 100)) - (GetTime() - LastSpinTimestamp));
+				FormatTimeHMS(Time, sizeof(Time), RoundToFloor((float(SPIN_COOLDOWN_HOURS) * float(SECONDS_IN_A_HOUR) * (1.0 - (Gangs_GetCooldownPercent(client))))) - (GetTime() - LastSpinTimestamp));
 			}
 		}
 
@@ -182,7 +182,7 @@ void ShowWheelMenu(int client, int spins, char[] Time)
 
 	AddMenuItem(hMenu, "", "Reset For All", CheckCommandAccess(client, "sm_rcon", ADMFLAG_ROOT, true) ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 
-	SetMenuTitle(hMenu, "[WePlay] Wheel of fortune\n!החלצהב ,לגלגה תא לגלגת הללאי רבח ייה");
+	SetMenuTitle(hMenu, "Wheel of fortune\n!Let's go for a spin!");
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 }
 
@@ -346,4 +346,18 @@ public Action Timer_DisplayWheel(Handle hTimer, Handle DP)
 	WritePackCell(otherDP, CurrentItem);    // Current item in the wheel itself
 
 	WritePackCell(otherDP, LuckyItem);
+}
+
+stock void FormatTimeHMS(char[] Time, int length, int timestamp, bool LimitTo24H = false)
+{
+	if (LimitTo24H)
+		timestamp %= 86400;
+
+	int HH, MM, SS;
+
+	HH = timestamp / 3600;
+	MM = timestamp % 3600 / 60;
+	SS = timestamp % 3600 % 60;
+
+	Format(Time, length, "%02d:%02d:%02d", HH, MM, SS);
 }
