@@ -295,7 +295,7 @@ public Action Hook_TraceAttack(int victim, int& attacker, int& inflictor, float&
 		GetEdictClassname(weapon, sClassname, sizeof(sClassname));
 
 	// Trying to shoot teammates? Cringe.
-	if (GetConVarInt(hcv_TeammatesAreEnemies) > 0 && strncmp(sClassname, "weapon_knife", 12) != 0)
+	if (GetConVarInt(hcv_TeammatesAreEnemies) > 0 && GetConVarInt(hcv_TeammatesAreEnemies) < 3 && strncmp(sClassname, "weapon_knife", 12) != 0)
 	{
 		damage = 0.0;
 		return Plugin_Stop;
@@ -309,7 +309,7 @@ public Action Hook_TraceAttack(int victim, int& attacker, int& inflictor, float&
 		GetEdictClassname(weapon, sClassname, sizeof(sClassname));
 
 	// Trying to stab rebels? Cringe.
-	if (GetConVarInt(hcv_TeammatesAreEnemies) > 0 && strncmp(sClassname, "weapon_knife", 12) != 0)
+	if (GetConVarInt(hcv_TeammatesAreEnemies) > 0 && GetConVarInt(hcv_TeammatesAreEnemies) < 3 && strncmp(sClassname, "weapon_knife", 12) != 0)
 	{
 		damage = 0.0;
 		return Plugin_Stop;
@@ -601,11 +601,13 @@ public Action Command_Box(int client, args)
 		case 0: SetMenuTitle(hMenu, "%s Box status: OFF", MENU_PREFIX);
 		case 1: SetMenuTitle(hMenu, "%s Box status: ON", MENU_PREFIX);
 		case 2: SetMenuTitle(hMenu, "%s Box status: Backstabs", MENU_PREFIX);
+		case 3: SetMenuTitle(hMenu, "%s Box status: Gunfights", MENU_PREFIX);
 	}
 
 	AddMenuItem(hMenu, "", "ON");
 	AddMenuItem(hMenu, "", "OFF");
 	AddMenuItem(hMenu, "", "Backstabs");
+	AddMenuItem(hMenu, "", "Gunfights");
 
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 
@@ -638,6 +640,12 @@ public int Box_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 			{
 				SetConVarInt(hcv_TeammatesAreEnemies, 2);
 				UC_PrintToChatAll(" %s \x05%N \x01set \x02box\x01 status to\x03 Backstabs! ", PREFIX, client);
+			}
+
+			case 3:
+			{
+				SetConVarInt(hcv_TeammatesAreEnemies, 3);
+				UC_PrintToChatAll(" %s \x05%N \x01set \x02box\x01 status to\x03 Gunfights! ", PREFIX, client);
 			}
 		}
 	}
