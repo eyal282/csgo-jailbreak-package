@@ -755,8 +755,6 @@ public void StartFSDay()
 {
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 
-	ServerCommand("sm_hardopen");
-
 	DayActive = FS_DAY;
 
 	IgnorePlayerDeaths = true;
@@ -787,8 +785,6 @@ public void StartZeusDay()
 	SetConVarInt(hcv_TaserRechargeTime, 1);
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 
-	ServerCommand("sm_hardopen");
-
 	DayActive = ZEUS_DAY;
 
 	IgnorePlayerDeaths = true;
@@ -817,8 +813,6 @@ public void StartZeusDay()
 public void StartDodgeballDay()
 {
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
-
-	ServerCommand("sm_hardopen");
 
 	DayActive = DODGEBALL_DAY;
 
@@ -851,8 +845,6 @@ public void StartScoutDay()
 
 	DayActive = SCOUT_DAY;
 
-	ServerCommand("sm_hardopen");
-
 	IgnorePlayerDeaths = true;
 
 	DestroyAllWeapons();
@@ -882,8 +874,6 @@ public void StartKnifeDay()
 
 	DayActive = KNIFE_DAY;
 
-	ServerCommand("sm_hardopen");
-
 	IgnorePlayerDeaths = true;
 
 	DestroyAllWeapons();
@@ -912,8 +902,6 @@ public void StartSDeagleDay()
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 
 	DayActive = SDEAGLE_DAY;
-
-	ServerCommand("sm_hardopen");
 
 	IgnorePlayerDeaths = true;
 
@@ -945,7 +933,6 @@ void SelectWeaponWarDay()
 
 	DayActive = WAR_DAY;
 
-	ServerCommand("sm_hardopen");
 	IgnorePlayerDeaths = true;
 
 	DestroyAllWeapons();
@@ -1178,8 +1165,6 @@ void CheckVoteHSResult()
 
 void StartWarDay()
 {
-	ServerCommand("sm_hardopen");
-
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 
 	DestroyAllWeapons();

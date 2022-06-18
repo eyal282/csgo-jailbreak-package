@@ -566,6 +566,16 @@ stock bool OpenCells()
 			return false;
 
 		AcceptEntityInput(ent, "PressIn", target);
+
+		AcceptEntityInput(ent, "Lock");
+
+		char strBuffer[255];
+
+		FormatEx(strBuffer, sizeof(strBuffer), "OnUser1 !self:Unlock:0:5.0:1");
+
+		SetVariantString(strBuffer);
+		AcceptEntityInput(ent, "AddOutput");
+		AcceptEntityInput(ent, "FireUser1");
 	}
 
 	OpenedThisRound = true;

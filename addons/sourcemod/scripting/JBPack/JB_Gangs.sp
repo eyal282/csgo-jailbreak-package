@@ -499,11 +499,10 @@ void CreateWhiteGlow(int client)
 
 	SDKHook(GlowEnt, SDKHook_SetTransmit, Hook_ShouldSeeWhiteGlow);
 
-	CreateTimer(0.1, Timer_CheckGlowPlayerModel, EntIndexToEntRef(GlowEnt), TIMER_FLAG_NO_MAPCHANGE);
-	CreateTimer(0.3, Timer_CheckGlowPlayerModel, EntIndexToEntRef(GlowEnt), TIMER_FLAG_NO_MAPCHANGE);
-	CreateTimer(0.5, Timer_CheckGlowPlayerModel, EntIndexToEntRef(GlowEnt), TIMER_FLAG_NO_MAPCHANGE);
-	CreateTimer(1.0, Timer_CheckGlowPlayerModel, EntIndexToEntRef(GlowEnt), TIMER_FLAG_NO_MAPCHANGE);
-	CreateTimer(1.1, Timer_CheckGlowPlayerModel, EntIndexToEntRef(GlowEnt), TIMER_FLAG_NO_MAPCHANGE);
+	for (float i = 0.1; i < 5.0; i += 0.2)
+	{
+		CreateTimer(i, Timer_CheckGlowPlayerModel, EntIndexToEntRef(GlowEnt), TIMER_FLAG_NO_MAPCHANGE);
+	}
 
 	ClientWhiteGlow[client] = GlowEnt;
 }
