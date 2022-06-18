@@ -28,7 +28,9 @@ public Plugin myinfo =
 };
 
 char   PREFIX[256];
-Handle hcv_Prefix = INVALID_HANDLE;
+char   MENU_PREFIX[64];
+Handle hcv_Prefix     = INVALID_HANDLE;
+Handle hcv_MenuPrefix = INVALID_HANDLE;
 
 bool IsVIP[MAXPLAYERS + 1];
 
@@ -38,7 +40,6 @@ Handle hcv_TeammatesAreEnemies = INVALID_HANDLE;
 Handle hcv_CKHealthPerT        = INVALID_HANDLE;
 
 Handle hTimer_Beacon          = INVALID_HANDLE;
-bool   isbox                  = false;
 bool   nospam[MAXPLAYERS + 1] = false;
 ConVar g_SetTimeMute;
 ConVar g_tMinMute;
@@ -66,6 +67,7 @@ public void OnPluginStart()
 	LoadTranslations("common.phrases.txt");    // Fixing errors in target, something skyler didn't do haha.
 
 	RegConsoleCmd("sm_box", Command_Box, "Enables friendlyfire for the terrorists");
+	RegConsoleCmd("sm_ff", Command_Box, "Enables friendlyfire for the terrorists");
 	RegConsoleCmd("sm_fd", Command_FD, "Turns on glow on a player");
 	RegConsoleCmd("sm_ck", Command_CK, "Turns on CK for the rest of the vote CT");
 	RegConsoleCmd("sm_givelr", cmd_givelr, "");
@@ -94,6 +96,11 @@ public void OnPluginStart()
 	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
 	HookConVarChange(hcv_Prefix, cvChange_Prefix);
 
+	hcv_MenuPrefix = CreateConVar("sm_menu_prefix_cvar", "[JBPack]");
+
+	GetConVarString(hcv_MenuPrefix, MENU_PREFIX, sizeof(MENU_PREFIX));
+	HookConVarChange(hcv_MenuPrefix, cvChange_MenuPrefix);
+
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientInGame(i))
@@ -106,6 +113,11 @@ public void OnPluginStart()
 public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)
 {
 	FormatEx(PREFIX, sizeof(PREFIX), newValue);
+}
+
+public void cvChange_MenuPrefix(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	FormatEx(MENU_PREFIX, sizeof(MENU_PREFIX), newValue);
 }
 
 // cmd = Were the cells opened by command or with button.
@@ -233,19 +245,81 @@ public void OnButtonRelease(int client, int button, float holdTime)
 
 public void OnClientPutInServer(int client)
 {
+	SDKHook(client, SDKHook_TraceAttack, Hook_TraceAttack);
 	SDKHook(client, SDKHook_OnTakeDamage, Hook_OnTakeDamage);
 	SDKHook(client, SDKHook_WeaponCanUse, Hook_WeaponCanUse);
 }
 
-public Action Hook_OnTakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& weapon, float damageForce[3], float damagePosition[3], int damagecustom)
+public Action Hook_OnTakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
+{
+	int    dummy_value1, dummy_value2, dummy_value3;
+	Action rtn = Hook_TraceAttack(victim, attacker, inflictor, damage, damagetype, dummy_value1, dummy_value2, dummy_value3);
+	return rtn;
+}
+
+public Action Hook_TraceAttack(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
 {
 	if (!IsEntityPlayer(attacker))
 		return Plugin_Continue;
 
-	else if (GetClientTeam(victim) == GetClientTeam(attacker) && GetClientTeam(victim) == CS_TEAM_CT)
+	else if (JailBreakDays_IsDayActive())
+		return Plugin_Continue;
+
+	else if (LR_isActive())
+		return Plugin_Continue;
+
+	else if (GetClientTeam(victim) != GetClientTeam(attacker))
+		return Plugin_Continue;
+
+	// Team killing...
+	else if (GetClientTeam(victim) == CS_TEAM_CT)
 	{
 		damage = 0.0;
-		return Plugin_Changed;
+		return Plugin_Stop;
+	}
+
+	char sClassname[64];
+	GetEdictClassname(inflictor, sClassname, sizeof(sClassname));
+	// Grenade damage in box...
+	if (!StrEqual(sClassname, "player"))
+	{
+		damage = 0.0;
+		return Plugin_Stop;
+	}
+
+	sClassname[0] = EOS;
+
+	int weapon = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
+
+	if (weapon != -1)
+		GetEdictClassname(weapon, sClassname, sizeof(sClassname));
+
+	// Trying to shoot teammates? Cringe.
+	if (GetConVarInt(hcv_TeammatesAreEnemies) > 0 && strncmp(sClassname, "weapon_knife", 12) != 0)
+	{
+		damage = 0.0;
+		return Plugin_Stop;
+	}
+
+	sClassname[0] = EOS;
+
+	weapon = GetEntPropEnt(victim, Prop_Send, "m_hActiveWeapon");
+
+	if (weapon != -1)
+		GetEdictClassname(weapon, sClassname, sizeof(sClassname));
+
+	// Trying to stab rebels? Cringe.
+	if (GetConVarInt(hcv_TeammatesAreEnemies) > 0 && strncmp(sClassname, "weapon_knife", 12) != 0)
+	{
+		damage = 0.0;
+		return Plugin_Stop;
+	}
+
+	// Damage is less than 69 if not a backstab.
+	else if (GetConVarInt(hcv_TeammatesAreEnemies) == 2 && damage < 69)
+	{
+		damage = 0.0;
+		return Plugin_Stop;
 	}
 
 	return Plugin_Continue;
@@ -429,14 +503,14 @@ public Action Command_FD(int client, int args)
 {
 	if ((GetClientTeam(client) != CS_TEAM_CT || !IsPlayerAlive(client)) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
-		ReplyToCommand(client, "You don't have access to this command");
+		UC_ReplyToCommand(client, "You don't have access to this command");
 
 		return Plugin_Handled;
 	}
 
 	else if (args == 0)
 	{
-		ReplyToCommand(client, "Usage: sm_fd <target>");
+		UC_ReplyToCommand(client, "Usage: sm_fd <target>");
 		return Plugin_Handled;
 	}
 	char Arg[64];
@@ -510,19 +584,28 @@ public Action Timer_BeaconVIP(Handle hTimer)
 
 public Action Command_Box(int client, args)
 {
+	if (JailBreakDays_IsDayActive())
+		return Plugin_Handled;
+
 	if ((GetClientTeam(client) != CS_TEAM_CT || !IsPlayerAlive(client)) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
-		ReplyToCommand(client, "You don't have access to this command");
+		UC_ReplyToCommand(client, "You don't have access to this command");
 
 		return Plugin_Handled;
 	}
 
 	Handle hMenu = CreateMenu(Box_MenuHandler);
 
-	SetMenuTitle(hMenu, "Box status: %s", GetConVarBool(hcv_TeammatesAreEnemies) ? "Enabled" : "Disabled");
+	switch (GetConVarInt(hcv_TeammatesAreEnemies))
+	{
+		case 0: SetMenuTitle(hMenu, "%s Box status: OFF", MENU_PREFIX);
+		case 1: SetMenuTitle(hMenu, "%s Box status: ON", MENU_PREFIX);
+		case 2: SetMenuTitle(hMenu, "%s Box status: Backstabs", MENU_PREFIX);
+	}
 
-	AddMenuItem(hMenu, "", "Yes");
-	AddMenuItem(hMenu, "", "No");
+	AddMenuItem(hMenu, "", "ON");
+	AddMenuItem(hMenu, "", "OFF");
+	AddMenuItem(hMenu, "", "Backstabs");
 
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 
@@ -539,10 +622,24 @@ public int Box_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 		if (GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 			return;
 
-		bool Enable = (item == 0);
-		SetConVarBool(hcv_TeammatesAreEnemies, Enable);
-
-		UC_PrintToChatAll(" %s \x05%N \x01%s \x02box! ", PREFIX, client, Enable ? "enabled" : "disabled");
+		switch (item)
+		{
+			case 0:
+			{
+				SetConVarInt(hcv_TeammatesAreEnemies, 1);
+				UC_PrintToChatAll(" %s \x05%N \x01set \x02box\x01 status to\x03 ON! ", PREFIX, client);
+			}
+			case 1:
+			{
+				SetConVarInt(hcv_TeammatesAreEnemies, 0);
+				UC_PrintToChatAll(" %s \x05%N \x01set \x02box\x01 status to\x03 OFF! ", PREFIX, client);
+			}
+			case 2:
+			{
+				SetConVarInt(hcv_TeammatesAreEnemies, 2);
+				UC_PrintToChatAll(" %s \x05%N \x01set \x02box\x01 status to\x03 Backstabs! ", PREFIX, client);
+			}
+		}
 	}
 }
 
@@ -550,21 +647,21 @@ public Action Command_CK(int client, int args)
 {
 	if ((GetClientTeam(client) != CS_TEAM_CT || !Eyal282_VoteCT_IsChosen(client)) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
-		ReplyToCommand(client, "You don't have access to this command");
+		UC_ReplyToCommand(client, "You don't have access to this command");
 
 		return Plugin_Handled;
 	}
 
 	else if (CKEnabled)
 	{
-		ReplyToCommand(client, "CK is already running");
+		UC_ReplyToCommand(client, "CK is already running");
 
 		return Plugin_Handled;
 	}
 
 	else if (!Eyal282_VoteCT_IsPreviewRound() && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
-		ReplyToCommand(client, " \x07CK \x01can only be \x07started \x01in \x07God Round. ");
+		UC_ReplyToCommand(client, " \x07CK \x01can only be \x07started \x01in \x07God Round. ");
 
 		return Plugin_Handled;
 	}
@@ -574,7 +671,7 @@ public Action Command_CK(int client, int args)
 	AddMenuItem(hMenu, "", "Start CK", CKEnabled ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 	AddMenuItem(hMenu, "", "Stop CK", !CKEnabled ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
-	SetMenuTitle(hMenu, "[WePlay] CK");
+	SetMenuTitle(hMenu, "%s CK", MENU_PREFIX);
 
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 
@@ -901,50 +998,6 @@ public Action CheckDeathOnJoin(Handle hTimer, int UserId)
 
 	if (!GetConVarBool(hcv_DeadTalk) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 		SetClientListeningFlags(client, VOICE_MUTED);
-}
-
-public Action cmd_box(int client, int args)
-{
-	if (GetClientTeam(client) == CS_TEAM_CT || CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
-	{
-		Menu box = CreateMenu(BoxMenuHandler);
-		box.SetTitle("[WePlay] box menu");
-		if (!isbox)
-			box.AddItem("box", "Enable Friendly Fire");
-		else
-			box.AddItem("box", "Enable Friendly Fire", ITEMDRAW_DISABLED);
-		if (isbox)
-			box.AddItem("box", "Disable Friendly Fire");
-		else
-			box.AddItem("box", "Disable Friendly Fire", ITEMDRAW_DISABLED);
-		box.Display(client, MENU_TIME_FOREVER);
-	}
-}
-
-public int BoxMenuHandler(Menu menu, MenuAction action, int client, int item)
-{
-	if (action == MenuAction_Select)
-	{
-		char info[64];
-		GetMenuItem(menu, item, info, sizeof(info));
-		if (StrEqual(info, "box"))
-		{
-			if (!isbox)
-			{
-				ServerCommand("mp_teammates_are_enemies 1");
-				UC_PrintToChatAll("%s friendly fire turned on!", PREFIX);
-			}
-			if (isbox)
-			{
-				ServerCommand("mp_teammates_are_enemies 0");
-				UC_PrintToChatAll("%s friendly fire turned off!", PREFIX);
-			}
-		}
-	}
-	if (action == MenuAction_End)
-	{
-		isbox = !isbox;
-	}
 }
 
 public Action cmd_givelr(int client, int args)

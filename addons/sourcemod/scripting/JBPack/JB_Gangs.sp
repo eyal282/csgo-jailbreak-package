@@ -1278,7 +1278,7 @@ public Action Command_GiftHonor(int client, int args)
 {
 	if (args < 1 || args > 2)
 	{
-		ReplyToCommand(client, "[SM] Usage: sm_gifthonor <#userid|name> <amount>");
+		UC_ReplyToCommand(client, "[SM] Usage: sm_gifthonor <#userid|name> <amount>");
 		return Plugin_Handled;
 	}
 

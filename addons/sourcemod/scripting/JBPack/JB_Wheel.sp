@@ -1,3 +1,4 @@
+#include <eyal-jailbreak>
 #include <sdkhooks>
 #include <sdktools>
 #include <sourcemod>
@@ -109,13 +110,13 @@ public Action Command_Wheel(int client, int args)
 {
 	if (isSpinning[client])
 	{
-		ReplyToCommand(client, "Cannot open this menu while the wheel is spinning");
+		UC_ReplyToCommand(client, "Cannot open this menu while the wheel is spinning");
 		return Plugin_Handled;
 	}
 	char AuthId[35];
 	if (!GetClientAuthId(client, AuthId_Engine, AuthId, sizeof(AuthId)))
 	{
-		ReplyToCommand(client, "Couldn't get your AuthId, please try again soon!");
+		UC_ReplyToCommand(client, "Couldn't get your AuthId, please try again soon!");
 		return Plugin_Handled;
 	}
 

@@ -1,3 +1,4 @@
+#include <eyal-jailbreak>
 #include <sdkhooks>
 #include <sdktools>
 #include <sourcemod>
@@ -172,7 +173,7 @@ public Action Command_Jackpot(int client, int args)
 {
 	if (args != 1)
 	{
-		ReplyToCommand(client, "Usage: sm_jackpot <amount>");
+		UC_ReplyToCommand(client, "Usage: sm_jackpot <amount>");
 		return Plugin_Handled;
 	}
 
@@ -181,7 +182,7 @@ public Action Command_Jackpot(int client, int args)
 
 	if (GetTrieValue(Trie_Jackpot, AuthId, args))
 	{
-		ReplyToCommand(client, "You \x05already \x01joined the \x07jackpot.");
+		UC_ReplyToCommand(client, "You \x05already \x01joined the \x07jackpot.");
 		return Plugin_Handled;
 	}
 	char Arg[35];
@@ -201,19 +202,19 @@ public Action Command_Jackpot(int client, int args)
 
 	if (credits < joinCredits)
 	{
-		ReplyToCommand(client, "You \x07don't \x01have enough \x07credits.");
+		UC_ReplyToCommand(client, "You \x07don't \x01have enough \x07credits.");
 		return Plugin_Handled;
 	}
 
 	else if (GetConVarInt(hcv_MinCredits) > joinCredits)
 	{
-		ReplyToCommand(client, " \x01The \x07Minimum \x01amount of \x07credits \x01to join the jackpot is \x05%i", GetConVarInt(hcv_MinCredits));
+		UC_ReplyToCommand(client, " \x01The \x07Minimum \x01amount of \x07credits \x01to join the jackpot is \x05%i", GetConVarInt(hcv_MinCredits));
 		return Plugin_Handled;
 	}
 
 	else if (GetConVarInt(hcv_MaxCredits) < joinCredits)
 	{
-		ReplyToCommand(client, " \x01The \x07Maximum \x01amount of \x07credits \x01to join the jackpot is \x05%i", GetConVarInt(hcv_MaxCredits));
+		UC_ReplyToCommand(client, " \x01The \x07Maximum \x01amount of \x07credits \x01to join the jackpot is \x05%i", GetConVarInt(hcv_MaxCredits));
 		return Plugin_Handled;
 	}
 

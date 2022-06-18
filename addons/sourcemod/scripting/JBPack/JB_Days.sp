@@ -408,7 +408,7 @@ public Action SDKEvent_TraceAttack(int victim, int& attacker, int& inflictor, fl
 	{
 		damage = 0.0;
 
-		return Plugin_Changed;
+		return Plugin_Stop;
 	}
 
 	else if (!DayHSOnly)
@@ -417,7 +417,7 @@ public Action SDKEvent_TraceAttack(int victim, int& attacker, int& inflictor, fl
 	else if ((hitgroup != 1 && DayActive != KNIFE_DAY) || (damage < 69 && DayActive == KNIFE_DAY))
 	{
 		damage = 0.0;
-		return Plugin_Changed;
+		return Plugin_Stop;
 	}
 
 	return Plugin_Continue;

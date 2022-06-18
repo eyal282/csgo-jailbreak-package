@@ -851,14 +851,14 @@ public Action Command_EndPreviewRound(int client, int args)
 
 	if (client != 0 && client != Chosen && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
-		ReplyToCommand(client, "%s \x05You \x01are not the chosen \x07CT. ", PREFIX);
+		UC_ReplyToCommand(client, "%s \x05You \x01are not the chosen \x07CT. ", PREFIX);
 
 		return Plugin_Handled;
 	}
 
 	else if (!IsPreviewRound)
 	{
-		ReplyToCommand(client, "%s \x01Preview round is not \x07Active!", PREFIX);
+		UC_ReplyToCommand(client, "%s \x01Preview round is not \x07Active!", PREFIX);
 
 		return Plugin_Handled;
 	}
@@ -934,7 +934,7 @@ public Action Command_DisableVoteCT(int client, int args)
 {
 	if (VoteCTDisabled)
 	{
-		ReplyToCommand(client, "%s \x05Vote-CT \x01system is already \x07disabled. ", PREFIX);
+		UC_ReplyToCommand(client, "%s \x05Vote-CT \x01system is already \x07disabled. ", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -980,7 +980,7 @@ public Action Command_StopVoteCT(int client, int args)
 {
 	if (!VoteCTRunning)
 	{
-		ReplyToCommand(client, "There isn't a running Vote-CT.");
+		UC_ReplyToCommand(client, "There isn't a running Vote-CT.");
 		return Plugin_Handled;
 	}
 
@@ -995,7 +995,7 @@ public Action Command_SetChosen(int client, int args)
 {
 	if (args == 0)
 	{
-		ReplyToCommand(client, "Usage: sm_setchosen <target>");
+		UC_ReplyToCommand(client, "Usage: sm_setchosen <target>");
 		return Plugin_Handled;
 	}
 	char Arg[64];
@@ -1018,14 +1018,14 @@ public Action Command_GiveChosen(int client, int args)
 {
 	if (args == 0)
 	{
-		ReplyToCommand(client, "Usage: sm_givect <target>");
+		UC_ReplyToCommand(client, "Usage: sm_givect <target>");
 		return Plugin_Handled;
 	}
 
 	else if (SmartOpen_AreCellsOpen())
 	{
 		// BAR COLOR
-		ReplyToCommand(client, "Error: You cannot give chosen CT when cells are open");
+		UC_ReplyToCommand(client, "Error: You cannot give chosen CT when cells are open");
 
 		return Plugin_Handled;
 	}
