@@ -155,7 +155,8 @@ public void OnMapStart()
 	hTimer_ExpireMute = INVALID_HANDLE;
 	hTimer_Beacon     = INVALID_HANDLE;
 
-	SetConVarBool(hcv_TeammatesAreEnemies, false);
+	if (!JailBreakDays_IsDayActive())
+		SetConVarBool(hcv_TeammatesAreEnemies, false);
 
 	CreateTimer(0.5, Timer_DrawMarkers, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
@@ -621,7 +622,10 @@ public int Box_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 
 	else if (action == MenuAction_Select)
 	{
-		if (GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+		if (JailBreakDays_IsDayActive())
+			return;
+
+		else if (GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 			return;
 
 		switch (item)
