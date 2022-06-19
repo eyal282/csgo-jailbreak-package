@@ -611,16 +611,6 @@ void StartVoteDay()
 	if (!IsNewVoteAllowed())
 		return;
 
-	for (new i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientInGame(i))
-			continue;
-
-		ChangeClientTeam(i, CS_TEAM_T);
-
-		CS_RespawnPlayer(i);
-	}
-
 	JailBreakDays_StartVoteDay();
 }
 

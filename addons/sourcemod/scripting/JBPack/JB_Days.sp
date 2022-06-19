@@ -249,7 +249,7 @@ void EndVoteDay()
 
 public void OnPluginStart()
 {
-	RegServerCmd("sm_startvoteday", Command_StartVoteDay);
+	RegConsoleCmd("sm_startvoteday", Command_StartVoteDay);
 	RegServerCmd("sm_startfsday", Command_StartFSDay);
 	RegServerCmd("sm_startzeusday", Command_StartZeusDay);
 	RegServerCmd("sm_startdodgeballday", Command_StartDodgeballDay);
@@ -516,7 +516,7 @@ public Action SDKEvent_PostThinkPost(int client)
 	}
 }
 
-public Action Command_StartVoteDay(int args)
+public Action Command_StartVoteDay(int client, int args)
 {
 	ServerCommand("sm_silentstopck");
 
@@ -1369,6 +1369,16 @@ public int PanelHandler_InfoMessage(Handle hPanel, MenuAction action, int client
 
 stock void StartVoteDay()
 {
+	for (new i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		ChangeClientTeam(i, CS_TEAM_T);
+
+		CS_RespawnPlayer(i);
+	}
+
 	VoteDayStart = GetGameTime();
 
 	ServerCommand("sm_hardopen");
