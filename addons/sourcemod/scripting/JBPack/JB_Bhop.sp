@@ -1,3 +1,4 @@
+#include <sdktools>
 #include <sourcemod>
 
 #define semicolon 1
