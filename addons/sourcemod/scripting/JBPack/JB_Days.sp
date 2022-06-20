@@ -251,7 +251,7 @@ void EndVoteDay()
 
 public void OnPluginStart()
 {
-	RegConsoleCmd("sm_startvoteday", Command_StartVoteDay);
+	RegAdminCmd("sm_startvoteday", Command_StartVoteDay, ADMFLAG_GENERIC);
 	RegServerCmd("sm_startfsday", Command_StartFSDay);
 	RegServerCmd("sm_startzeusday", Command_StartZeusDay);
 	RegServerCmd("sm_startdodgeballday", Command_StartDodgeballDay);
