@@ -371,6 +371,30 @@ public void OnPluginStart()
 	TriggerTimer(CreateTimer(10.0, ConnectDatabase, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT), true);
 
 	LoadTranslations("common.phrases");    // Fixing errors in target
+
+	HookEntityOutput("trigger_hurt", "OnHurtPlayer", OnTriggerHealPlayer);
+}
+
+public void OnTriggerHealPlayer(const char[] output, int caller, int activator, float delay)
+{
+	if(!LRPart(activator))
+		return;
+
+	else if(StrContains(DuelName, "Freestyle") == -1)
+		return;
+
+	float hpGained = -1 * (GetEntPropFloat(caller, Prop_Data, "m_flDamage") / 2.0);
+
+	if(RoundToFloor(hpGained) + GetEntityHealth(activator) > GetEntityMaxHealth(activator))
+	{
+		hpGained = float(GetEntityMaxHealth(activator) - GetEntityHealth(activator));
+	}
+
+	if(hpGained <= 0)
+		return;
+
+	// This is because we don't allow the guard to heal.
+	SetEntityHealth(Guard, GetEntityHealth(activator));
 }
 
 public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)
@@ -1851,8 +1875,6 @@ public Action Event_TakeDamageAlive(int victim, int& attacker, int& inflictor, f
 		damage = 0.0;
 		return Plugin_Changed;
 	}
-
-	UC_PrintToChatEyal("Test");
 	
 	bool suicide;
 
@@ -2484,10 +2506,14 @@ public int LR_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 
 			case 3:
 			{
+				PrimWep = "";
 				PrimNum  = CSWeapon_MAX_WEAPONS;
+				SecWep = "weapon_knife";
 				SecNum   = CSWeapon_KNIFE;
 				HPamount = 100;
 				BPAmmo   = -1;
+
+				DuelName = "Freestyle";
 
 				ChooseOpponent(client);
 			}
@@ -3547,7 +3573,7 @@ public Action JBPack_OnShouldSpawnWeapons(int client)
 	if(!LRPart(client))
 		return Plugin_Continue;
 
-	else if(PrimNum != CSWeapon_MAX_WEAPONS)
+	else if(PrimNum == CSWeapon_MAX_WEAPONS)
 		return Plugin_Continue;
 
 	return Plugin_Handled;
@@ -3630,7 +3656,7 @@ public void ContinueStartDuel()
 
 	if (StrContains(DuelName, "Freestyle") != -1)
 	{
-		SetEntityMaxHealth(Guard, 1000);
+		SetEntityMaxHealth(Guard, 1);
 		SetEntityMaxHealth(Prisoner, 1000);
 
 		UC_PrintToChatAll("Frestyle allows you to heal up to 1,000 HP and pick up weapons.");
@@ -5946,6 +5972,11 @@ stock Handle FindPluginByName(const char[] PluginName, bool Sensitivity = true, 
 stock void SetEntityMaxHealth(int entity, int amount)
 {
 	SetEntProp(entity, Prop_Data, "m_iMaxHealth", amount);
+}
+
+stock int GetEntityMaxHealth(int entity)
+{
+	return GetEntProp(entity, Prop_Data, "m_iMaxHealth");
 }
 
 stock bool IsVectorEmpty(float vec[3])

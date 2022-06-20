@@ -35,6 +35,8 @@ public Action OnShouldUseGPE(int gpe, int activator)
 
 	Call_StartForward(g_hOnShouldSpawnWeapons);
 
+	Call_PushCell(activator);
+	
 	Action rtn;
 	Call_Finish(rtn);
 

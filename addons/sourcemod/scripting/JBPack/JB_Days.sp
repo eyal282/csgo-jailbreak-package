@@ -536,7 +536,7 @@ public Action Command_StartVoteDay(int client, int args)
 
 	StartVoteDay();
 
-	UC_PrintToChatAll("%s Vote Day has started! ", PREFIX, DayName[DayActive]);
+	UC_PrintToChatAll("%s Vote Day has started! ", PREFIX);
 
 	return Plugin_Handled;
 }
