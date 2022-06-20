@@ -77,6 +77,7 @@ native int   Gangs_GiveClientCredits(int client, int amount);
 native int   Gangs_AreClientsSameGang(int client, int otherClient);
 native int   Gangs_TryDestroyGlow(int client);
 native float Gangs_GetFFDamageDecrease(int client);
+native void LR_CheckAnnounce();
 
 char   PREFIX[256];
 Handle hcv_Prefix = INVALID_HANDLE;
@@ -1590,6 +1591,8 @@ public void Frame_RespawnASAP(int victim)
 		return;
 
 	CS_RespawnPlayer(victim);
+
+	LR_CheckAnnounce();
 }
 
 public Action Event_PlayerHurt(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -1629,7 +1632,7 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 	{
 		ForcePlayerSuicide(client);
 	}
-	
+
 	CreateTimer(0.1, Timer_PlayerSpawn, UserId, TIMER_FLAG_NO_MAPCHANGE);
 }
 

@@ -679,6 +679,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("LR_Stop", LR_Stop);
 	CreateNative("LR_FinishTimers", LR_FinishTimers);
 	CreateNative("LR_isAutoBhopEnabled", LR_isAutoBhopEnabled);
+	CreateNative("LR_CheckAnnounce", LR_CheckAnnounce);
 
 	MarkNativeAsOptional("Gangs_GiveGangCredits");
 	MarkNativeAsOptional("Gangs_AddClientDonations");
@@ -729,6 +730,12 @@ public int LR_isAutoBhopEnabled(Handle plugin, int numParams)
 		return false;
 
 	return true;
+}
+
+
+public int LR_CheckAnnounce(Handle plugin, int numParams)
+{
+	CheckAnnounceLR();
 }
 
 public void Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
