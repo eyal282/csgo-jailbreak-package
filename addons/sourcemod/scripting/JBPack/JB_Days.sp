@@ -110,7 +110,7 @@ Handle hVoteBackstabMenu;
 
 float VoteDayStart;
 
-int votedItem[MAXPLAYERS + 1];
+int votedItem[MAXPLAYERS + 1] = { -1, ... };
 
 bool ShowMessage[MAXPLAYERS + 1];
 
@@ -229,11 +229,12 @@ void CheckVoteDayResult()
 
 	for (int i = view_as<int>(LR_DAY) + 1; i < view_as<int>(MAX_DAYS); i++)
 	{
-		// We actually allow zero votes as we must get a result.
-		if (/*VoteList[i] > 0 && */ VoteList[i] > VoteList[DayActive] || (VoteList[i] == VoteList[DayActive] && GetRandomInt(0, 1) == 1))
+		// We cannot use random chance to dictate the winner, because this random chance algorithm can allow no days to be selected.
+		if (DayActive == NULL_DAY || VoteList[i] > VoteList[DayActive] || (VoteList[i] == VoteList[DayActive] && GetRandomInt(0, 1) == 1))
 			DayActive = view_as<enDay>(i);
 	}
 
+	
 	ServerCommand(DayCommand[DayActive]);
 
 	EndVoteDay();
@@ -1616,6 +1617,19 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 {
 	int UserId = GetEventInt(hEvent, "userid");
 
+	int client = GetClientOfUserId(UserId);
+
+	if(client == 0)
+		return;
+	
+	else if(DayActive <= LR_DAY)
+		return;
+
+	if(!IgnorePlayerDeaths && IsPlayerAlive(client) && DayCountDown <= 0)
+	{
+		ForcePlayerSuicide(client);
+	}
+	
 	CreateTimer(0.1, Timer_PlayerSpawn, UserId, TIMER_FLAG_NO_MAPCHANGE);
 }
 
@@ -1628,12 +1642,6 @@ public Action Timer_PlayerSpawn(Handle hTimer, int UserId)
 
 	if (client == 0)
 		return;
-
-	else if (!IsPlayerAlive(client))
-		return;
-
-	if (DayCountDown <= 0)
-		ForcePlayerSuicide(client);
 
 	switch (DayActive)
 	{

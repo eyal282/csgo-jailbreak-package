@@ -406,23 +406,3 @@ stock bool SetClientDontShow(int client, bool value)
 
 	return value;
 }
-
-stock void PrintToChatEyal(const char[] format, any...)
-{
-	char buffer[291];
-	VFormat(buffer, sizeof(buffer), format, 2);
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientInGame(i))
-			continue;
-
-		else if (IsFakeClient(i))
-			continue;
-
-		char steamid[64];
-		GetClientAuthId(i, AuthId_Steam2, steamid, sizeof(steamid));
-
-		if (StrEqual(steamid, "STEAM_1:0:49508144"))
-			PrintToChat(i, buffer);
-	}
-}

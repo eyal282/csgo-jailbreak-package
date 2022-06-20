@@ -1387,6 +1387,7 @@ void StartGame(Handle hTimer_Ignore)
 
 				DisplayMenu(hMenu, i, 20);
 			}
+
 			hTimer_FailGame = CreateTimer(20.0, Timer_FailGame, _, TIMER_FLAG_NO_MAPCHANGE);
 		}
 
@@ -1472,6 +1473,8 @@ void StartGame(Handle hTimer_Ignore)
 
 				ShowComboMenu(i);
 			}
+
+			hTimer_FailGame = CreateTimer(40.0, Timer_FailGame, _, TIMER_FLAG_NO_MAPCHANGE);
 		}
 		case Game_RandomPlayer:
 		{
