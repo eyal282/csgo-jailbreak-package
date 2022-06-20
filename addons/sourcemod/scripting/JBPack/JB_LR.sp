@@ -153,6 +153,8 @@ int        Prisoner, Guard, TruePrisoner, TrueGuard, FreeDayUID = -1, ChokeTimer
 int        PrisonerPrim, PrisonerSec, GuardPrim, GuardSec;    //, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;
 int        HPamount, BPAmmo, Vest;
 char       PrimWep[32], SecWep[32];
+
+// If PrimNum is CSWeapon_MAX_WEAPONS, freestyle rules apply.
 CSWeaponID PrimNum, SecNum;
 bool       Zoom, HeadShot, Jump, Duck, TSeeker, Dodgeball, Ring, NoRecoil, Race;
 bool       noBeacon;
@@ -1820,8 +1822,9 @@ public Action Event_PlayerHurt(Handle hEvent, const char[] name, bool dontBroadc
 
 	if (LRPart(client))
 	{
-		// Blocks all forms of healing.
-		SetEntityMaxHealth(client, GetEntityHealth(client));
+		// Blocks all forms of healing for both players ( Fresstyle is accounted here ).
+		SetEntityMaxHealth(Guard, GetEntityHealth(Guard));
+		SetEntityMaxHealth(Prisoner, GetEntityHealth(Prisoner));
 	}
 }
 
@@ -1849,6 +1852,8 @@ public Action Event_TakeDamageAlive(int victim, int& attacker, int& inflictor, f
 		return Plugin_Changed;
 	}
 
+	UC_PrintToChatEyal("Test");
+	
 	bool suicide;
 
 	if ((attacker != Guard && victim == Prisoner) || (attacker != Prisoner && victim == Guard)) suicide = true;    // Whether the player is killed by the guard or by himself, it is still okay to activate.
@@ -2087,6 +2092,9 @@ public Action Event_WeaponPickUp(int client, int weapon)
 		return Plugin_Continue;
 
 	else if (!LRPart(client))
+		return Plugin_Continue;
+
+	else if(PrimNum == CSWeapon_MAX_WEAPONS)
 		return Plugin_Continue;
 
 	else if (Rambo)
@@ -2430,6 +2438,7 @@ public Action Command_LR(int client, int args)
 
 			AddMenuItem(hMenu, "", "Fun Duels");
 			AddMenuItem(hMenu, "", "Auto Duels");
+			AddMenuItem(hMenu, "", "Freestyle");
 			AddMenuItem(hMenu, "", "Random");
 
 			SetMenuTitle(hMenu, "%s Select your favorite duel!", MENU_PREFIX);
@@ -2475,7 +2484,17 @@ public int LR_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 
 			case 3:
 			{
-				LR_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 1));
+				PrimNum  = CSWeapon_MAX_WEAPONS;
+				SecNum   = CSWeapon_KNIFE;
+				HPamount = 100;
+				BPAmmo   = -1;
+
+				ChooseOpponent(client);
+			}
+
+			case 4:
+			{
+				LR_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 2));
 			}
 		}
 
@@ -3523,6 +3542,17 @@ public void StartRambo()
 	UC_PrintToChatAll("%s All \x05participants \x01will be slayed in \x077 \x01minutes!", PREFIX);
 }
 
+public Action JBPack_OnShouldSpawnWeapons(int client) 
+{
+	if(!LRPart(client))
+		return Plugin_Continue;
+
+	else if(PrimNum != CSWeapon_MAX_WEAPONS)
+		return Plugin_Continue;
+
+	return Plugin_Handled;
+}
+
 public void StartDuel()
 {
 	for (int i = 1; i <= MaxClients; i++)
@@ -3530,9 +3560,6 @@ public void StartDuel()
 		ShowMessage[i] = true;
 	}
 	int ent = -1;
-
-	while ((ent = FindEntityByClassname(ent, "game_player_equip")) != -1)
-		AcceptEntityInput(ent, "Kill");
 
 	while ((ent = FindEntityByClassname(ent, "player_weaponstrip")) != -1)
 		AcceptEntityInput(ent, "Kill");
@@ -3556,7 +3583,7 @@ public void StartDuel()
 	SetClientArmor(Guard, Vest == 0 ? 0 : 100, Vest == 2 ? 1 : 0);
 	SetClientArmor(Prisoner, Vest == 0 ? 0 : 100, Vest == 2 ? 1 : 0);
 
-	if (PrimNum != CSWeapon_NONE)    // ID 0 is also invalid.
+	if (PrimNum != CSWeapon_NONE && PrimNum != CSWeapon_MAX_WEAPONS)    // ID 0 is also invalid.
 	{
 		do    // Don't fookin ask how I get these bugs, I just do
 		{
@@ -3601,6 +3628,14 @@ public void ContinueStartDuel()
 		SendConVarValue(Prisoner, hcv_NoSpread, "1");
 	}
 
+	if (StrContains(DuelName, "Freestyle") != -1)
+	{
+		SetEntityMaxHealth(Guard, 1000);
+		SetEntityMaxHealth(Prisoner, 1000);
+
+		UC_PrintToChatAll("Frestyle allows you to heal up to 1,000 HP and pick up weapons.");
+		UC_PrintToChatAll("You will not be able to heal if take damage!");
+	}
 	if (StrContains(DuelName, "S4S") != -1)
 	{
 		RequestFrame(ResetClipAndFrame, 0);
@@ -4644,7 +4679,7 @@ public Action Event_WeaponFire(Handle hEvent, const char[] Name, bool dontBroadc
 	}
 	if (BPAmmo > 100 && StrContains(DuelName, "S4S") == -1)    // No clue why I need this check of s4s...
 	{
-		if (PrimNum != CSWeapon_NONE)
+		if (PrimNum != CSWeapon_NONE && PrimNum != CSWeapon_MAX_WEAPONS)
 		{
 			if (Prisoner == client && IsValidEntity(PrisonerPrim))
 				SetClientAmmo(Prisoner, PrisonerPrim, BPAmmo);
@@ -4710,7 +4745,7 @@ public Action Event_WeaponFireOnEmpty(Handle hEvent, const char[] Name, bool don
 
 	if (BPAmmo > 100)
 	{
-		if (PrimNum != CSWeapon_NONE)
+		if (PrimNum != CSWeapon_NONE && PrimNum != CSWeapon_MAX_WEAPONS)
 			SetClientAmmo(client, client == Prisoner ? PrisonerPrim : GuardPrim, BPAmmo);
 
 		if (SecNum != CSWeapon_NONE)
@@ -5153,7 +5188,7 @@ stock bool FindPlayerWeapon(int attacker, char[] buffer, int length)
 		return true;
 	}
 
-	if (PrimNum != CSWeapon_NONE)
+	if (PrimNum != CSWeapon_NONE && PrimNum != CSWeapon_MAX_WEAPONS)
 		Format(buffer, length, PrimWep);
 
 	if (SecNum != CSWeapon_NONE)
@@ -5162,6 +5197,7 @@ stock bool FindPlayerWeapon(int attacker, char[] buffer, int length)
 	Format(buffer, length, "weapon_knife");
 	return false;
 }
+
 stock bool IsPlayer(int client)
 {
 	if (client <= 0)

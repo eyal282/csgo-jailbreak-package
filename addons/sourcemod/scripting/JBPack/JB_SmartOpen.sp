@@ -359,7 +359,7 @@ public Action Command_AssignOpen(int client, int args)
 
 	SQL_TQuery(dbLocal, SQLCB_Error, sQuery, _, DBPrio_Normal);
 
-	UC_PrintToChat(client, "%s \x05Successfully \x01made the button you're aiming at as the button that opens the cells for \x07!open");
+	UC_PrintToChat(client, "%s \x05Successfully \x01made the button you're aiming at as the button that opens the cells for \x07!open", PREFIX);
 	return Plugin_Handled;
 }
 

@@ -300,6 +300,14 @@ public void OnClientCookiesCached(int client)
 	ShowMessage[client] = GetClientInfoMessage(client);
 }
 
+public Action JBPack_OnShouldSpawnWeapons(int client) 
+{
+	if(DayActive <= LR_DAY)
+		return Plugin_Continue;
+
+	return Plugin_Handled;
+}
+
 public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3], int& weapon, int& subtype, int& cmdnum, int& tickcount, int& seed, int mouse[2])
 {
 	switch (DayActive)
@@ -760,8 +768,6 @@ public void StartFSDay()
 	DayActive = FS_DAY;
 
 	IgnorePlayerDeaths = true;
-
-	DestroyAllWeapons();
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -1967,7 +1973,7 @@ stock DestroyAllWeapons()
 		char Classname[64];
 		GetEdictClassname(i, Classname, sizeof(Classname));
 
-		if (StrEqual(Classname, "game_player_equip") || StrEqual(Classname, "player_weaponstrip") || StrContains(Classname, "weapon_") != -1)
+		if (StrEqual(Classname, "player_weaponstrip")/* || StrContains(Classname, "weapon_") != -1*/)
 			AcceptEntityInput(i, "Kill");
 	}
 }
