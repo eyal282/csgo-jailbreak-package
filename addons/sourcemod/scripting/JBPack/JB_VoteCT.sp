@@ -698,6 +698,14 @@ public Action Command_KickCT(int client, int args)
 		return Plugin_Handled;
 	}
 
+	else if (SmartOpen_AreCellsOpen())
+	{
+		// BAR COLOR
+		UC_ReplyToCommand(client, "Error: You cannot kick CT when cells are open");
+
+		return Plugin_Handled;
+	}
+
 	Handle hMenu = CreateMenu(KickCT_MenuHandler);
 	char   sUserId[11];
 
@@ -793,13 +801,22 @@ public Action Command_TList(int client, int args)
 		else if (GetClientTeam(i) != CS_TEAM_T)
 			continue;
 
-		else if (IsPlayerBannedFromGuardsTeam(i))
-			continue;
+		if (IsPlayerBannedFromGuardsTeam(i))
+		{
+			char Name[64];
+			IntToString(GetClientUserId(i), sUserId, sizeof(sUserId));
+			GetClientName(i, Name, sizeof(Name));
 
-		char Name[64];
-		IntToString(GetClientUserId(i), sUserId, sizeof(sUserId));
-		GetClientName(i, Name, sizeof(Name));
-		AddMenuItem(hMenu, sUserId, Name);
+			Format(Name, sizeof(Name), "%s [BANNED]", Name);
+			AddMenuItem(hMenu, sUserId, Name, ITEMDRAW_DISABLED);
+		}
+		else
+		{
+			char Name[64];
+			IntToString(GetClientUserId(i), sUserId, sizeof(sUserId));
+			GetClientName(i, Name, sizeof(Name));
+			AddMenuItem(hMenu, sUserId, Name);
+		}
 	}
 
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
