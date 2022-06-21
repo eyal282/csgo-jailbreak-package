@@ -804,9 +804,14 @@ stock void OpenDoorsForOutput(int ent, const char[] output)
 			char param[256];
 			EntityIO_GetEntityOutputActionParam(actionIter, param, sizeof(param));
 			
-			if(StrEqual(input, "Toggle") || StrEqual(input, "Open"))
+			if(StrEqual(input, "Toggle") || StrEqual(input, "Open") || strncmp(input, "OpenAwayFrom", 12) == 0)
 			{
 				FireEntityInput(sTarget, "Open");
+			}
+
+			else if(StrEqual(input, "Trigger"))
+			{
+				FireEntityInput(sTarget, "Trigger");
 			}
 			
 		} while (EntityIO_FindEntityNextOutputAction(actionIter));
