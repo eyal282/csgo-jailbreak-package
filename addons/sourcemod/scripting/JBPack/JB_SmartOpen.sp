@@ -806,12 +806,7 @@ stock void OpenDoorsForOutput(int ent, const char[] output)
 			
 			if(StrEqual(input, "Toggle") || StrEqual(input, "Open"))
 			{
-				int door = -1;
-
-				while((door = FindEntityByTargetname(door, sTarget, false, false)) != -1)
-				{
-					AcceptEntityInput(door, "Open");
-				}
+				FireEntityInput(sTarget, "Open");
 			}
 			
 		} while (EntityIO_FindEntityNextOutputAction(actionIter));
@@ -819,3 +814,33 @@ stock void OpenDoorsForOutput(int ent, const char[] output)
 	
 	delete actionIter;
 }
+
+stock bool FireEntityInput(const char[] strTargetname, const char[] strInput, const char[] strParameter="", float flDelay=0.0)
+{
+	char strBuffer[255];
+	Format(strBuffer, sizeof(strBuffer), "OnUser1 %s:%s:%s:%f:1", strTargetname, strInput, strParameter, flDelay);
+    
+	int entity = CreateEntityByName("info_target"); // Dummy entity. (Pretty sure every Source game has this.)
+
+	if(IsValidEdict(entity))
+	{
+		DispatchSpawn(entity);
+		ActivateEntity(entity);
+
+		SetVariantString(strBuffer);
+		AcceptEntityInput(entity, "AddOutput");
+		AcceptEntityInput(entity, "FireUser1");
+
+		CreateTimer(0.0, DeleteEdict, entity); // Remove on next frame.
+		return true;
+	}
+	return false;
+}
+
+public Action DeleteEdict(Handle timer, any entity)
+{
+    if(IsValidEdict(entity))
+		RemoveEdict(entity);
+
+    return Plugin_Stop;
+} 
