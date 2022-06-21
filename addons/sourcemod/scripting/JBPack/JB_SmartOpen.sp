@@ -50,6 +50,14 @@ public Plugin myinfo =
 
 };
 
+enum struct enQueue
+{
+	int ref;
+	char output[64];
+}
+
+ArrayList g_aQueueOutputs;
+
 native bool JailBreakDays_IsDayActive();
 native bool SmartOpen_AreCellsOpen();
 
@@ -88,6 +96,8 @@ public any Native_OpenCells(Handle plugin, int numParams)
 
 public void OnPluginStart()
 {
+	g_aQueueOutputs = new ArrayList(sizeof(enQueue));
+
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("player_team", Event_PlayerTeam, EventHookMode_Post);
 	HookEvent("player_spawn", Event_PlayerSpawnOrDeath, EventHookMode_Post);
@@ -323,6 +333,11 @@ public void OnButtonPressed(const char[] output, int caller, int activator, floa
 
 	UnhookSingleEntityOutput(caller, "PressIn", OnButtonPressed);
 
+	QueueOpenDoorsForOutput(caller, "OnPressed");
+	QueueOpenDoorsForOutput(caller, "OnIn");
+	QueueOpenDoorsForOutput(caller, "OnUseLocked");
+	QueueOpenDoorsForOutput(caller, "OnDamaged");
+	
 	char strBuffer[255];
 
 	FormatEx(strBuffer, sizeof(strBuffer), "OnUser1 !self:Unlock:0:2.5:1");
@@ -336,11 +351,6 @@ public void OnButtonPressed(const char[] output, int caller, int activator, floa
 	SetVariantString(strBuffer);
 	AcceptEntityInput(caller, "AddOutput");
 	AcceptEntityInput(caller, "FireUser2");
-
-	OpenDoorsForOutput(caller, "OnPressed");
-	OpenDoorsForOutput(caller, "OnIn");
-	OpenDoorsForOutput(caller, "OnUseLocked");
-	OpenDoorsForOutput(caller, "OnDamaged");
 
 	Call_StartForward(fw_OnCellsOpened);
 
@@ -547,16 +557,16 @@ stock bool OpenCells()
 		return true;
 
 	g_fNextOpen = GetGameTime() + 2.5;
-	
+
 	int ent = -1;
 	if (ButtonHID == -1)
 	{
 		while ((ent = FindEntityByClassname(ent, "func_button")) != -1)
 		{
-			OpenDoorsForOutput(ent, "OnPressed");
-			OpenDoorsForOutput(ent, "OnIn");
-			OpenDoorsForOutput(ent, "OnUseLocked");
-			OpenDoorsForOutput(ent, "OnDamaged");
+			QueueOpenDoorsForOutput(ent, "OnPressed");
+			QueueOpenDoorsForOutput(ent, "OnIn");
+			QueueOpenDoorsForOutput(ent, "OnUseLocked");
+			QueueOpenDoorsForOutput(ent, "OnDamaged");
 		}
 	}
 
@@ -574,6 +584,11 @@ stock bool OpenCells()
 
 		if (!Found)
 			return false;
+			
+		QueueOpenDoorsForOutput(ent, "OnPressed");
+		QueueOpenDoorsForOutput(ent, "OnIn");
+		QueueOpenDoorsForOutput(ent, "OnUseLocked");
+		QueueOpenDoorsForOutput(ent, "OnDamaged");
 
 		AcceptEntityInput(ent, "Lock");
 
@@ -584,11 +599,6 @@ stock bool OpenCells()
 		SetVariantString(strBuffer);
 		AcceptEntityInput(ent, "AddOutput");
 		AcceptEntityInput(ent, "FireUser1");
-
-		OpenDoorsForOutput(ent, "OnPressed");
-		OpenDoorsForOutput(ent, "OnIn");
-		OpenDoorsForOutput(ent, "OnUseLocked");
-		OpenDoorsForOutput(ent, "OnDamaged");
 	}
 
 	OpenedThisRound = true;
@@ -741,14 +751,39 @@ stock bool IsValidTeam(int client)
 	return GetClientTeam(client) == CS_TEAM_CT || GetClientTeam(client) == CS_TEAM_T;
 }
 
+public void OnGameFrame()
+{
+	if(g_aQueueOutputs.Length == 0)
+		return;
 
+	enQueue queue;
+	g_aQueueOutputs.GetArray(0, queue);
+	g_aQueueOutputs.Erase(0);
 
+	int ent = EntRefToEntIndex(queue.ref);
 
-stock void OpenDoorsForOutput(int ent, const char[] output, bool recursive=false)
+	if(ent == INVALID_ENT_REFERENCE)
+		return;
+
+	OpenDoorsForOutput(ent, queue.output);
+}
+
+stock void QueueOpenDoorsForOutput(int ent, const char[] output, bool recursive=false)
 {
 	if(HasEntProp(ent, Prop_Data, "m_bLocked") && GetEntProp(ent, Prop_Data, "m_bLocked"))
 		return;
 
+	enQueue queue;
+
+	queue.ref = EntIndexToEntRef(ent);
+	FormatEx(queue.output, sizeof(enQueue::output), output);
+
+	g_aQueueOutputs.PushArray(queue);
+}
+
+
+stock void OpenDoorsForOutput(int ent, const char[] output, bool recursive=false)
+{
 	int offset = EntityIO_FindEntityOutputOffset(ent, output);
 
 	if (offset == -1)
@@ -767,12 +802,9 @@ stock void OpenDoorsForOutput(int ent, const char[] output, bool recursive=false
 			char input[256];
 			EntityIO_GetEntityOutputActionInput(actionIter, input, sizeof(input));
 			
-			char param[256];
-			EntityIO_GetEntityOutputActionParam(actionIter, param, sizeof(param));
-			
 			int targetEnt = -1;
 			
-			if(StrEqual(input, "Toggle") || StrEqual(input, "Open") || strncmp(input, "OpenAwayFrom", 12) == 0)
+			if(StrEqual(input, "Toggle") || StrEqual(input, "Open") || strncmp(input, "OpenAwayFrom", 12) == 0 || strncmp(input,"SetPosition", 11) == 0)
 			{
 				while((targetEnt = FindEntityByValveTargetname(targetEnt, sTarget)) != -1)
 					AcceptEntityInput(targetEnt, "Open");
