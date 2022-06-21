@@ -1581,14 +1581,23 @@ void ProcessPlayerDeath(int victim)
 
 		Gangs_GiveClientCredits(Winner, Reward);
 
-		ChangeClientTeam(victim, CS_TEAM_CT);
-
-		RequestFrame(Frame_RespawnASAP, victim);
+		RequestFrame(Frame_MoveSecondWinnerToCT, victim);
 
 		DayActive = LR_DAY;
 	}
 	else
 		ServerCommand("mp_restartgame 1");
+}
+
+// We don't immediately change team to prevent player_death of gangs from giving 100 honor.
+public void Frame_MoveSecondWinnerToCT(int victim)
+{
+	if (!IsClientInGame(victim))    // victim can't be replaced in one frame, no need for user id.
+		return;
+
+	ChangeClientTeam(victim, CS_TEAM_CT);
+
+	RequestFrame(Frame_RespawnASAP, victim);
 }
 
 public void Frame_RespawnASAP(int victim)

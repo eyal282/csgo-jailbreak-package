@@ -7,6 +7,7 @@
 #include <sdkhooks>
 #include <sdktools>
 #include <sourcemod>
+#include <entityIO>
 
 #define PLUGIN_VERSION "1.1"
 
@@ -315,7 +316,27 @@ public void OnButtonPressed(const char[] output, int caller, int activator, floa
 	}
 
 	OpenedThisRound = true;
+
 	UnhookSingleEntityOutput(caller, "PressIn", OnButtonPressed);
+
+	char strBuffer[255];
+
+	FormatEx(strBuffer, sizeof(strBuffer), "OnUser1 !self:Unlock:0:2.5:1");
+
+	SetVariantString(strBuffer);
+	AcceptEntityInput(caller, "AddOutput");
+	AcceptEntityInput(caller, "FireUser1");
+
+	FormatEx(strBuffer, sizeof(strBuffer), "OnUser2 !self:Lock:0:0.01:10");
+
+	SetVariantString(strBuffer);
+	AcceptEntityInput(caller, "AddOutput");
+	AcceptEntityInput(caller, "FireUser2");
+
+	OpenDoorsForOutput(caller, "OnPressed");
+	OpenDoorsForOutput(caller, "OnIn");
+	OpenDoorsForOutput(caller, "OnUseLocked");
+	OpenDoorsForOutput(caller, "OnDamaged");
 
 	Call_StartForward(fw_OnCellsOpened);
 
@@ -547,7 +568,12 @@ stock bool OpenCells()
 	if (ButtonHID == -1)
 	{
 		while ((ent = FindEntityByClassname(ent, "func_button")) != -1)
-			AcceptEntityInput(ent, "PressIn", target);
+		{
+			OpenDoorsForOutput(ent, "OnPressed");
+			OpenDoorsForOutput(ent, "OnIn");
+			OpenDoorsForOutput(ent, "OnUseLocked");
+			OpenDoorsForOutput(ent, "OnDamaged");
+		}
 	}
 
 	else
@@ -565,17 +591,20 @@ stock bool OpenCells()
 		if (!Found)
 			return false;
 
-		AcceptEntityInput(ent, "PressIn", target);
-
 		AcceptEntityInput(ent, "Lock");
 
 		char strBuffer[255];
 
-		FormatEx(strBuffer, sizeof(strBuffer), "OnUser1 !self:Unlock:0:5.0:1");
+		FormatEx(strBuffer, sizeof(strBuffer), "OnUser1 !self:Unlock:0:2.5:1");
 
 		SetVariantString(strBuffer);
 		AcceptEntityInput(ent, "AddOutput");
 		AcceptEntityInput(ent, "FireUser1");
+
+		OpenDoorsForOutput(ent, "OnPressed");
+		OpenDoorsForOutput(ent, "OnIn");
+		OpenDoorsForOutput(ent, "OnUseLocked");
+		OpenDoorsForOutput(ent, "OnDamaged");
 	}
 
 	OpenedThisRound = true;
@@ -726,4 +755,67 @@ stock bool CanLRChainsaw()
 stock bool IsValidTeam(int client)
 {
 	return GetClientTeam(client) == CS_TEAM_CT || GetClientTeam(client) == CS_TEAM_T;
+}
+
+
+
+stock int FindEntityByTargetname(int startEnt, const char[] TargetName, bool caseSensitive, bool Contains)    // Same as FindEntityByClassname with sensitivity and contain features
+{
+	int entCount = GetEntityCount();
+
+	char EntTargetName[300];
+	for (int i = startEnt + 1; i < entCount; i++)
+	{
+		if (!IsValidEntity(i))
+			continue;
+
+		else if (!IsValidEdict(i))
+			continue;
+
+		GetEntPropString(i, Prop_Data, "m_iName", EntTargetName, sizeof(EntTargetName));
+
+		if ((StrEqual(EntTargetName, TargetName, caseSensitive) && !Contains) || (StrContains(EntTargetName, TargetName, caseSensitive) != -1 && Contains))
+			return i;
+	}
+
+	return -1;
+}
+
+stock void OpenDoorsForOutput(int ent, const char[] output)
+{
+	int offset = EntityIO_FindEntityOutputOffset(ent, output);
+
+	if (offset == -1)
+	{
+		return;
+	}
+	
+	Handle actionIter = EntityIO_FindEntityFirstOutputAction(ent, offset);
+	if (actionIter)
+	{
+		do
+		{
+			char sTarget[256];
+			EntityIO_GetEntityOutputActionTarget(actionIter, sTarget, sizeof(sTarget));
+			
+			char input[256];
+			EntityIO_GetEntityOutputActionInput(actionIter, input, sizeof(input));
+			
+			char param[256];
+			EntityIO_GetEntityOutputActionParam(actionIter, param, sizeof(param));
+			
+			if(StrEqual(input, "Toggle") || StrEqual(input, "Open"))
+			{
+				int door = -1;
+
+				while((door = FindEntityByTargetname(door, sTarget, false, false)) != -1)
+				{
+					AcceptEntityInput(door, "Open");
+				}
+			}
+			
+		} while (EntityIO_FindEntityNextOutputAction(actionIter));
+	}
+	
+	delete actionIter;
 }

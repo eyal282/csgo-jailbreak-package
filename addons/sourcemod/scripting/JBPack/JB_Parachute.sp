@@ -13,6 +13,9 @@ public Plugin myinfo =
 	url         = ""
 };
 
+native bool LR_isParachuteEnabled();
+native bool LR_isParticipant(int client);
+
 Handle hcv_Parachute      = INVALID_HANDLE;
 Handle hcv_ParachuteSpeed = INVALID_HANDLE;
 
@@ -40,6 +43,9 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 
 	// Abort by on ground flag
 	else if (GetEntityFlags(client) & FL_ONGROUND)
+		return Plugin_Continue;
+
+	else if(LR_isParticipant(client) && !LR_isParachuteEnabled())
 		return Plugin_Continue;
 
 	// decrease fallspeed

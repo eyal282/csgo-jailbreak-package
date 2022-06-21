@@ -666,7 +666,10 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 
 	TryDestroyGlow(victim);
 
-	if (IsPlayer(attacker) && attacker != victim && (GetClientTeam(victim) == CS_TEAM_CT || GetAliveTeamCount(CS_TEAM_T) == 0))
+	if(attacker == 0 || victim == 0)
+		return;
+		
+	if (attacker != victim && (GetClientTeam(victim) == CS_TEAM_CT || GetAliveTeamCount(CS_TEAM_T) == 0))
 	{
 		int honor = GetConVarInt(hcv_HonorPerKill);
 

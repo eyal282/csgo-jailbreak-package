@@ -705,6 +705,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("LR_Stop", LR_Stop);
 	CreateNative("LR_FinishTimers", LR_FinishTimers);
 	CreateNative("LR_isAutoBhopEnabled", LR_isAutoBhopEnabled);
+	CreateNative("LR_isParachuteEnabled", LR_isParachuteEnabled);
 	CreateNative("LR_CheckAnnounce", LR_CheckAnnounce);
 
 	MarkNativeAsOptional("Gangs_GiveGangCredits");
@@ -755,8 +756,20 @@ public int LR_isAutoBhopEnabled(Handle plugin, int numParams)
 	if (MostJumps)
 		return false;
 
+	else if (StrContains(DuelName, "Freestyle Classic") != -1)
+		return false;
+
 	return true;
 }
+
+public int LR_isParachuteEnabled(Handle plugin, int numParams)
+{
+	if (StrContains(DuelName, "Freestyle Classic") != -1)
+		return false;
+
+	return true;
+}
+
 
 
 public int LR_CheckAnnounce(Handle plugin, int numParams)
@@ -2461,6 +2474,7 @@ public Action Command_LR(int client, int args)
 			AddMenuItem(hMenu, "", "Fun Duels");
 			AddMenuItem(hMenu, "", "Auto Duels");
 			AddMenuItem(hMenu, "", "Freestyle");
+			AddMenuItem(hMenu, "", "Freestyle Classic");
 			AddMenuItem(hMenu, "", "Random");
 
 			SetMenuTitle(hMenu, "%s Select your favorite duel!", MENU_PREFIX);
@@ -2520,7 +2534,21 @@ public int LR_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 
 			case 4:
 			{
-				LR_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 2));
+				PrimWep = "";
+				PrimNum  = CSWeapon_MAX_WEAPONS;
+				SecWep = "weapon_knife";
+				SecNum   = CSWeapon_KNIFE;
+				HPamount = 100;
+				BPAmmo   = -1;
+
+				DuelName = "Freestyle Classic";
+
+				ChooseOpponent(client);
+			}
+
+			case 5:
+			{
+				LR_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 3));
 			}
 		}
 
@@ -3662,7 +3690,7 @@ public void ContinueStartDuel()
 		UC_PrintToChatAll("Frestyle allows you to heal up to 1,000 HP and pick up weapons.");
 		UC_PrintToChatAll("You will not be able to heal if take damage!");
 	}
-	if (StrContains(DuelName, "S4S") != -1)
+	else if (StrContains(DuelName, "S4S") != -1)
 	{
 		RequestFrame(ResetClipAndFrame, 0);
 
