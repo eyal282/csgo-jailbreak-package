@@ -34,6 +34,8 @@ char MapName[64];
 
 int ButtonHID = -1, IsolationHID = -1;
 
+float g_fNextOpen;
+
 bool CanBeGraced[MAXPLAYERS + 1];
 
 Handle fw_OnCellsOpened;
@@ -129,6 +131,8 @@ public void OnMapStart()
 	ConnectToDatabase();
 
 	hTimer_AutoOpen = INVALID_HANDLE;
+
+	g_fNextOpen = 0.0;
 }
 
 public void OnClientAuthorized(int client)
@@ -539,31 +543,11 @@ public Action Command_HardOpen(int client, int args)
 
 stock bool OpenCells()
 {
-	int target;
+	if(g_fNextOpen > GetGameTime())
+		return true;
 
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientInGame(i))
-			continue;
-
-		target = i;
-		break;
-	}
-
-	if (target == 0)
-		return false;
-
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientInGame(i))
-			continue;
-
-		else if (GetClientTeam(i) != CS_TEAM_CT)
-			continue;
-
-		target = i;
-		break;
-	}
+	g_fNextOpen = GetGameTime() + 2.5;
+	
 	int ent = -1;
 	if (ButtonHID == -1)
 	{
@@ -762,6 +746,9 @@ stock bool IsValidTeam(int client)
 
 stock void OpenDoorsForOutput(int ent, const char[] output, bool recursive=false)
 {
+	if(HasEntProp(ent, Prop_Data, "m_bLocked") && GetEntProp(ent, Prop_Data, "m_bLocked"))
+		return;
+
 	int offset = EntityIO_FindEntityOutputOffset(ent, output);
 
 	if (offset == -1)
