@@ -759,27 +759,6 @@ stock bool IsValidTeam(int client)
 
 
 
-stock int FindEntityByTargetname(int startEnt, const char[] TargetName, bool caseSensitive, bool Contains)    // Same as FindEntityByClassname with sensitivity and contain features
-{
-	int entCount = GetEntityCount();
-
-	char EntTargetName[300];
-	for (int i = startEnt + 1; i < entCount; i++)
-	{
-		if (!IsValidEntity(i))
-			continue;
-
-		else if (!IsValidEdict(i))
-			continue;
-
-		GetEntPropString(i, Prop_Data, "m_iName", EntTargetName, sizeof(EntTargetName));
-
-		if ((StrEqual(EntTargetName, TargetName, caseSensitive) && !Contains) || (StrContains(EntTargetName, TargetName, caseSensitive) != -1 && Contains))
-			return i;
-	}
-
-	return -1;
-}
 
 stock void OpenDoorsForOutput(int ent, const char[] output)
 {
@@ -804,14 +783,20 @@ stock void OpenDoorsForOutput(int ent, const char[] output)
 			char param[256];
 			EntityIO_GetEntityOutputActionParam(actionIter, param, sizeof(param));
 			
+			int targetEnt = -1;
+
 			if(StrEqual(input, "Toggle") || StrEqual(input, "Open") || strncmp(input, "OpenAwayFrom", 12) == 0)
 			{
-				FireEntityInput(sTarget, "Open");
+				while((targetEnt = FindEntityByValveTargetname(targetEnt, sTarget)) != -1)
+					AcceptEntityInput(targetEnt, "Open");
 			}
 
 			else if(StrEqual(input, "Trigger"))
 			{
-				FireEntityInput(sTarget, "Trigger");
+				while((targetEnt = FindEntityByValveTargetname(targetEnt, sTarget)) != -1)
+				{
+					OpenDoorsForOutput(targetEnt, "OnTrigger");
+				}
 			}
 			
 		} while (EntityIO_FindEntityNextOutputAction(actionIter));
@@ -820,32 +805,39 @@ stock void OpenDoorsForOutput(int ent, const char[] output)
 	delete actionIter;
 }
 
-stock bool FireEntityInput(const char[] strTargetname, const char[] strInput, const char[] strParameter="", float flDelay=0.0)
+stock int FindEntityByValveTargetname(int entity, const char[] strTargetname)
 {
 	char strBuffer[255];
-	Format(strBuffer, sizeof(strBuffer), "OnUser1 %s:%s:%s:%f:1", strTargetname, strInput, strParameter, flDelay);
-    
-	int entity = CreateEntityByName("info_target"); // Dummy entity. (Pretty sure every Source game has this.)
+	FormatEx(strBuffer, sizeof(strBuffer), strTargetname);
 
-	if(IsValidEdict(entity))
-	{
-		DispatchSpawn(entity);
-		ActivateEntity(entity);
+	int pos = StrContains(strBuffer, "*");
 
-		SetVariantString(strBuffer);
-		AcceptEntityInput(entity, "AddOutput");
-		AcceptEntityInput(entity, "FireUser1");
+	if(pos != -1)
+		strBuffer[pos] = EOS;
 
-		CreateTimer(0.0, DeleteEdict, entity); // Remove on next frame.
-		return true;
-	}
-	return false;
+	return FindEntityByTargetname(entity, strBuffer, true, pos != -1 ? true : false);
 }
 
-public Action DeleteEdict(Handle timer, any entity)
-{
-    if(IsValidEdict(entity))
-		RemoveEdict(entity);
 
-    return Plugin_Stop;
-} 
+
+stock int FindEntityByTargetname(int startEnt, const char[] TargetName, bool caseSensitive, bool Contains)    // Same as FindEntityByClassname with sensitivity and contain features
+{
+	char EntTargetName[300];
+
+	int i = startEnt;
+
+	while((i = FindEntityByClassname(i, "*")) != -1)
+	{
+		if (!IsValidEntity(i))
+			continue;
+		
+		GetEntPropString(i, Prop_Data, "m_iName", EntTargetName, sizeof(EntTargetName));
+
+		if ((!Contains && StrEqual(EntTargetName, TargetName, caseSensitive)) || (Contains && StrContains(EntTargetName, TargetName, caseSensitive) != -1))
+			return i;
+
+		GetEntityClassname(i, EntTargetName, sizeof(EntTargetName));
+	}
+
+	return -1;
+}
