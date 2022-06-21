@@ -10,10 +10,15 @@
     
 "Files"
 {
+    "Plugin"    "Path_SM/gamedata/entityIO.games.txt"
+    "Plugin"    "Path_SM/gamedata/csgo_movement_unlocker.games.txt"
+    
     "Plugin"	"Path_SM/plugins/noblock.smx"
     "Plugin"	"Path_SM/plugins/csgo_movement_unlocker.smx"
     "Plugin"	"Path_SM/plugins/DisableRadar.smx"
     "Plugin"	"Path_SM/plugins/DamageIndicator.smx"
+    "Plugin"	"Path_SM/plugins/entityIO.smx"
+                    
     "Plugin"	"Path_SM/plugins/noradiochat.smx"
     "Plugin"	"Path_SM/plugins/force_alltalk.smx"
     "Plugin"	"Path_SM/plugins/updater.smx"
