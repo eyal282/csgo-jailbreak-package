@@ -286,6 +286,8 @@ public Action Event_PlayerSpawnOrDeath(Handle hEvent, const char[] Name, bool do
 
 public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
+	g_aQueueOutputs.Clear();
+
 	UnhookEntityOutput("func_button", "OnPressed", OnButtonPressed);
 
 	if (ButtonHID != -1)
@@ -337,7 +339,7 @@ public void OnButtonPressed(const char[] output, int caller, int activator, floa
 	QueueOpenDoorsForOutput(caller, "OnIn");
 	QueueOpenDoorsForOutput(caller, "OnUseLocked");
 	QueueOpenDoorsForOutput(caller, "OnDamaged");
-	
+
 	char strBuffer[255];
 
 	FormatEx(strBuffer, sizeof(strBuffer), "OnUser1 !self:Unlock:0:2.5:1");
@@ -568,6 +570,12 @@ stock bool OpenCells()
 			QueueOpenDoorsForOutput(ent, "OnUseLocked");
 			QueueOpenDoorsForOutput(ent, "OnDamaged");
 		}
+
+		while ((ent = FindEntityByClassname(ent, "func_door")) != -1)
+		{
+			QueueOpenDoorsForOutput(ent, "OnOpen");
+			QueueOpenDoorsForOutput(ent, "OnClose");
+		}
 	}
 
 	else
@@ -753,6 +761,11 @@ stock bool IsValidTeam(int client)
 
 public void OnGameFrame()
 {
+	OnFramedGame()
+}
+
+public void OnFramedGame()
+{
 	if(g_aQueueOutputs.Length == 0)
 		return;
 
@@ -763,16 +776,20 @@ public void OnGameFrame()
 	int ent = EntRefToEntIndex(queue.ref);
 
 	if(ent == INVALID_ENT_REFERENCE)
+	{
+		OnFramedGame();
 		return;
+	}
 
-	OpenDoorsForOutput(ent, queue.output);
+	else if(!OpenDoorsForOutput(ent, queue.output))
+	{
+		OnFramedGame();
+		return;
+	}
 }
 
 stock void QueueOpenDoorsForOutput(int ent, const char[] output, bool recursive=false)
 {
-	if(HasEntProp(ent, Prop_Data, "m_bLocked") && GetEntProp(ent, Prop_Data, "m_bLocked"))
-		return;
-
 	enQueue queue;
 
 	queue.ref = EntIndexToEntRef(ent);
@@ -782,47 +799,53 @@ stock void QueueOpenDoorsForOutput(int ent, const char[] output, bool recursive=
 }
 
 
-stock void OpenDoorsForOutput(int ent, const char[] output, bool recursive=false)
+stock bool OpenDoorsForOutput(int ent, const char[] output, bool recursive=false)
 {
 	int offset = EntityIO_FindEntityOutputOffset(ent, output);
 
 	if (offset == -1)
-	{
-		return;
-	}
+		return false;
 	
 	Handle actionIter = EntityIO_FindEntityFirstOutputAction(ent, offset);
-	if (actionIter)
+
+	if (actionIter == INVALID_HANDLE)
+		return false;
+
+	do
 	{
-		do
+		char sTarget[256];
+		EntityIO_GetEntityOutputActionTarget(actionIter, sTarget, sizeof(sTarget));
+		
+		char input[256];
+		EntityIO_GetEntityOutputActionInput(actionIter, input, sizeof(input));
+		
+		int targetEnt = -1;
+		
+		if(StrEqual(input, "Toggle") || StrEqual(input, "Open") || strncmp(input, "OpenAwayFrom", 12) == 0 || strncmp(input,"SetPosition", 11) == 0)
 		{
-			char sTarget[256];
-			EntityIO_GetEntityOutputActionTarget(actionIter, sTarget, sizeof(sTarget));
-			
-			char input[256];
-			EntityIO_GetEntityOutputActionInput(actionIter, input, sizeof(input));
-			
-			int targetEnt = -1;
-			
-			if(StrEqual(input, "Toggle") || StrEqual(input, "Open") || strncmp(input, "OpenAwayFrom", 12) == 0 || strncmp(input,"SetPosition", 11) == 0)
+			while((targetEnt = FindEntityByValveTargetname(targetEnt, sTarget)) != -1)
+				AcceptEntityInput(targetEnt, "Open");
+		}
+		
+		else if(StrEqual(input, "Break"))
+		{
+			while((targetEnt = FindEntityByValveTargetname(targetEnt, sTarget)) != -1)
+				AcceptEntityInput(targetEnt, "Break");
+		}
+		else if(StrEqual(input, "Trigger") && !recursive)
+		{
+			while((targetEnt = FindEntityByValveTargetname(targetEnt, sTarget)) != -1)
 			{
-				while((targetEnt = FindEntityByValveTargetname(targetEnt, sTarget)) != -1)
-					AcceptEntityInput(targetEnt, "Open");
+				OpenDoorsForOutput(targetEnt, "OnTrigger", true);
 			}
-			
-			if(StrEqual(input, "Trigger") && !recursive)
-			{
-				while((targetEnt = FindEntityByValveTargetname(targetEnt, sTarget)) != -1)
-				{
-					OpenDoorsForOutput(targetEnt, "OnTrigger", true);
-				}
-			}
-			
-			
-		} while (EntityIO_FindEntityNextOutputAction(actionIter));
-	}
-	
+		}
+		
+		
+	} while (EntityIO_FindEntityNextOutputAction(actionIter));
+
 	delete actionIter;
+
+	return true;
 }
 
 stock int FindEntityByValveTargetname(int entity, const char[] strTargetname)
