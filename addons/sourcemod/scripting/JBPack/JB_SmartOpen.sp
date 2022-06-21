@@ -760,7 +760,7 @@ stock bool IsValidTeam(int client)
 
 
 
-stock void OpenDoorsForOutput(int ent, const char[] output)
+stock void OpenDoorsForOutput(int ent, const char[] output, bool recursive=false)
 {
 	int offset = EntityIO_FindEntityOutputOffset(ent, output);
 
@@ -784,20 +784,21 @@ stock void OpenDoorsForOutput(int ent, const char[] output)
 			EntityIO_GetEntityOutputActionParam(actionIter, param, sizeof(param));
 			
 			int targetEnt = -1;
-
+			
 			if(StrEqual(input, "Toggle") || StrEqual(input, "Open") || strncmp(input, "OpenAwayFrom", 12) == 0)
 			{
 				while((targetEnt = FindEntityByValveTargetname(targetEnt, sTarget)) != -1)
 					AcceptEntityInput(targetEnt, "Open");
 			}
-
-			else if(StrEqual(input, "Trigger"))
+			
+			if(StrEqual(input, "Trigger") && !recursive)
 			{
 				while((targetEnt = FindEntityByValveTargetname(targetEnt, sTarget)) != -1)
 				{
-					OpenDoorsForOutput(targetEnt, "OnTrigger");
+					OpenDoorsForOutput(targetEnt, "OnTrigger", true);
 				}
 			}
+			
 			
 		} while (EntityIO_FindEntityNextOutputAction(actionIter));
 	}
@@ -835,8 +836,6 @@ stock int FindEntityByTargetname(int startEnt, const char[] TargetName, bool cas
 
 		if ((!Contains && StrEqual(EntTargetName, TargetName, caseSensitive)) || (Contains && StrContains(EntTargetName, TargetName, caseSensitive) != -1))
 			return i;
-
-		GetEntityClassname(i, EntTargetName, sizeof(EntTargetName));
 	}
 
 	return -1;
