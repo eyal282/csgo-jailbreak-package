@@ -316,7 +316,7 @@ public void OnPluginStart()
 
 	SetCookieMenuItem(InfoMessageCookieMenu_Handler, 0, "Last Request");
 
-	AutoExecConfig_SetFile("JBPack/JB_LR");
+	AutoExecConfig_SetFile("JB_LR", "sourcemod/JBPack");
 
 	hcv_TimeMustBeginLR = UC_CreateConVar("lr_time_must_begin_lr", "60", "Time in seconds before a terrorist is slayed for not starting LR");
 	hcv_TimeMustEndLR = UC_CreateConVar("lr_time_must_end_lr", "300", "Time in seconds before all participants are slayed for not ending the LR");
@@ -3935,11 +3935,11 @@ public void ContinueStartDuel()
 	{
 		TIMER_SLAYALL = CreateTimer(GetConVarFloat(hcv_TimeMustEndLR), SlayAllParts, _, TIMER_FLAG_NO_MAPCHANGE);
 
-		if(GetConVarFloat(hcv_TimeMustEndLR) % 60 == 0)
-			UC_PrintToChatAll("%s All \x05participants \x01will be slayed in \x07%.0f \x01minutes!", PREFIX, GetConVarFloat(hcv_TimeMustEndLR));
+		if(GetConVarInt(hcv_TimeMustEndLR) % 60 == 0)
+			UC_PrintToChatAll("%s All \x05participants \x01will be slayed in \x07%.0f \x01minutes!", PREFIX, GetConVarFloat(hcv_TimeMustEndLR) / 60);
 
 		else
-			UC_PrintToChatAll("%s All \x05participants \x01will be slayed in \x07%.1f \x01minutes!", PREFIX, GetConVarFloat(hcv_TimeMustEndLR));
+			UC_PrintToChatAll("%s All \x05participants \x01will be slayed in \x07%.1f \x01minutes!", PREFIX, GetConVarFloat(hcv_TimeMustEndLR) / 60);
 	}
 	bool NC;
 

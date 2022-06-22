@@ -183,8 +183,7 @@ public void OnPluginStart()
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 
-
-	AutoExecConfig_SetFile("JBPack/JB_Gangs");
+	AutoExecConfig_SetFile("JB_Gangs", "sourcemod/JBPack");
 
 	hcv_HonorPerKill = UC_CreateConVar("gang_system_honor_per_kill", "100", "Amount of honor you get per kill as T", FCVAR_PROTECTED);
 

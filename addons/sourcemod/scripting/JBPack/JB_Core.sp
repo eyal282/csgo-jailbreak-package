@@ -34,7 +34,11 @@ public void OnMapStart()
 public void OnPluginStart()
 {
 
-	AutoExecConfig_SetFile("JBPack/JB_Core");
+	CreateDirectory("cfg/sourcemod/JBPack", FPERM_ULTIMATE);
+
+	SetFilePermissions("cfg/sourcemod/JBPack", FPERM_ULTIMATE);
+
+	AutoExecConfig_SetFile("JB_Core", "sourcemod/JBPack");
 
 	UC_CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}", "List of colors: NORMAL, RED, GREEN, LIGHTGREEN, OLIVE, LIGHTRED, GRAY, YELLOW, ORANGE, BLUE, PINK");
 	UC_CreateConVar("sm_menu_prefix_cvar", "[JBPack]");

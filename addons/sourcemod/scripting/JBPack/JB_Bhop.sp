@@ -21,7 +21,7 @@ Handle hcv_OriginalAutoBhop = INVALID_HANDLE;
 
 public void OnPluginStart()
 {
-	AutoExecConfig_SetFile("JBPack/JB_Bhop");
+	AutoExecConfig_SetFile("JB_Bhop", "sourcemod/JBPack");
 	
 	hcv_AutoBhop = UC_CreateConVar("jb_autobunnyhopping", "1", "Is auto bunnyhop enabled by default?");
 

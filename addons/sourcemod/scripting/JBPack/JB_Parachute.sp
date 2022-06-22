@@ -22,7 +22,7 @@ Handle hcv_ParachuteSpeed = INVALID_HANDLE;
 
 public void OnPluginStart()
 {
-	AutoExecConfig_SetFile("JBPack/JB_Parachute");
+	AutoExecConfig_SetFile("JB_Parachute", "sourcemod/JBPack");
 
 	hcv_Parachute      = UC_CreateConVar("jb_parachute", "1", "Does your server want parachute? That's mostly for Israeli servers.");
 	hcv_ParachuteSpeed = UC_CreateConVar("jb_parachute_speed", "50", "Speed of falling with parachute");

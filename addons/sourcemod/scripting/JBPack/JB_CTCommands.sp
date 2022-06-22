@@ -79,7 +79,7 @@ public void OnPluginStart()
 	hcv_TeammatesAreEnemies = FindConVar("mp_teammates_are_enemies");
 	hcv_DeadTalk            = FindConVar("sv_deadtalk");
 
-	AutoExecConfig_SetFile("JBPack/JB_CTCommands");
+	AutoExecConfig_SetFile("JB_CTCommands", "sourcemod/JBPack");
 
 	hcv_CKHealthPerT = UC_CreateConVar("ck_health_per_t", "20", "Amount of health a CT gains per T. Formula: 100 + ((cvar * tcount) / ctcount)");
 	g_SetTimeMute    = UC_CreateConVar("sm_setmutetime", "30.0", "Set the mute timer on round start");

@@ -208,7 +208,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_egr", Command_EndPreviewRound);
 	RegConsoleCmd("sm_epr", Command_EndPreviewRound, "End preview round.");
 
-	AutoExecConfig_SetFile("JBPack/JB_VoteCT");
+	AutoExecConfig_SetFile("JB_VoteCT", "sourcemod/JBPack");
 
 	hcv_VoteCTMin        = UC_CreateConVar("votect_min", "2", "Minimum amount of players to start a vote CT");
 	hcv_MaxRounds        = UC_CreateConVar("votect_max_rounds", "5", "Maximum amount of rounds CT get before swapping");

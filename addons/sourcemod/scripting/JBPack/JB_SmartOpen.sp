@@ -110,7 +110,7 @@ public void OnPluginStart()
 	RegAdminCmd("sm_assignisol", Command_AssignIsolation, ADMFLAG_SLAY);
 	RegAdminCmd("sm_assignisolation", Command_AssignIsolation, ADMFLAG_SLAY);
 
-	AutoExecConfig_SetFile("JBPack/JB_SmartOpen");
+	AutoExecConfig_SetFile("JB_SmartOpen", "sourcemod/JBPack");
 
 	hcv_Mode            = UC_CreateConVar("open_cells_mode", "1", "0 - Command will not work if an admin didn't assign a button to the map, 1 - Uses all buttons in the map if button wasn't assigned to map");
 	hcv_Auto            = UC_CreateConVar("open_cells_auto", "60", "After how much time to open the cells, set to -1 to disable");

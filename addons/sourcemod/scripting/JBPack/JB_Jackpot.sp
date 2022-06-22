@@ -38,7 +38,7 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-	AutoExecConfig_SetFile("JBPack/JB_Jackpot");
+	AutoExecConfig_SetFile("JB_Jackpot", "sourcemod/JBPack");
 
 	hcv_MinCredits = UC_CreateConVar("shop_jackpot_min_credits", "25", "Jackpot Minimum");
 	hcv_MaxCredits = UC_CreateConVar("shop_jackpot_max_credits", "65000", "Jackpot Maximum");

@@ -60,8 +60,8 @@ public void OnPluginStart()
 {
 	// The cvar to enable the plugin. 0 = Disabled. Other values = Enabled.
 
-	AutoExecConfig_SetFile("JBPack/JB_WeaponMenu");
-
+	AutoExecConfig_SetFile("JB_WeaponMenu", "sourcemod/JBPack");
+	
 	hcv_Enabled = UC_CreateConVar("jb_weapons_enabled", "1");
 
 	AutoExecConfig_ExecuteFile();
