@@ -2,7 +2,7 @@
 The best JailBreak package a server can get. We are looking for help in adding features and maintaining, discord me: Eyal282#1334
 
 
-Every server will be marked with the "JBPack" tag, so you can search servers on the "Internet" section of the server browser like that.
+Every server will be marked with the "JBPack" tag, so you can search servers on the "Internet" section of the server browser with that tag.
 
 The jackpot won't work unless you get your store plugin to support the natives it uses.
 
