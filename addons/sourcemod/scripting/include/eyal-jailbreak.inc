@@ -1,7 +1,12 @@
-#if defined _JAILBREAK_included
+#if defined _JBPack_included
  #endinput
 #endif
-#define _JAILBREAK_included
+
+#include <autoexecconfig>
+
+#define _JBPack_included
+
+#define FPERM_ULTIMATE (FPERM_U_READ | FPERM_U_WRITE | FPERM_U_EXEC | FPERM_G_READ | FPERM_G_WRITE | FPERM_G_EXEC | FPERM_O_READ | FPERM_O_WRITE | FPERM_O_EXEC)
 
 #define GANG_NULL ""
 #define GANGID_NULL 0
@@ -100,4 +105,14 @@ stock void UC_PrintToChatEyal(const char[] format, any...)
 		if (StrEqual(steamid, "STEAM_1:0:49508144"))
 			UC_PrintToChat(i, buffer);
 	}
+}
+
+stock ConVar UC_CreateConVar(const char[] name, const char[] defaultValue, const char[] description = "", int flags = 0, bool hasMin = false, float min = 0.0, bool hasMax = false, float max = 0.0)
+{
+	ConVar hndl = AutoExecConfig_CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max);
+
+	if (flags & FCVAR_PROTECTED)
+		ServerCommand("sm_cvar protect %s", name);
+
+	return hndl;
 }
