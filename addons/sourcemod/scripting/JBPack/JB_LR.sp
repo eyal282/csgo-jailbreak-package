@@ -140,6 +140,7 @@ char DodgeballModel[] = "models/chicken/chicken.mdl";
 // new const Float:DodgeballMaxs[3] = {11.11, 10.55, 25.74};
 
 Handle hcv_TimeMustBeginLR = INVALID_HANDLE;
+Handle hcv_TimeMustEndLR = INVALID_HANDLE;
 Handle hcv_NoclipSpeed     = INVALID_HANDLE;
 Handle hcv_NoSpread        = INVALID_HANDLE;
 
@@ -315,7 +316,14 @@ public void OnPluginStart()
 
 	SetCookieMenuItem(InfoMessageCookieMenu_Handler, 0, "Last Request");
 
-	hcv_TimeMustBeginLR = CreateConVar("lr_time_must_begin_lr", "60", "Time in seconds before a terrorist is slayed for not starting LR");
+	AutoExecConfig_SetFile("JBPack/JB_LR");
+
+	hcv_TimeMustBeginLR = UC_CreateConVar("lr_time_must_begin_lr", "60", "Time in seconds before a terrorist is slayed for not starting LR");
+	hcv_TimeMustEndLR = UC_CreateConVar("lr_time_must_end_lr", "300", "Time in seconds before all participants are slayed for not ending the LR");
+
+	AutoExecConfig_ExecuteFile();
+
+	AutoExecConfig_CleanFile();
 
 	hcv_NoclipSpeed = FindConVar("sv_noclipspeed");
 	hcv_NoSpread    = FindConVar("weapon_accuracy_nospread");
@@ -3925,9 +3933,13 @@ public void ContinueStartDuel()
 	}
 	else
 	{
-		TIMER_SLAYALL = CreateTimer(300.0, SlayAllParts, _, TIMER_FLAG_NO_MAPCHANGE);
+		TIMER_SLAYALL = CreateTimer(GetConVarFloat(hcv_TimeMustEndLR), SlayAllParts, _, TIMER_FLAG_NO_MAPCHANGE);
 
-		UC_PrintToChatAll("%s All \x05participants \x01will be slayed in \x075 \x01minutes!", PREFIX);
+		if(GetConVarFloat(hcv_TimeMustEndLR) % 60 == 0)
+			UC_PrintToChatAll("%s All \x05participants \x01will be slayed in \x07%.0f \x01minutes!", PREFIX, GetConVarFloat(hcv_TimeMustEndLR));
+
+		else
+			UC_PrintToChatAll("%s All \x05participants \x01will be slayed in \x07%.1f \x01minutes!", PREFIX, GetConVarFloat(hcv_TimeMustEndLR));
 	}
 	bool NC;
 

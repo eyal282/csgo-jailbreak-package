@@ -110,11 +110,17 @@ public void OnPluginStart()
 	RegAdminCmd("sm_assignisol", Command_AssignIsolation, ADMFLAG_SLAY);
 	RegAdminCmd("sm_assignisolation", Command_AssignIsolation, ADMFLAG_SLAY);
 
-	hcv_Mode            = CreateConVar("open_cells_mode", "1", "0 - Command will not work if an admin didn't assign a button to the map, 1 - Uses all buttons in the map if button wasn't assigned to map");
-	hcv_Auto            = CreateConVar("open_cells_auto", "60", "After how much time to open the cells, set to -1 to disable");
-	hcv_GraceBeforeOpen = CreateConVar("open_cells_grace_pre_open", "1", "1 - Players will respawn when joining before cells open");
-	hcv_EmptyRebel      = CreateConVar("open_cells_allow_empty_rebel", "1", "If there are no CT ( probably server empty ) terrorists are able to use !open");
-	hcv_LRChainsaw      = CreateConVar("open_cells_lr_chainsaw", "1", "Last terrorist can execute !open with his lr chainsaw");
+	AutoExecConfig_SetFile("JBPack/JB_SmartOpen");
+
+	hcv_Mode            = UC_CreateConVar("open_cells_mode", "1", "0 - Command will not work if an admin didn't assign a button to the map, 1 - Uses all buttons in the map if button wasn't assigned to map");
+	hcv_Auto            = UC_CreateConVar("open_cells_auto", "60", "After how much time to open the cells, set to -1 to disable");
+	hcv_GraceBeforeOpen = UC_CreateConVar("open_cells_grace_pre_open", "1", "1 - Players will respawn when joining before cells open");
+	hcv_EmptyRebel      = UC_CreateConVar("open_cells_allow_empty_rebel", "1", "If there are no CT ( probably server empty ) terrorists are able to use !open");
+	hcv_LRChainsaw      = UC_CreateConVar("open_cells_lr_chainsaw", "1", "Last terrorist can execute !open with his lr chainsaw");
+
+	AutoExecConfig_ExecuteFile();
+
+	AutoExecConfig_CleanFile();
 
 	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
 

@@ -38,14 +38,14 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-#if defined _autoexecconfig_included
-
-	AutoExecConfig_SetFile("Store-Jackpot");
-
-#endif
+	AutoExecConfig_SetFile("JBPack/JB_Jackpot");
 
 	hcv_MinCredits = UC_CreateConVar("shop_jackpot_min_credits", "25", "Jackpot Minimum");
 	hcv_MaxCredits = UC_CreateConVar("shop_jackpot_max_credits", "65000", "Jackpot Maximum");
+
+	AutoExecConfig_ExecuteFile();
+
+	AutoExecConfig_CleanFile();
 
 	Trie_Jackpot = CreateTrie();
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
@@ -320,19 +320,3 @@ stock int FindClientByAuthId(const char[] AuthId)
 
 	return 0;
 }
-
-#if defined _autoexecconfig_included
-
-stock ConVar UC_CreateConVar(const char[] name, const char[] defaultValue, const char[] description = "", int flags = 0, bool hasMin = false, float min = 0.0, bool hasMax = false, float max = 0.0)
-{
-	return AutoExecConfig_CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max);
-}
-
-#else
-
-stock ConVar UC_CreateConVar(const char[] name, const char[] defaultValue, const char[] description = "", int flags = 0, bool hasMin = false, float min = 0.0, bool hasMax = false, float max = 0.0)
-{
-	return CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max);
-}
-
-#endif

@@ -183,17 +183,16 @@ public void OnPluginStart()
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 
-	char HonorPerKillCvarName[] = "gang_system_honor_per_kill";
 
-	hcv_HonorPerKill = CreateConVar(HonorPerKillCvarName, "100", "Amount of honor you get per kill as T");
+	AutoExecConfig_SetFile("JBPack/JB_Gangs");
 
-	ServerCommand("sm_cvar protect %s", HonorPerKillCvarName);
+	hcv_HonorPerKill = UC_CreateConVar("gang_system_honor_per_kill", "100", "Amount of honor you get per kill as T", FCVAR_PROTECTED);
 
-	char CvarCostWeekly[] = "gang_system_weekly_price";
+	hcv_WeeklyTax = UC_CreateConVar("gang_system_weekly_price", "10000", "Amount of honor a gang pays per week. If a gang reaches negative honor, it is temporarily shut down, and not disbanded", FCVAR_PROTECTED);
 
-	hcv_WeeklyTax = CreateConVar(CvarCostWeekly, "10000");
+	AutoExecConfig_ExecuteFile();
 
-	ServerCommand("sm_cvar protect %s", CvarCostWeekly);
+	AutoExecConfig_CleanFile();
 
 	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
 

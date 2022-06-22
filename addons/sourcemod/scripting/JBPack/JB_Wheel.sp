@@ -74,7 +74,14 @@ public void OnPluginStart()
 
 	HudSync = CreateHudSynchronizer();
 
-	hcv_FirstJoinSpin = CreateConVar("wheel_first_join_spin", "1", "If set to 1, joining the server for the first time will allow you to instantly spin the wheel");
+	AutoExecConfig_SetFile("JBPack/JB_Wheel");
+
+	AutoExecConfig_ExecuteFile();
+
+	AutoExecConfig_CleanFile();
+
+	hcv_FirstJoinSpin = UC_CreateConVar("wheel_first_join_spin", "1", "If set to 1, joining the server for the first time will allow you to instantly spin the wheel");
+
 }
 
 void ConnectToDatabase()

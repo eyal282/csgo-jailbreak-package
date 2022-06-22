@@ -1,5 +1,6 @@
 #include <sdktools>
 #include <sourcemod>
+#include <eyal-jailbreak>
 
 #define semicolon 1
 #define newdecls  required
@@ -21,8 +22,14 @@ Handle hcv_ParachuteSpeed = INVALID_HANDLE;
 
 public void OnPluginStart()
 {
-	hcv_Parachute      = CreateConVar("jb_parachute", "1", "Does your server want parachute? That's mostly for Israeli servers.");
-	hcv_ParachuteSpeed = CreateConVar("jb_parachute_speed", "50", "Speed of falling with parachute");
+	AutoExecConfig_SetFile("JBPack/JB_Parachute");
+
+	hcv_Parachute      = UC_CreateConVar("jb_parachute", "1", "Does your server want parachute? That's mostly for Israeli servers.");
+	hcv_ParachuteSpeed = UC_CreateConVar("jb_parachute_speed", "50", "Speed of falling with parachute");
+
+	AutoExecConfig_ExecuteFile();
+
+	AutoExecConfig_CleanFile();
 }
 
 public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3], int& weapon, int& subtype, int& cmdnum, int& tickcount, int& seed, int mouse[2])

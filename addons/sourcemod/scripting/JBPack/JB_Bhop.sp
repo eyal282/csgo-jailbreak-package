@@ -1,5 +1,6 @@
 #include <sdktools>
 #include <sourcemod>
+#include <eyal-jailbreak>
 
 #define semicolon 1
 #define newdecls  required
@@ -20,9 +21,16 @@ Handle hcv_OriginalAutoBhop = INVALID_HANDLE;
 
 public void OnPluginStart()
 {
-	hcv_AutoBhop = CreateConVar("jb_autobunnyhopping", "1", "Is auto bunnyhop enabled by default?");
+	AutoExecConfig_SetFile("JBPack/JB_Bhop");
+	
+	hcv_AutoBhop = UC_CreateConVar("jb_autobunnyhopping", "1", "Is auto bunnyhop enabled by default?");
+
+	AutoExecConfig_ExecuteFile();
+
+	AutoExecConfig_CleanFile();
 
 	hcv_OriginalAutoBhop = FindConVar("sv_autobunnyhopping");
+
 
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 }

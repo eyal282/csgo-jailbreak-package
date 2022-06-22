@@ -118,6 +118,7 @@ Handle hcv_VoteCTMin = INVALID_HANDLE;
 Handle hcv_MaxRounds        = INVALID_HANDLE;
 Handle hcv_ForbidUnassigned = INVALID_HANDLE;
 
+Handle hcv_PreviewRound = INVALID_HANDLE;
 Handle hcv_PreviewRoundOnce = INVALID_HANDLE;
 Handle hcv_PreviewRoundTime = INVALID_HANDLE;
 
@@ -207,11 +208,18 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_egr", Command_EndPreviewRound);
 	RegConsoleCmd("sm_epr", Command_EndPreviewRound, "End preview round.");
 
-	hcv_VoteCTMin        = CreateConVar("votect_min", "2", "Minimum amount of players to start a vote CT");
-	hcv_MaxRounds        = CreateConVar("votect_max_rounds", "5", "Maximum amount of rounds CT get before swapping");
-	hcv_ForbidUnassigned = CreateConVar("votect_forbid_unassigned", "1", "Forbid unassigned players");
-	hcv_PreviewRoundOnce = CreateConVar("votect_preview_round_once", "0", "If set to 1, Preview round will only work once per map");
-	hcv_PreviewRoundTime = CreateConVar("votect_preview_round_time", "45", "If set to 1, Preview round will only work once per map");
+	AutoExecConfig_SetFile("JBPack/JB_VoteCT");
+
+	hcv_VoteCTMin        = UC_CreateConVar("votect_min", "2", "Minimum amount of players to start a vote CT");
+	hcv_MaxRounds        = UC_CreateConVar("votect_max_rounds", "5", "Maximum amount of rounds CT get before swapping");
+	hcv_ForbidUnassigned = UC_CreateConVar("votect_forbid_unassigned", "1", "Forbid unassigned players");
+	hcv_PreviewRound = 		UC_CreateConVar("votect_preview_round", "0", "If set to 1, T will get a preview round during the first vote CT if 4+ players");
+	hcv_PreviewRoundOnce = UC_CreateConVar("votect_preview_round_once", "0", "If set to 1, Preview round will only work once per map");
+	hcv_PreviewRoundTime = UC_CreateConVar("votect_preview_round_time", "45", "If set to 1, Preview round will only work once per map");
+
+	AutoExecConfig_ExecuteFile();
+
+	AutoExecConfig_CleanFile();
 
 	// public Eyal282_VoteCT_OnRoundEnd(&ChosenUserId, &RoundsLeft);
 	// public Eyal282_VoteCT_OnVoteCTStart(ChosenUserId);
@@ -583,7 +591,7 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 	{
 		StartVoteDay();
 	}
-	else if (NextRoundPreviewRound && (!AlreadyDonePreviewRound || !GetConVarBool(hcv_PreviewRoundOnce)))
+	else if (GetConVarBool(hcv_PreviewRound) && NextRoundPreviewRound && (!AlreadyDonePreviewRound || !GetConVarBool(hcv_PreviewRoundOnce)))
 	{
 		IsPreviewRound = true;
 

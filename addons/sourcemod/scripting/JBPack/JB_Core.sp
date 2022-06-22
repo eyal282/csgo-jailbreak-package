@@ -1,4 +1,5 @@
 #include <sourcemod>
+#include <eyal-jailbreak>
 
 #undef REQUIRE_PLUGIN
 #undef REQUIRE_EXTENSIONS
@@ -32,6 +33,15 @@ public void OnMapStart()
 
 public void OnPluginStart()
 {
+
+	AutoExecConfig_SetFile("JBPack/JB_Core");
+
+	UC_CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}", "List of colors: NORMAL, RED, GREEN, LIGHTGREEN, OLIVE, LIGHTRED, GRAY, YELLOW, ORANGE, BLUE, PINK");
+	UC_CreateConVar("sm_menu_prefix_cvar", "[JBPack]");
+
+	AutoExecConfig_ExecuteFile();
+
+	AutoExecConfig_CleanFile();
 #if defined _updater_included
 
 	if (LibraryExists("updater"))

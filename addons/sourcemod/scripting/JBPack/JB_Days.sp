@@ -1403,6 +1403,9 @@ stock void StartVoteDay()
 		if (!IsClientInGame(i))
 			continue;
 
+		else if(!IsValidTeam(i))
+			continue;
+			
 		ChangeClientTeam(i, CS_TEAM_T);
 
 		CS_RespawnPlayer(i);

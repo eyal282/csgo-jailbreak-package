@@ -2,6 +2,7 @@
 #include <cstrike>
 #include <sdktools>
 #include <sourcemod>
+#include <eyal-jailbreak>
 
 #define semicolon 1
 #define newdecls  required
@@ -58,7 +59,14 @@ Handle hcv_Enabled = INVALID_HANDLE;
 public void OnPluginStart()
 {
 	// The cvar to enable the plugin. 0 = Disabled. Other values = Enabled.
-	hcv_Enabled = CreateConVar("jb_weapons_enabled", "1");
+
+	AutoExecConfig_SetFile("JBPack/JB_WeaponMenu");
+
+	hcv_Enabled = UC_CreateConVar("jb_weapons_enabled", "1");
+
+	AutoExecConfig_ExecuteFile();
+
+	AutoExecConfig_CleanFile();
 
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 

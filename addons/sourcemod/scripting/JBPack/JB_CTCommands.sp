@@ -79,9 +79,16 @@ public void OnPluginStart()
 	hcv_TeammatesAreEnemies = FindConVar("mp_teammates_are_enemies");
 	hcv_DeadTalk            = FindConVar("sv_deadtalk");
 
-	hcv_CKHealthPerT = CreateConVar("ck_health_per_t", "20", "Amount of health a CT gains per T. Formula: 100 + ((cvar * tcount) / ctcount)");
-	g_SetTimeMute    = CreateConVar("sm_setmutetime", "30.0", "Set the mute timer on round start");
-	g_tMinMute       = CreateConVar("sm_t_min_mute", "2", "Minimum amount of T before round start mute occurs.");
+	AutoExecConfig_SetFile("JBPack/JB_CTCommands");
+
+	hcv_CKHealthPerT = UC_CreateConVar("ck_health_per_t", "20", "Amount of health a CT gains per T. Formula: 100 + ((cvar * tcount) / ctcount)");
+	g_SetTimeMute    = UC_CreateConVar("sm_setmutetime", "30.0", "Set the mute timer on round start");
+	g_tMinMute       = UC_CreateConVar("sm_t_min_mute", "2", "Minimum amount of T before round start mute occurs.");
+
+	AutoExecConfig_ExecuteFile();
+
+	AutoExecConfig_CleanFile();
+
 
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("item_equip", Event_ItemEquip, EventHookMode_Post);
