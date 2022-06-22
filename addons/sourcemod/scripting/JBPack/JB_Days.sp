@@ -457,9 +457,30 @@ public Action SDKEvent_WeaponCanUse(int client, int weapon)
 {
 	if (IgnorePlayerDeaths)    // The very moment a day begins.
 		return Plugin_Continue;
-
 	switch (DayActive)
 	{
+		case ZEUS_DAY:
+		{
+			char Classname[64];
+			GetEdictClassname(weapon, Classname, sizeof(Classname));
+
+			if (StrEqual(Classname, "weapon_taser"))
+				return Plugin_Continue;
+
+			AcceptEntityInput(weapon, "Kill");
+			return Plugin_Handled;
+		}
+		case DODGEBALL_DAY:
+		{
+			char Classname[64];
+			GetEdictClassname(weapon, Classname, sizeof(Classname));
+
+			if (StrEqual(Classname, "weapon_decoy"))
+				return Plugin_Continue;
+
+			AcceptEntityInput(weapon, "Kill");
+			return Plugin_Handled;
+		}
 		case SCOUT_DAY:
 		{
 			char Classname[64];
@@ -487,24 +508,24 @@ public Action SDKEvent_WeaponCanUse(int client, int weapon)
 			return Plugin_Handled;
 		}
 
-		case SDEAGLE_DAY:
-		{
-			char Classname[64];
-			GetEdictClassname(weapon, Classname, sizeof(Classname));
-
-			if (StrEqual(Classname, "weapon_deagle"))
-				return Plugin_Continue;
-
-			AcceptEntityInput(weapon, "Kill");
-			return Plugin_Handled;
-		}
-
 		case WAR_DAY:
 		{
 			char Classname[64];
 			GetEdictClassname(weapon, Classname, sizeof(Classname));
 
 			if (StrEqual(Classname, DayWeapon))
+				return Plugin_Continue;
+
+			AcceptEntityInput(weapon, "Kill");
+			return Plugin_Handled;
+		}
+
+		case SDEAGLE_DAY:
+		{
+			char Classname[64];
+			GetEdictClassname(weapon, Classname, sizeof(Classname));
+
+			if (StrEqual(Classname, "weapon_deagle"))
 				return Plugin_Continue;
 
 			AcceptEntityInput(weapon, "Kill");
