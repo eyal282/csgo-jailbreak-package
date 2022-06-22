@@ -271,11 +271,6 @@ public void OnPluginStart()
 	hcv_IgnoreRoundWinConditions = FindConVar("mp_ignore_round_win_conditions");
 	hcv_TaserRechargeTime        = FindConVar("mp_taser_recharge_time");
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
-
-	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
-	HookConVarChange(hcv_Prefix, cvChange_Prefix);
-
 	// Called when there's a need to inform plugins of day status. Not guaranteed to be the exact start or stop.
 	// public void JailBreakDays_OnDayStatus(bool DayActive)
 
@@ -288,6 +283,15 @@ public void OnPluginStart()
 
 		OnClientPutInServer(i);
 	}
+}
+
+public void OnAllPluginsLoaded()
+{
+	hcv_Prefix = FindConVar("sm_prefix_cvar");
+
+	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
+	HookConVarChange(hcv_Prefix, cvChange_Prefix);
+
 }
 
 public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)

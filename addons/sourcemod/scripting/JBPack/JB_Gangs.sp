@@ -193,18 +193,22 @@ public void OnPluginStart()
 
 	AutoExecConfig_CleanFile();
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
+	Trie_Donated     = CreateTrie();
+	Trie_DonatedWeek = CreateTrie();
+}
+
+public void OnAllPluginsLoaded()
+{
+	hcv_Prefix = FindConVar("sm_prefix_cvar");
 
 	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
 	HookConVarChange(hcv_Prefix, cvChange_Prefix);
 
-	hcv_MenuPrefix = CreateConVar("sm_menu_prefix_cvar", "[JBPack]");
+	hcv_MenuPrefix = FindConVar("sm_menu_prefix_cvar");
 
 	GetConVarString(hcv_MenuPrefix, MENU_PREFIX, sizeof(MENU_PREFIX));
 	HookConVarChange(hcv_MenuPrefix, cvChange_MenuPrefix);
 
-	Trie_Donated     = CreateTrie();
-	Trie_DonatedWeek = CreateTrie();
 }
 
 public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)

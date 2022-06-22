@@ -122,17 +122,21 @@ public void OnPluginStart()
 
 	AutoExecConfig_CleanFile();
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
-
-	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
-	HookConVarChange(hcv_Prefix, cvChange_Prefix);
-
 	// cmd = Were the cells opened by command or with button.
 	// note: This forward will fire if sm_open was used in any way.
 	// note: This forward will NOT fire if the cells were opened without being assigned.
 	// public void SmartOpen_OnCellsOpened(bool cmd)
 	fw_OnCellsOpened = CreateGlobalForward("SmartOpen_OnCellsOpened", ET_Ignore, Param_Cell);
 	Trie_Retriers    = CreateTrie();
+}
+
+public void OnAllPluginsLoaded()
+{
+	hcv_Prefix = FindConVar("sm_prefix_cvar");
+
+	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
+	HookConVarChange(hcv_Prefix, cvChange_Prefix);
+
 }
 
 public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)

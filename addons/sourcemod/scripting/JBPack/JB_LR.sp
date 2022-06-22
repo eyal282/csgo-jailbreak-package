@@ -366,21 +366,25 @@ public void OnPluginStart()
 
 	AddNormalSoundHook(Event_Sound);
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
-
-	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
-	HookConVarChange(hcv_Prefix, cvChange_Prefix);
-
-	hcv_MenuPrefix = CreateConVar("sm_menu_prefix_cvar", "[JBPack]");
-
-	GetConVarString(hcv_MenuPrefix, MENU_PREFIX, sizeof(MENU_PREFIX));
-	HookConVarChange(hcv_MenuPrefix, cvChange_MenuPrefix);
-
 	TriggerTimer(CreateTimer(10.0, ConnectDatabase, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT), true);
 
 	LoadTranslations("common.phrases");    // Fixing errors in target
 
 	HookEntityOutput("trigger_hurt", "OnHurtPlayer", OnTriggerHealPlayer);
+}
+
+public void OnAllPluginsLoaded()
+{
+	hcv_Prefix = FindConVar("sm_prefix_cvar");
+
+	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
+	HookConVarChange(hcv_Prefix, cvChange_Prefix);
+
+	hcv_MenuPrefix = FindConVar("sm_menu_prefix_cvar");
+
+	GetConVarString(hcv_MenuPrefix, MENU_PREFIX, sizeof(MENU_PREFIX));
+	HookConVarChange(hcv_MenuPrefix, cvChange_MenuPrefix);
+
 }
 
 public void OnTriggerHealPlayer(const char[] output, int caller, int activator, float delay)

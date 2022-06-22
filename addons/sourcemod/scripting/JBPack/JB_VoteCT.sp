@@ -246,11 +246,6 @@ public void OnPluginStart()
 	SetConVarInt(hcv_ForcePickTime, MAX_INT);
 	SetConVarBool(hcv_AutoTeamBalance, false);
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
-
-	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
-	HookConVarChange(hcv_Prefix, cvChange_Prefix);
-
 	HookConVarChange(hcv_ForcePickTime, cvChange_ForcePickTime);
 	HookConVarChange(hcv_AutoTeamBalance, cvChange_AutoTeamBalance);
 
@@ -261,6 +256,15 @@ public void OnPluginStart()
 
 		OnClientPutInServer(i);
 	}
+}
+
+public void OnAllPluginsLoaded()
+{
+	hcv_Prefix = FindConVar("sm_prefix_cvar");
+
+	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
+	HookConVarChange(hcv_Prefix, cvChange_Prefix);
+
 }
 
 // client -> Client index to start the LR.

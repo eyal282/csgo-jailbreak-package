@@ -98,16 +98,6 @@ public void OnPluginStart()
 
 	aMarkers = CreateArray(sizeof(markerEntry));
 
-	hcv_Prefix = CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}");
-
-	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
-	HookConVarChange(hcv_Prefix, cvChange_Prefix);
-
-	hcv_MenuPrefix = CreateConVar("sm_menu_prefix_cvar", "[JBPack]");
-
-	GetConVarString(hcv_MenuPrefix, MENU_PREFIX, sizeof(MENU_PREFIX));
-	HookConVarChange(hcv_MenuPrefix, cvChange_MenuPrefix);
-
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientInGame(i))
@@ -115,6 +105,20 @@ public void OnPluginStart()
 
 		OnClientPutInServer(i);
 	}
+}
+
+public void OnAllPluginsLoaded()
+{
+	hcv_Prefix = FindConVar("sm_prefix_cvar");
+
+	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
+	HookConVarChange(hcv_Prefix, cvChange_Prefix);
+
+	hcv_MenuPrefix = FindConVar("sm_menu_prefix_cvar");
+
+	GetConVarString(hcv_MenuPrefix, MENU_PREFIX, sizeof(MENU_PREFIX));
+	HookConVarChange(hcv_MenuPrefix, cvChange_MenuPrefix);
+
 }
 
 public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] newValue)
