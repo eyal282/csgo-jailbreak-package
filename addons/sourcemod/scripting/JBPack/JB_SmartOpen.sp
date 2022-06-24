@@ -130,6 +130,10 @@ public void OnPluginStart()
 	Trie_Retriers    = CreateTrie();
 }
 
+public void LastRequest_OnLRStarted(int Prisoner, int Guard)
+{
+	ServerCommand("sm_hardopen");
+}
 public void OnAllPluginsLoaded()
 {
 	hcv_Prefix = FindConVar("sm_prefix_cvar");
@@ -771,15 +775,16 @@ stock bool IsValidTeam(int client)
 
 public void OnGameFrame()
 {
-	OnFramedGame()
+	OnFramedGame(20)
 }
 
-public void OnFramedGame()
+public void OnFramedGame(int count)
 {
-	if(g_aQueueOutputs.Length == 0)
+	if(g_aQueueOutputs.Length == 0 || count == 0)
 		return;
 
 	enQueue queue;
+
 	g_aQueueOutputs.GetArray(0, queue);
 	g_aQueueOutputs.Erase(0);
 
@@ -787,15 +792,17 @@ public void OnFramedGame()
 
 	if(ent == INVALID_ENT_REFERENCE)
 	{
-		OnFramedGame();
+		OnFramedGame(count);
 		return;
 	}
 
 	else if(!OpenDoorsForOutput(ent, queue.output))
 	{
-		OnFramedGame();
+		OnFramedGame(count);
 		return;
 	}
+
+	OnFramedGame(count-1);
 }
 
 stock void QueueOpenDoorsForOutput(int ent, const char[] output, bool recursive=false)
@@ -833,14 +840,12 @@ stock bool OpenDoorsForOutput(int ent, const char[] output, bool recursive=false
 		
 		if(StrEqual(input, "Toggle") || StrEqual(input, "Open") || strncmp(input, "OpenAwayFrom", 12) == 0 || strncmp(input,"SetPosition", 11) == 0)
 		{
-			while((targetEnt = FindEntityByValveTargetname(targetEnt, sTarget)) != -1)
-				AcceptEntityInput(targetEnt, "Open");
+			AcceptEntityInputForTargetname(sTarget, "Open");
 		}
 		
 		else if(StrEqual(input, "Break"))
 		{
-			while((targetEnt = FindEntityByValveTargetname(targetEnt, sTarget)) != -1)
-				AcceptEntityInput(targetEnt, "Break");
+			AcceptEntityInputForTargetname(sTarget, "Break");
 		}
 		else if(StrEqual(input, "Trigger") && !recursive)
 		{
@@ -854,6 +859,8 @@ stock bool OpenDoorsForOutput(int ent, const char[] output, bool recursive=false
 	} while (EntityIO_FindEntityNextOutputAction(actionIter));
 
 	delete actionIter;
+
+	DeleteDummyEntity();
 
 	return true;
 }
@@ -891,4 +898,55 @@ stock int FindEntityByTargetname(int startEnt, const char[] TargetName, bool cas
 	}
 
 	return -1;
+}
+
+int dummy_entity = INVALID_ENT_REFERENCE;
+
+stock int CreateDummyEntity()
+{
+	int ent = CreateEntityByName("info_target");
+	
+	DispatchSpawn(ent);
+
+	ActivateEntity(ent);
+
+	dummy_entity = EntIndexToEntRef(ent);
+
+	return ent;
+}
+
+stock void DeleteDummyEntity()
+{
+	if(dummy_entity != INVALID_ENT_REFERENCE)
+	{
+		int ent = EntRefToEntIndex(dummy_entity);
+
+		if(ent != INVALID_ENT_REFERENCE)
+		{
+			char strBuffer[256];
+
+			FormatEx(strBuffer, sizeof(strBuffer), "OnUser1 !self:Kill:0:0.1:1");
+
+			SetVariantString(strBuffer);
+			AcceptEntityInput(ent, "AddOutput");
+			AcceptEntityInput(ent, "FireUser1");
+		}
+	}
+
+	dummy_entity = INVALID_ENT_REFERENCE;
+}
+stock void AcceptEntityInputForTargetname(const char[] sTargetname, const char[] input)
+{
+	int ent = -1;
+
+	if(dummy_entity == INVALID_ENT_REFERENCE || (ent = EntRefToEntIndex(dummy_entity)) == INVALID_ENT_REFERENCE)
+		ent = CreateDummyEntity();
+
+	char strBuffer[255];
+
+	FormatEx(strBuffer, sizeof(strBuffer), "OnUser1 %s:%s:0:0.0:1", sTargetname, input);
+
+	SetVariantString(strBuffer);
+	AcceptEntityInput(ent, "AddOutput");
+	AcceptEntityInput(ent, "FireUser1");
 }

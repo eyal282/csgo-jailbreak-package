@@ -650,7 +650,8 @@ public Action Hook_ShouldSeeColorfulGlow(int glow, int viewer)
 	else if (!JailBreakDays_IsDayActive())
 		return Plugin_Handled;
 
-	else if (AreClientsSameGang(client, viewer))
+	// If same gang, we don't want to show colorful glow. Running AreClientsSameGang on the same client guarantees true unless in debt.
+	else if (AreClientsSameGang(client, viewer) || !AreClientsSameGang(client, client))
 		return Plugin_Handled;
 
 	int ObserverTarget = GetEntPropEnt(viewer, Prop_Send, "m_hObserverTarget");    // This is the player the viewer is spectating. No need to check if it's invalid ( -1 )
