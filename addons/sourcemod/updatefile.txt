@@ -35,6 +35,7 @@
     "Plugin"	"Path_SM/plugins/JBPack/JB_LR.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_Parachute.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_SmartOpen.smx"
+    "Plugin"	"Path_SM/plugins/JBPack/JB_StudySecrets.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_VoteCT.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_WeaponHandling.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_WeaponMenu.smx"
