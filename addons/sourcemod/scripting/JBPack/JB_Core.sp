@@ -21,6 +21,10 @@ public Plugin myinfo =
 	url         = ""
 };
 
+public APLRES AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	RegPluginLibrary("JB_Core");
+}
 public void OnPluginStart()
 {
 

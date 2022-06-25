@@ -31,6 +31,25 @@ public void OnMapStart()
 	AddServerTag2("JBPack");
 }
 
+public void OnClientConnected(int client)
+{
+	if(!LibraryExists("JB_Core"))
+	{
+		Updater_ForceUpdate();
+	}
+}
+
+public int Updater_OnPluginUpdated()
+{
+	if(!LibraryExists("JB_Core"))
+	{
+		char MapName[64];
+		GetCurrentMap(MapName, sizeof(MapName));
+
+		ServerCommand("changelevel %s", MapName);
+	}
+}
+
 public void OnPluginStart()
 {
 	if (LibraryExists("updater"))
