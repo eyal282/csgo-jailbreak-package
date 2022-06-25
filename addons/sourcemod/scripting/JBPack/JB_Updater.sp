@@ -14,48 +14,37 @@
 
 public Plugin myinfo =
 {
-	name        = "JailBreak Core",
+	name        = "JailBreak Updater",
 	author      = "Eyal282",
-	description = "Core JailBreak Plugin",
+	description = "Enables auto updater support",
 	version     = "1.0",
 	url         = ""
 };
 
+public void OnMapEnd()
+{
+	RemoveServerTag2("JBPack");
+}
+
+public void OnMapStart()
+{
+	AddServerTag2("JBPack");
+}
+
 public void OnPluginStart()
 {
-
-	CreateDirectory("cfg/sourcemod/JBPack", FPERM_ULTIMATE);
-
-	SetFilePermissions("cfg/sourcemod/JBPack", FPERM_ULTIMATE);
-
-	AutoExecConfig_SetFile("JB_Core", "sourcemod/JBPack");
-
-	UC_CreateConVar("sm_prefix_cvar", "[{RED}JBPack{NORMAL}] {NORMAL}", "List of colors: NORMAL, RED, GREEN, LIGHTGREEN, OLIVE, LIGHTRED, GRAY, YELLOW, ORANGE, BLUE, PINK");
-	UC_CreateConVar("sm_menu_prefix_cvar", "[JBPack]");
-
-	AutoExecConfig_ExecuteFile();
-
-	AutoExecConfig_CleanFile();
-#if defined _updater_included
-
 	if (LibraryExists("updater"))
 	{
 		Updater_AddPlugin(UPDATE_URL);
 	}
-
-#endif
 }
 
 public void OnLibraryAdded(const char[] name)
 {
-#if defined _updater_included
-
 	if (StrEqual(name, "updater"))
 	{
 		Updater_AddPlugin(UPDATE_URL);
 	}
-
-#endif
 }
 
 /**
