@@ -27,7 +27,6 @@
     "Plugin"	"Path_SM/plugins/JBPack/JB_BanCT.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_Bhop.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_Config.smx"
-    "Plugin"	"Path_SM/plugins/JBPack/JB_Core.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_CTCommands.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_Days.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_Gangs.smx"
