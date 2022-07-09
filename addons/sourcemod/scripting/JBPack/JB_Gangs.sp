@@ -223,8 +223,8 @@ public void cvChange_MenuPrefix(Handle convar, const char[] oldValue, const char
 
 public Action Event_PlayerPingPre(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	if (GetEventBool(hEvent, "filtered_by_sourcemod_plugin"))
-		return Plugin_Continue;
+	//if (GetEventBool(hEvent, "filtered_by_sourcemod_plugin"))
+	//	return Plugin_Continue;
 
 	int entity = GetEventInt(hEvent, "entityid");
 
@@ -236,7 +236,8 @@ public Action Event_PlayerPingPre(Handle hEvent, const char[] Name, bool dontBro
 	else if (GetClientTeam(owner) != CS_TEAM_T)
 		return Plugin_Continue;
 
-	if (!IsClientGang(owner))
+	// If player doesn't have a gang, OR if player is in debt.
+	if (!AreClientsSameGang(owner, owner))
 	{
 		AcceptEntityInput(entity, "Kill");
 
@@ -245,7 +246,36 @@ public Action Event_PlayerPingPre(Handle hEvent, const char[] Name, bool dontBro
 
 	SDKHook(entity, SDKHook_SetTransmit, SDKEvent_PingSetTransmit);
 
-	return Plugin_Continue;
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(IsFakeClient(i))
+			continue;
+
+		else if(!AreClientsSameGang(i, owner))
+			continue;
+
+		Event newEvent = CreateEvent("player_ping", true);
+
+		SetEventInt(newEvent, "userid", GetEventInt(hEvent, "userid"));
+		SetEventInt(newEvent, "entityid", GetEventInt(hEvent, "entityid"));
+
+		SetEventFloat(newEvent, "x", GetEventFloat(hEvent, "x"));
+		SetEventFloat(newEvent, "y", GetEventFloat(hEvent, "y"));
+		SetEventFloat(newEvent, "z", GetEventFloat(hEvent, "z"));
+
+		SetEventBool(newEvent, "urgent", GetEventBool(hEvent, "urgent"));
+
+		//SetEventBool(newEvent, "filtered_by_sourcemod_plugin", true);
+
+		newEvent.FireToClient(i);
+
+		CloseHandle(newEvent);
+	}
+
+	return Plugin_Handled;
 }
 
 public Action SDKEvent_PingSetTransmit(int pingEntity, int viewer)
@@ -357,7 +387,8 @@ public void Event_PlayerSpawnPlusFrame(int UserId)
 	else if (!IsPlayerAlive(client))
 		return;
 
-	else if (!IsClientGang(client))
+	// No gang or in debt
+	else if (!AreClientsSameGang(client, client))
 		return;
 
 	CachedSpawn[client] = true;
@@ -390,7 +421,7 @@ public void Event_PlayerSpawnPlusFrame(int UserId)
 				}
 			}
 
-			if (IsClientGang(client) && JailBreakDays_IsDayActive())
+			if (AreClientsSameGang(client, client) && JailBreakDays_IsDayActive())
 				CreateGlow(client);
 		}
 		case CS_TEAM_CT:
@@ -3979,7 +4010,8 @@ stock int GetClientRank(int client)
 	return ClientRank[client];
 }
 
-// returns true if the clients are in the same gang, or if checking the same client while he has a gang.
+// returns true if the clients are in the same gang, this will return false if the gang is in debt.
+// If you pass client in both arguments, returns true if client has a gang that isn't in debt.
 stock bool AreClientsSameGang(int client, int otherclient)
 {
 	if (!IsClientGang(client) || !IsClientGang(otherclient))
@@ -4105,7 +4137,7 @@ public void JailBreakDays_OnDayStatus(bool DayActive)
 		else if (!IsPlayerAlive(i))
 			continue;
 
-		if (DayActive && IsClientGang(i))
+		if (DayActive && AreClientsSameGang(i, i))
 		{
 			CreateGlow(i);
 		}

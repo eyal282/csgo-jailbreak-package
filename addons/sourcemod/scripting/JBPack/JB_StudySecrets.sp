@@ -19,7 +19,7 @@ native bool Eyal282_VoteCT_IsPreviewRound();
 native bool JailBreakDays_IsDayActive();
 native bool LR_isActive();
 
-#define DEFAULT_MODELINDEX "sprites/laserbeam.vmt"
+#define DEFAULT_MODELINDEX "materials/sprites/laserbeam.vmt"
 #define DEFAULT_HALOINDEX  "materials/sprites/halo.vmt"
 
 int g_LaserIndex, g_HaloIdx;

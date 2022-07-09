@@ -1,5 +1,7 @@
 #include <sourcemod>
 #include <sdktools>
+#include <eyal-jailbreak>
+#include <autoexecconfig>
 
 #define semicolon 1
 #define newdecls  required
@@ -26,11 +28,9 @@ enCvarList cvarList[] = {
 	{ "mp_autokick",           "0"         },
 	{ "mp_freezetime",         "0"         },
 	{ "mp_friendlyfire",       "0"         },
-	{ "mp_timelimit",          "60"        },
 	{ "mp_teamcashawards",     "0"         },
 	{ "mp_startmoney",         "0"         },
 	{ "mp_solid_teammates",    "1"         },
-	{ "mp_roundtime",          "15"        },
 	{ "mp_warmuptime",         "0"         },
 	{ "mp_do_warmup_period",   "0" },
 
@@ -51,9 +51,22 @@ enCvarList cvarList[] = {
 	{ "mp_teamcashawards",     "0"         }
 };
 
+Handle hcv_mpRoundTime;
+Handle hcv_RoundTime;
+
 public void OnPluginStart()
 {
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+
+	AutoExecConfig_SetFile("JB_Config", "sourcemod/JBPack");
+
+	hcv_RoundTime = UC_CreateConVar("jb_roundtime", "15", "mp_roundtime");
+
+	AutoExecConfig_ExecuteFile();
+
+	hcv_mpRoundTime = FindConVar("mp_roundtime");
+
+	AutoExecConfig_CleanFile();
 }
 
 public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -81,4 +94,6 @@ public Action Timer_ExecuteConfig(Handle hTimer)
 			SetConVarString(convar, cvarList[i].value);
 		}
 	}
+
+	SetConVarInt(hcv_mpRoundTime, GetConVarInt(hcv_RoundTime));
 }

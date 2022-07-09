@@ -53,6 +53,7 @@ enPrizes Prizes[] = {
 
 Handle dbWheel = INVALID_HANDLE;
 
+Handle hcv_Enabled = INVALID_HANDLE;
 Handle hcv_FirstJoinSpin = INVALID_HANDLE;
 
 Handle HudSync = INVALID_HANDLE;
@@ -76,11 +77,29 @@ public void OnPluginStart()
 
 	AutoExecConfig_SetFile("JB_Wheel", "sourcemod/JBPack");
 
+	hcv_Enabled = UC_CreateConVar("wheel_enabled", "1", "Should this plugin be enabled?");
 	hcv_FirstJoinSpin = UC_CreateConVar("wheel_first_join_spin", "1", "If set to 1, joining the server for the first time will allow you to instantly spin the wheel");
 
 	AutoExecConfig_ExecuteFile();
 
 	AutoExecConfig_CleanFile();
+}
+
+public void OnConfigsExecuted()
+{
+	CreateTimer(1.0, Timer_CheckConfig, _, TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public Action Timer_CheckConfig(Handle hTimer)
+{
+	if(!GetConVarBool(hcv_Enabled))
+	{
+		char sFilename[128];
+		GetPluginFilename(INVALID_HANDLE, sFilename, sizeof(sFilename));
+
+		UC_PrintToChatEyal(sFilename);
+		ServerCommand("sm plugins unload %s", sFilename);
+	}
 }
 
 void ConnectToDatabase()

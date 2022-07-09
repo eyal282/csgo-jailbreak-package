@@ -213,7 +213,7 @@ public void OnPluginStart()
 	hcv_VoteCTMin        = UC_CreateConVar("votect_min", "2", "Minimum amount of players to start a vote CT");
 	hcv_MaxRounds        = UC_CreateConVar("votect_max_rounds", "5", "Maximum amount of rounds CT get before swapping");
 	hcv_ForbidUnassigned = UC_CreateConVar("votect_forbid_unassigned", "1", "Forbid unassigned players");
-	hcv_PreviewRound = 		UC_CreateConVar("votect_preview_round", "0", "If set to 1, T will get a preview round during the first vote CT if 4+ players");
+	hcv_PreviewRound = 		UC_CreateConVar("votect_preview_round", "0", "If set to 1, T will get a preview round during the first vote CT if 4+ players. Disallowing a preiew round will also disallow Crazy Knife");
 	hcv_PreviewRoundOnce = UC_CreateConVar("votect_preview_round_once", "0", "If set to 1, Preview round will only work once per map");
 	hcv_PreviewRoundTime = UC_CreateConVar("votect_preview_round_time", "45", "If set to 1, Preview round will only work once per map");
 

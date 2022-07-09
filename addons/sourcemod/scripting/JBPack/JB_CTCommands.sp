@@ -70,6 +70,8 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_ff", Command_Box, "Enables friendlyfire for the terrorists");
 	RegConsoleCmd("sm_fd", Command_FD, "Turns on glow on a player");
 	RegConsoleCmd("sm_ck", Command_CK, "Turns on CK for the rest of the vote CT");
+	//RegConsoleCmd("sm_sort", Command_Sort, "Randomly sorts every T.");
+
 	RegConsoleCmd("sm_givelr", cmd_givelr, "");
 	RegConsoleCmd("sm_medic", cmd_medic, "");
 	RegConsoleCmd("sm_deagle", cmd_deagle, "");
@@ -684,7 +686,7 @@ public Action Command_CK(int client, int args)
 
 	else if (!Eyal282_VoteCT_IsPreviewRound() && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
-		UC_ReplyToCommand(client, " \x07CK \x01can only be \x07started \x01in \x07God Round. ");
+		UC_ReplyToCommand(client, " \x07CK \x01can only be \x07started \x01in \x07Preview Round. ");
 
 		return Plugin_Handled;
 	}
@@ -735,6 +737,20 @@ public Action Command_SilentStopCK(int client, int args)
 	return Plugin_Handled;
 }
 
+/*
+public Action Command_Sort(int client, int args)
+{
+	if ((GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+	{
+		UC_ReplyToCommand(client, "You don't have access to this command");
+
+		return Plugin_Handled;
+	}
+
+
+	return Plugin_Handled;
+}
+*/
 public void Eyal282_VoteCT_OnVoteCTStart(int ChosenUserId)
 {
 	CKEnabled = false;
