@@ -21,7 +21,6 @@
                     
     "Plugin"	"Path_SM/plugins/noradiochat.smx"
     "Plugin"	"Path_SM/plugins/force_alltalk.smx"
-    "Plugin"	"Path_SM/plugins/updater.smx"
 
     "Plugin"	"Path_SM/plugins/JBPack/JB_AutoJoinT.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_BanCT.smx"
