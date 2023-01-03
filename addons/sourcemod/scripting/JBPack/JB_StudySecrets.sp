@@ -8,16 +8,11 @@
 
 #define PLUGIN_VERSION "1.0"
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 
 #define DISPLAY_TYPE_FULL 0
-
-native bool Eyal282_VoteCT_IsChosen(client);
-native bool Eyal282_VoteCT_IsPreviewRound();
-native bool JailBreakDays_IsDayActive();
-native bool LR_isActive();
 
 #define DEFAULT_MODELINDEX "materials/sprites/laserbeam.vmt"
 #define DEFAULT_HALOINDEX  "materials/sprites/halo.vmt"
@@ -162,9 +157,11 @@ public Action Timer_DisplaySecrets(Handle hTimer)
 
 			// Diagonal shape across the shape to ensure visibility.
 			TE_SetupBeamPoints(fMaxs, fMins, g_LaserIndex, g_HaloIdx, 0, 0, 0.4, 2.0, 2.0, 1, 0.0, colors, 15); 
-			TE_SendToClient(i, 0.0)
+			TE_SendToClient(i, 0.0);
 		}
 	}
+
+	return Plugin_Continue;
 }
 
 void TE_DrawBeamBoxToClient(int client, float bottomCorner[3], float upperCorner[3], int modelIndex, int haloIndex, int startFrame, int frameRate, float life, float width, float endWidth, int fadeLength, float amplitude, const int color[4], int speed, int displayType)

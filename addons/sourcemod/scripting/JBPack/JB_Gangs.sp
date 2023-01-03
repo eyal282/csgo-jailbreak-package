@@ -17,8 +17,8 @@
 
 #define SECONDS_IN_A_WEEK 604800
 
-#pragma newdecls required
 #pragma semicolon 1
+#pragma newdecls  required
 
 char NET_WORTH_ORDER_BY_FORMULA[512];
 
@@ -310,6 +310,8 @@ public Action Timer_CheckWeekly(Handle hTimer)
 	char sQuery[256];
 	SQL_FormatQuery(dbGangs, sQuery, sizeof(sQuery), "SELECT GangId, GangHonor FROM GangSystem_Gangs WHERE GangNextWeekly < %i", GetTime());
 	dbGangs.Query(SQLCB_CheckWeekly, sQuery);
+
+	return Plugin_Continue;
 }
 
 public void SQLCB_CheckWeekly(Handle owner, Handle hndl, char[] error, any data)
@@ -617,12 +619,12 @@ public Action Timer_CheckGlowPlayerModel(Handle hTimer, int Ref)
 	int GlowEnt = EntRefToEntIndex(Ref);
 
 	if (GlowEnt == INVALID_ENT_REFERENCE)
-		return;
+		return Plugin_Continue;
 
 	int client = GetEntPropEnt(GlowEnt, Prop_Send, "m_hOwnerEntity");
 
 	if (client == -1)
-		return;
+		return Plugin_Continue;
 
 	char Model[PLATFORM_MAX_PATH];
 
@@ -630,6 +632,8 @@ public Action Timer_CheckGlowPlayerModel(Handle hTimer, int Ref)
 	GetEntPropString(client, Prop_Data, "m_ModelName", Model, sizeof(Model));
 
 	SetEntityModel(GlowEnt, Model);
+
+	return Plugin_Continue;
 }
 
 public Action Hook_ShouldSeeWhiteGlow(int glow, int viewer)
@@ -701,7 +705,7 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 	TryDestroyGlow(victim);
 
 	if(attacker == 0 || victim == 0)
-		return;
+		return Plugin_Continue;
 		
 	if (attacker != victim && (GetClientTeam(victim) == CS_TEAM_CT || GetAliveTeamCount(CS_TEAM_T) == 0))
 	{
@@ -716,6 +720,8 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 
 		GiveClientHonor(attacker, honor);
 	}
+
+	return Plugin_Continue;
 }
 
 public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -730,6 +736,8 @@ public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcas
 		if (IsClientGang(i) && ClientGetHonorPerk[i] > 0 && GetPlayerCount() >= MIN_PLAYERS_FOR_GC)
 			UC_PrintToChat(i, " %s \x05You \x01can write \x07!gc \x01in the chat to get \x10%i \x01Honor!", PREFIX, ClientGetHonorPerk[i] * GANG_GETCREDITSINCREASE);
 	}
+
+	return Plugin_Continue;
 }
 void TryDestroyGlow(int client)
 {
@@ -1470,7 +1478,7 @@ public int DonateGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 	else if (action == MenuAction_Select)
 	{
 		if (!IsClientGang(client))
-			return;
+			return 0;
 
 		if (item + 1 == 1)
 		{
@@ -1481,6 +1489,8 @@ public int DonateGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 			DonateToGang(client, amount);
 		}
 	}
+
+	return 0;
 }
 
 public Action Command_RenameGang(int client, int args)
@@ -1530,10 +1540,10 @@ public int RenameGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 	else if (action == MenuAction_Select)
 	{
 		if (!IsClientGang(client))
-			return;
+			return 0;
 
 		else if (!CheckGangAccess(client, RANK_LEADER))
-			return;
+			return 0;
 
 		if (item + 1 == 1)
 		{
@@ -1544,7 +1554,7 @@ public int RenameGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 				AddCommas(GANG_RENAME_PRICE - ClientGangHonor[client], ",", sPriceDifference, sizeof(sPriceDifference));
 
 				UC_PrintToChat(client, "%s \x05You \x01need \x07%s more honor\x01 to rename your gang!", PREFIX, sPriceDifference);
-				return;
+				return 0;
 			}
 
 			char strName[32];
@@ -1561,6 +1571,8 @@ public int RenameGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 			SQL_TQuery(dbGangs, SQLCB_RenameGang_CheckTakenName, sQuery, DP);
 		}
 	}
+
+	return 0;
 }
 
 public void SQLCB_RenameGang_CheckTakenName(Handle owner, Handle hndl, char[] error, Handle DP)
@@ -1660,10 +1672,10 @@ public int PrefixGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 	else if (action == MenuAction_Select)
 	{
 		if (!IsClientGang(client))
-			return;
+			return 0;
 
 		else if (!CheckGangAccess(client, RANK_LEADER))
-			return;
+			return 0;
 
 		if (item + 1 == 1)
 		{
@@ -1674,7 +1686,7 @@ public int PrefixGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 				AddCommas(GANG_PREFIX_PRICE - ClientGangHonor[client], ",", sPriceDifference, sizeof(sPriceDifference));
 
 				UC_PrintToChat(client, "%s \x05You \x01need \x07$%s more\x01 to change your gang's prefix!", PREFIX, sPriceDifference);
-				return;
+				return 0;
 			}
 
 			char strName[32];
@@ -1691,6 +1703,8 @@ public int PrefixGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 			SQL_TQuery(dbGangs, SQLCB_GangPrefix_CheckTakenPrefix, sQuery, DP);
 		}
 	}
+
+	return 0;
 }
 
 public void SQLCB_GangPrefix_CheckTakenPrefix(Handle owner, Handle hndl, char[] error, Handle DP)
@@ -1899,12 +1913,12 @@ public int CreateGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 	else if (action == MenuAction_Select)
 	{
 		if (IsClientGang(client))
-			return;
+			return 0;
 
 		if (item + 1 == 1)
 		{
 			if (GangCreateName[client][0] == EOS || StringHasInvalidCharacters(GangCreateName[client]))
-				return;
+				return 0;
 
 			TryCreateGang(client, GangCreateName[client]);
 		}
@@ -1913,6 +1927,7 @@ public int CreateGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 			GangCreateName[client] = GANG_NULL;
 		}
 	}
+	return 0;
 }
 
 public Action Command_GC(int client, int args)
@@ -2106,7 +2121,7 @@ public int Gang_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 		else if (StrEqual(Info, "Disband"))
 		{
 			if (!CheckGangAccess(client, RANK_LEADER))
-				return;
+				return 0;
 
 			GangAttemptDisband[client] = true;
 			UC_PrintToChat(client, "%s Write \x07!confirmdisbandgang \x01to confirm DELETION of the \x05gang.", PREFIX);
@@ -2116,7 +2131,7 @@ public int Gang_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 		else if (StrEqual(Info, "Leave"))
 		{
 			if (CheckGangAccess(client, RANK_LEADER) || !IsClientGang(client))
-				return;
+				return 0;
 
 			GangAttemptLeave[client] = true;
 			UC_PrintToChat(client, "%s Write \x07!confirmleavegang \x01if you are absolutely sure you want to leave the \x07gang.", PREFIX);
@@ -2127,6 +2142,8 @@ public int Gang_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 			ShowTopGangsMenu(client);
 		}
 	}
+
+	return 0;
 }
 
 void ShowTopGangsMenu(int client)
@@ -2198,6 +2215,8 @@ public int TopGangs_MenuHandler(Handle hMenu, MenuAction action, int client, int
 
 		dbGangs.Query(SQLCB_ShowGangInfo_LoadGang, sQuery, GetClientUserId(client));
 	}
+
+	return 0;
 }
 
 public void SQLCB_ShowGangInfo_LoadGang(Handle owner, DBResultSet hndl, char[] error, int UserId)
@@ -2301,6 +2320,8 @@ public int TopGangs_GangInfo_MenuHandler(Handle hMenu, MenuAction action, int cl
 
 	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
 		ShowTopGangsMenu(client);
+
+	return 0;
 }
 
 void ShowGangPerks(int client)
@@ -2344,6 +2365,8 @@ public int Perks_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 
 	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
 		Command_Gang(client, 0);
+
+	return 0;
 }
 
 stock void ShowManageGangMenu(int client, int item = 0)
@@ -2399,26 +2422,26 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 		if (!CheckGangAccess(client, ClientAccessManage[client]) || ClientGangHonor[client] < 0)
 		{
 			Command_Gang(client, 0);
-			return;
+			return 0;
 		}
 		switch (item)
 		{
 			case 0:
 			{
 				if (!CheckGangAccess(client, ClientAccessManage[client]))
-					return;
+					return 0;
 
 				ShowModLogs(client);
 			}
 			case 1:
 			{
 				if (!CheckGangAccess(client, ClientAccessInvite[client]))
-					return;
+					return 0;
 
 				else if (ClientMembersCount[client] >= (GANG_INITSIZE + (ClientGangSizePerk[client] * GANG_SIZEINCREASE)))
 				{
 					UC_PrintToChat(client, "%s The gang is \x07full!", PREFIX);
-					return;
+					return 0;
 				}
 				ShowInviteMenu(client);
 			}
@@ -2426,28 +2449,28 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 			case 2:
 			{
 				if (!CheckGangAccess(client, ClientAccessKick[client]))
-					return;
+					return 0;
 
 				ShowKickMenu(client);
 			}
 			case 3:
 			{
 				if (!CheckGangAccess(client, ClientAccessPromote[client]))
-					return;
+					return 0;
 
 				ShowPromoteMenu(client);
 			}
 			case 4:
 			{
 				if (!CheckGangAccess(client, ClientAccessUpgrade[client]))
-					return;
+					return 0;
 
 				ShowUpgradeMenu(client);
 			}
 			case 5:
 			{
 				if (!CheckGangAccess(client, ClientAccessMOTD[client]))
-					return;
+					return 0;
 
 				UC_PrintToChat(client, "%s Use \x07!motdgang \x01<new motd> to change the gang's \x07motd.", PREFIX);
 
@@ -2457,7 +2480,7 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 			case 6:
 			{
 				if (!CheckGangAccess(client, RANK_LEADER))
-					return;
+					return 0;
 
 				GangAttemptDisband[client] = true;
 				UC_PrintToChat(client, "%s Write \x07!confirmdisbandgang \x01to confirm DELETION of the \x05gang.", PREFIX);
@@ -2468,14 +2491,14 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 			case 7:
 			{
 				if (!CheckGangAccess(client, RANK_LEADER))
-					return;
+					return 0;
 
 				ShowActionAccessMenu(client);
 			}
 			case 8:
 			{
 				if (!CheckGangAccess(client, RANK_LEADER))
-					return;
+					return 0;
 
 				UC_PrintToChat(client, "%s Use \x07!renamegang \x01<new name> to change the gang's \x07name.", PREFIX);
 
@@ -2485,7 +2508,7 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 			case 9:
 			{
 				if (!CheckGangAccess(client, RANK_LEADER))
-					return;
+					return 0;
 
 				UC_PrintToChat(client, "%s Use \x07!prefixgang \x01<new prefix> to change the gang's \x07prefix.", PREFIX);
 
@@ -2493,6 +2516,8 @@ public int ManageGang_MenuHandler(Handle hMenu, MenuAction action, int client, i
 			}
 		}
 	}
+
+	return 0;
 }
 
 void ShowActionAccessMenu(int client)
@@ -2536,12 +2561,14 @@ public int ActionAccess_MenuHandler(Handle hMenu, MenuAction action, int client,
 	else if (action == MenuAction_Select)
 	{
 		if (!CheckGangAccess(client, RANK_LEADER))
-			return;
+			return 0;
 
 		ClientActionEdit[client] = item;
 
 		ShowActionAccessSetRankMenu(client);
 	}
+
+	return 0;
 }
 
 void ShowActionAccessSetRankMenu(int client)
@@ -2590,7 +2617,7 @@ public int ActionAccessSetRank_MenuHandler(Handle hMenu, MenuAction action, int 
 	else if (action == MenuAction_Select)
 	{
 		if (!CheckGangAccess(client, RANK_LEADER))
-			return;
+			return 0;
 
 		int TrueRank = item > RANK_COLEADER ? RANK_LEADER : item;
 
@@ -2612,6 +2639,8 @@ public int ActionAccessSetRank_MenuHandler(Handle hMenu, MenuAction action, int 
 		dbGangs.Format(sQuery, sizeof(sQuery), "UPDATE GangSystem_Gangs SET '%s' = %i WHERE GangId = %i", ColumnName, TrueRank, ClientGangId[client]);
 		dbGangs.Query(SQLCB_UpdateGang, sQuery, DP);
 	}
+
+	return 0;
 }
 void ShowUpgradeMenu(int client)
 {
@@ -2672,12 +2701,14 @@ public int Upgrade_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 	else if (action == MenuAction_Select)
 	{
 		if (!CheckGangAccess(client, ClientAccessUpgrade[client]))
-			return;
+			return 0;
 
 		char strUpgradeCost[20];
 		GetMenuItem(hMenu, item, strUpgradeCost, sizeof(strUpgradeCost));
 		LoadClientGang_TryUpgrade(client, item, StringToInt(strUpgradeCost));
 	}
+
+	return 0;
 }
 
 void LoadClientGang_TryUpgrade(int client, int item, int upgradecost)
@@ -2926,6 +2957,8 @@ public int Promote_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 
 		PromoteMenu_ChooseRank(client, Info);
 	}
+
+	return 0;
 }
 
 void PromoteMenu_ChooseRank(int client, const char[] Info)
@@ -3006,7 +3039,7 @@ public int ChooseRank_MenuHandler(Handle hMenu, MenuAction action, int client, i
 			{
 				UC_PrintToChat(client, "%s The target must be \x05connected \x01for a step-down action for security \x07reasons.", PREFIX);
 
-				return;
+				return 0;
 			}
 
 			GangStepDownTarget[client] = GetClientUserId(target);
@@ -3018,6 +3051,8 @@ public int ChooseRank_MenuHandler(Handle hMenu, MenuAction action, int client, i
 			UC_PrintToChat(client, "%s Write anything else in the chat to abort the \x07action", PREFIX);
 		}
 	}
+
+	return 0;
 }
 
 void ShowKickMenu(int client)
@@ -3100,10 +3135,12 @@ public int Kick_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 		BreakString(Info[len + len2 + len3], strLastConnect, sizeof(strLastConnect));
 
 		if (StringToInt(strRank) >= GetClientRank(client))    // Should never return but better safe than sorry.
-			return;
+			return 0;
 
 		ShowConfirmKickMenu(client, iAuthId, Name, StringToInt(strLastConnect));
 	}
+
+	return 0;
 }
 
 void ShowConfirmKickMenu(int client, const char[] iAuthId, const char[] Name, int LastConnect)
@@ -3142,6 +3179,8 @@ public int ConfirmKick_MenuHandler(Handle hMenu, MenuAction action, int client, 
 			KickAuthIdFromGang(iAuthId, ClientGangId[client], client);
 		}
 	}
+
+	return 0;
 }
 
 stock void ShowModLogs(int client, int item = 0)
@@ -3379,6 +3418,8 @@ public int ModLogs_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 
 		ShowModLogs(client, GetMenuSelectionPosition());
 	}
+
+	return 0;
 }
 
 void ShowInviteMenu(int client)
@@ -3444,6 +3485,8 @@ public int Invite_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 			}
 		}
 	}
+
+	return 0;
 }
 
 void ShowAcceptInviteMenu(int target, const char[] AuthIdInviter, int GangId, const char[] GangName)
@@ -3487,6 +3530,8 @@ public int AcceptInvite_MenuHandler(Handle hMenu, MenuAction action, int client,
 			AddClientToGang(client, AuthIdInviter, GangId);
 		}
 	}
+
+	return 0;
 }
 
 void ShowMembersMenu(int client)
@@ -3574,6 +3619,8 @@ public int Members_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 
 		ShowMembersMenu(client);
 	}
+
+	return 0;
 }
 
 void TryCreateGang(int client, const char[] GangName)
@@ -4164,12 +4211,14 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("Gangs_GetCooldownPercent", Native_GetCooldownPercent);
 
 	RegPluginLibrary("JB Gangs");
+	
 	return APLRes_Success;
 }
 
 public int Native_HasGang(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
+
 	return IsClientGang(client);
 }
 
@@ -4177,6 +4226,7 @@ public int Native_AreClientsSameGang(Handle plugin, int numParams)
 {
 	int client      = GetNativeCell(1);
 	int otherClient = GetNativeCell(2);
+
 	return AreClientsSameGang(client, otherClient);
 }
 
@@ -4207,9 +4257,12 @@ public int Native_GetClientGangName(Handle plugin, int numParams)
 	int len    = GetNativeCell(3);
 	if (!IsClientGang(client))
 	{
-		return;
+		return 0;
 	}
+
 	SetNativeString(2, ClientGang[client], len, false);
+
+	return 0;
 }
 
 public int Native_PrintToChatGang(Handle plugin, int numParams)
@@ -4220,6 +4273,8 @@ public int Native_PrintToChatGang(Handle plugin, int numParams)
 	FormatNativeString(0, 2, 3, sizeof(buffer), _, buffer);
 
 	PrintToChatGang(GangId, buffer);
+
+	return 0;
 }
 
 public int Native_TryDestroyGlow(Handle plugin, int numParams)
@@ -4227,6 +4282,8 @@ public int Native_TryDestroyGlow(Handle plugin, int numParams)
 	int client = GetNativeCell(1);
 
 	TryDestroyGlow(client);
+
+	return 0;
 }
 
 public int Native_GiveClientHonor(Handle plugin, int numParams)
@@ -4235,6 +4292,8 @@ public int Native_GiveClientHonor(Handle plugin, int numParams)
 	int amount = GetNativeCell(2);
 
 	GiveClientHonor(client, amount);
+
+	return 0;
 }
 
 public int Native_AddClientDonations(Handle plugin, int numParams)
@@ -4253,6 +4312,8 @@ public int Native_AddClientDonations(Handle plugin, int numParams)
 	WritePackCell(DP, ClientGangId[client]);
 
 	dbGangs.Query(SQLCB_GangDonated, sQuery, DP);
+
+	return 0;
 }
 
 public int Native_GiveGangHonor(Handle plugin, int numParams)
@@ -4269,6 +4330,8 @@ public int Native_GiveGangHonor(Handle plugin, int numParams)
 	WritePackCell(DP, GangId);
 
 	dbGangs.Query(SQLCB_GiveGangHonor, sQuery, DP);
+
+	return 0;
 }
 
 public any Native_GetFFDamageDecrease(Handle plugin, int numParams)

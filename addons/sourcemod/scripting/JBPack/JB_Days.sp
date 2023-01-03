@@ -5,8 +5,8 @@
 #include <sdktools>
 #include <sourcemod>
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 #define MENU_SELECT_SOUND "buttons/button14.wav"
 #define MENU_EXIT_SOUND   "buttons/combine_button7.wav"
@@ -24,7 +24,7 @@ enum enDay
 	SDEAGLE_DAY,
 
 	MAX_DAYS
-}
+};
 
 char DayName[][] = {
 	"IF YOU SEE THIS MESSAGE CONTACT ADMIN!",
@@ -48,7 +48,7 @@ char DayCommand[][] = {
 	"sm_startknifeday",
 	"sm_startwarday",
 	"sm_startsdeagleday"
-}
+};
 
 enum struct enWeapon {
 	char classname[64];
@@ -62,10 +62,9 @@ enWeapon WarDayWeapons[] = {
 	{ "weapon_sg556",  "SG-553" },
 	{ "weapon_aug",    "AUG"    },
 	{ "weapon_scar20", "SCAR-20"}
-}
+};
 
-native void
-			 Eyal282_VoteCT_StopVoteCT();
+native void Eyal282_VoteCT_StopVoteCT();
 native int   Gangs_HasGang(int client);
 native int   Gangs_GetClientGangId(int client);
 native int   Gangs_GetClientGlowColorSlot(int client);
@@ -142,6 +141,8 @@ public int Native_IsDayActive(Handle plugin, int numParams)
 public int Native_StartVoteDay(Handle plugin, int numParams)
 {
 	StartVoteDay();
+
+	return 0;
 }
 
 public Action Timer_DrawVoteDayMenu(Handle hTimer)
@@ -218,6 +219,8 @@ public int VoteDay_VoteHandler(Handle hMenu, MenuAction action, int param1, int 
 	{
 		votedItem[param1] = param2 + view_as<int>(LR_DAY) + 1;
 	}
+
+	return 0;
 }
 
 void CheckVoteDayResult()
@@ -246,7 +249,7 @@ void EndVoteDay()
 	for (int i = 0; i < sizeof(votedItem); i++)
 		votedItem[i] = -1;
 
-	VoteDayStart = 0.0
+	VoteDayStart = 0.0;
 }
 
 public void OnPluginStart()
@@ -549,6 +552,8 @@ public Action SDKEvent_PostThinkPost(int client)
 		if (weapon != -1)
 			SetEntPropFloat(weapon, Prop_Send, "m_fAccuracyPenalty", 0.0);
 	}
+
+	return Plugin_Continue;
 }
 
 public Action Command_StartVoteDay(int client, int args)
@@ -664,7 +669,7 @@ void SelectHSKnifeDay()
 
 	VoteMenuToAll(hVoteBackstabMenu, 15);
 
-	CreateTimer(1.0, Timer_DrawVoteHSKnifeMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT)
+	CreateTimer(1.0, Timer_DrawVoteHSKnifeMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 
 public Action Timer_DrawVoteHSKnifeMenu(Handle hTimer)
@@ -736,6 +741,8 @@ public int KnifeDayHS_VoteHandler(Handle hMenu, MenuAction action, int param1, i
 	{
 		votedItem[param1] = param2;
 	}
+
+	return 0;
 }
 
 void CheckVoteHSKnifeResult()
@@ -991,7 +998,7 @@ void SelectWeaponWarDay()
 
 	VoteMenuToAll(hVoteWeaponMenu, 15);
 
-	CreateTimer(1.0, Timer_DrawVoteWeaponMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT)
+	CreateTimer(1.0, Timer_DrawVoteWeaponMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 
 public Action Timer_DrawVoteWeaponMenu(Handle hTimer)
@@ -1063,6 +1070,8 @@ public int VoteWeapon_VoteHandler(Handle hMenu, MenuAction action, int param1, i
 	{
 		votedItem[param1] = param2;
 	}
+
+	return 0;
 }
 
 void CheckVoteWeaponResult()
@@ -1105,7 +1114,7 @@ void SelectHSWarDay()
 
 	VoteMenuToAll(hVoteHSMenu, 15);
 
-	CreateTimer(1.0, Timer_DrawVoteHSMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT)
+	CreateTimer(1.0, Timer_DrawVoteHSMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 
 public Action Timer_DrawVoteHSMenu(Handle hTimer)
@@ -1177,6 +1186,8 @@ public int WarDayHS_VoteHandler(Handle hMenu, MenuAction action, int param1, int
 	{
 		votedItem[param1] = param2;
 	}
+
+	return 0;
 }
 
 void CheckVoteHSResult()
@@ -1372,7 +1383,7 @@ public int PanelHandler_InfoMessage(Handle hPanel, MenuAction action, int client
 	{
 		CloseHandle(hPanel);
 
-		return;
+		return 0;
 	}
 	else if (action == MenuAction_Select)
 	{
@@ -1398,11 +1409,13 @@ public int PanelHandler_InfoMessage(Handle hPanel, MenuAction action, int client
 			EmitSoundToClient(client, MENU_EXIT_SOUND);    // Fauken panels...
 		}
 	}
+
+	return 0;
 }
 
 stock void StartVoteDay()
 {
-	for (new i = 1; i <= MaxClients; i++)
+	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientInGame(i))
 			continue;
@@ -1423,7 +1436,7 @@ stock void StartVoteDay()
 
 	VoteMenuToAll(hVoteDayMenu, 15);
 
-	CreateTimer(1.0, Timer_DrawVoteDayMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT)
+	CreateTimer(1.0, Timer_DrawVoteDayMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 stock void StopDay(bool Restart = true)
 {
@@ -1459,12 +1472,14 @@ stock void StopDay(bool Restart = true)
 public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	StopDay(false);
+
+	return Plugin_Continue;
 }
 
 public Action Event_WeaponTryFire(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if (DayActive == NULL_DAY)
-		return;
+		return Plugin_Continue;
 
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 
@@ -1475,12 +1490,14 @@ public Action Event_WeaponTryFire(Handle hEvent, const char[] Name, bool dontBro
 
 	if (StrEqual(Classname, "weapon_deagle") || StrEqual(Classname, "weapon_ssg08"))
 		SetClientAmmo(client, weapon, 999);
+
+	return Plugin_Continue;
 }
 
 public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if (DayActive == NULL_DAY || IgnorePlayerDeaths)
-		return;
+		return Plugin_Continue;
 
 	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 
@@ -1488,10 +1505,12 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 	{
 		StopDay(true);
 
-		return;
+		return Plugin_Continue;
 	}
 
 	ProcessPlayerDeath(victim);
+
+	return Plugin_Continue;
 }
 
 void ProcessPlayerDeath(int victim)
@@ -1649,14 +1668,16 @@ public Action Event_PlayerHurt(Handle hEvent, const char[] Name, bool dontBroadc
 	}
 
 	if (DayActive != SDEAGLE_DAY)
-		return;
+		return Plugin_Continue;
 
 	int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
 
 	if (attacker == 0 || client == 0)
-		return;
+		return Plugin_Continue;
 
 	BitchSlapBackwards(client, attacker, 5150.0);
+
+	return Plugin_Continue;
 }
 
 public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -1666,10 +1687,10 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 	int client = GetClientOfUserId(UserId);
 
 	if(client == 0)
-		return;
+		return Plugin_Continue;
 	
 	else if(DayActive <= LR_DAY)
-		return;
+		return Plugin_Continue;
 
 	if(!IgnorePlayerDeaths && IsPlayerAlive(client) && DayCountDown <= 0)
 	{
@@ -1677,17 +1698,19 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 	}
 
 	CreateTimer(0.1, Timer_PlayerSpawn, UserId, TIMER_FLAG_NO_MAPCHANGE);
+
+	return Plugin_Continue;
 }
 
 public Action Timer_PlayerSpawn(Handle hTimer, int UserId)
 {
 	if (DayActive <= LR_DAY)
-		return;
+		return Plugin_Continue;
 
 	int client = GetClientOfUserId(UserId);
 
 	if (client == 0)
-		return;
+		return Plugin_Continue;
 
 	switch (DayActive)
 	{
@@ -1756,13 +1779,15 @@ public Action Timer_PlayerSpawn(Handle hTimer, int UserId)
 	}
 
 	SetEntityMaxHealth(client, GetEntityHealth(client));
+
+	return Plugin_Continue;
 }
 
 public void OnEntityCreated(int entity, const char[] Classname)
 {
 	if (StrEqual(Classname, "decoy_projectile"))
 	{
-		SDKHook(entity, SDKHook_SpawnPost, SpawnPost_Decoy)
+		SDKHook(entity, SDKHook_SpawnPost, SpawnPost_Decoy);
 	}
 }
 
@@ -1976,7 +2001,7 @@ stock void StringToLower(char[] sSource)
 	}
 }
 
-stock CalculateVotes()
+stock int[] CalculateVotes()
 {
 	int arr[16];
 
@@ -1995,7 +2020,7 @@ stock CalculateVotes()
 }
 
 // Destroys all weapons and their creator entities.
-stock DestroyAllWeapons()
+stock void DestroyAllWeapons()
 {
 	if (DayActive == FS_DAY)
 		return;

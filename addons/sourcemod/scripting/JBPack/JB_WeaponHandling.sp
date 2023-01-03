@@ -1,8 +1,8 @@
 #include <sourcemod>
 #include <sdkhooks>
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 public Plugin myinfo =
 {

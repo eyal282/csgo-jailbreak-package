@@ -10,10 +10,10 @@
 
 #define PLUGIN_VERSION "1.0"
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
-native bool Eyal282_VoteCT_IsChosen(client);
+native bool Eyal282_VoteCT_IsChosen(int client);
 native bool Eyal282_VoteCT_IsPreviewRound();
 native bool JailBreakDays_IsDayActive();
 native bool LR_isActive();
@@ -40,7 +40,7 @@ Handle hcv_TeammatesAreEnemies = INVALID_HANDLE;
 Handle hcv_CKHealthPerT        = INVALID_HANDLE;
 
 Handle hTimer_Beacon          = INVALID_HANDLE;
-bool   nospam[MAXPLAYERS + 1] = false;
+bool   nospam[MAXPLAYERS + 1] = { false, ... };
 ConVar g_SetTimeMute;
 ConVar g_tMinMute;
 ConVar g_SetTimeCooldown;
@@ -51,7 +51,7 @@ Handle hTimer_ExpireMute = INVALID_HANDLE;
 
 bool CKEnabled = false;
 
-bool bCanZoom[MAXPLAYERS + 1] = true, bHasSilencer[MAXPLAYERS + 1] = true, bWrongWeapon[MAXPLAYERS + 1] = true;
+bool bCanZoom[MAXPLAYERS + 1] = { true, ... }, bHasSilencer[MAXPLAYERS + 1] = { true, ... }, bWrongWeapon[MAXPLAYERS + 1] = { true, ... };
 
 float fNextGiveLR;
 
@@ -191,6 +191,8 @@ public Action Timer_DrawMarkers(Handle hTimer)
 		TE_SetupBeamRingPoint(Origin, Radius, Radius + 0.1, BeamIndex, HaloIdx, 0, 10, 0.51, 5.0, 0.0, colors, 10, 0);
 		TE_SendToAll();
 	}
+
+	return Plugin_Continue;
 }
 
 #define MAX_BUTTONS 26
@@ -200,7 +202,7 @@ float g_fPressTime[MAXPLAYERS + 1][MAX_BUTTONS + 1];
 
 public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3], int& weapon, int& subtype, int& cmdnum, int& tickcount, int& seed, int mouse[2])
 {
-	for (new i = 0; i < MAX_BUTTONS; i++)
+	for (int i = 0; i < MAX_BUTTONS; i++)
 	{
 		int button = (1 << i);
 
@@ -249,7 +251,7 @@ public void OnButtonRelease(int client, int button, float holdTime)
 		CreateMarker(client);
 
 		if (GetArraySize(aMarkers) == 1)
-			UC_PrintToChat(client, "Hint: Hold +attack2 for a second to clear all marks.")
+			UC_PrintToChat(client, "Hint: Hold +attack2 for a second to clear all marks.");
 	}
 	else if (holdTime >= 1.0)
 	{
@@ -393,7 +395,7 @@ public Action Event_RoundStart(Event hEvent, const char[] Name, bool dontBroadca
 		}
 
 		UC_PrintToChatAll("%s The \x02terrorist \x01are not muted, they can talk now.", PREFIX);
-		return;
+		return Plugin_Continue;
 	}
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -417,6 +419,8 @@ public Action Event_RoundStart(Event hEvent, const char[] Name, bool dontBroadca
 	hTimer_ExpireMute = CreateTimer(g_SetTimeMute.FloatValue, MuteHandler);
 
 	UC_PrintToChatAll("%s The \x02terrorist \x01have been muted, they will be able to speak in \x05%d \x01seconds", PREFIX, g_SetTimeMute.IntValue);
+
+	return Plugin_Continue;
 }
 
 public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -436,6 +440,8 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 
 	else if (!BaseComm_IsClientMuted(client))
 		SetClientListeningFlags(client, VOICE_NORMAL);
+
+	return Plugin_Continue;
 }
 
 // Shamelessly stolen from MyJailBreak, Shanapu
@@ -454,11 +460,7 @@ public Action Event_ItemEquip(Event event, const char[] Name, bool dontBroadcast
 		bWrongWeapon[client] = true;
 	}
 
-	/*
-	WEAPONTYPE_KNIFE = 0
-	WEAPONTYPE_TASER 8
-	WEAPONTYPE_GRENADE 9
-	*/
+	return Plugin_Continue;
 }
 
 public Action AddHealthCT(Handle hTimer, int UserId)
@@ -466,13 +468,13 @@ public Action AddHealthCT(Handle hTimer, int UserId)
 	int client = GetClientOfUserId(UserId);
 
 	if (client == 0)
-		return;
+		return Plugin_Continue;
 
 	else if (GetClientTeam(client) != CS_TEAM_CT)
-		return;
+		return Plugin_Continue;
 
 	else if (!IsPlayerAlive(client))
-		return;
+		return Plugin_Continue;
 
 	int health = GetEntProp(client, Prop_Send, "m_iHealth");
 
@@ -480,6 +482,8 @@ public Action AddHealthCT(Handle hTimer, int UserId)
 	health += ((GetConVarInt(hcv_CKHealthPerT) * GetTeamPlayerCount(CS_TEAM_T)) / GetTeamPlayerCount(CS_TEAM_CT));
 
 	SetEntityHealth(client, health);
+
+	return Plugin_Continue;
 }
 
 public void OnClientDisconnect_Post(int client)
@@ -511,6 +515,8 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 		if (hTimer_ExpireMute != INVALID_HANDLE)
 			TriggerTimer(hTimer_ExpireMute, true);
 	}
+
+	return Plugin_Continue;
 }
 
 public Action Command_FD(int client, int args)
@@ -596,7 +602,7 @@ public Action Timer_BeaconVIP(Handle hTimer)
 	return Plugin_Continue;
 }
 
-public Action Command_Box(int client, args)
+public Action Command_Box(int client, int args)
 {
 	if (JailBreakDays_IsDayActive())
 		return Plugin_Handled;
@@ -636,10 +642,10 @@ public int Box_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 	else if (action == MenuAction_Select)
 	{
 		if (JailBreakDays_IsDayActive())
-			return;
+			return 0;
 
 		else if (GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
-			return;
+			return 0;
 
 		switch (item)
 		{
@@ -666,6 +672,8 @@ public int Box_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 			}
 		}
 	}
+
+	return 0;
 }
 
 public Action Command_CK(int client, int args)
@@ -711,7 +719,7 @@ public int CK_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 	else if (action == MenuAction_Select)
 	{
 		if (!CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
-			return;
+			return 0;
 
 		switch (item)
 		{
@@ -728,6 +736,8 @@ public int CK_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 
 		ServerCommand("mp_restartgame 1");
 	}
+
+	return 0;
 }
 
 public Action Command_SilentStopCK(int client, int args)
@@ -960,23 +970,30 @@ public Action cmd_medic(int client, int args)
 		{
 			nospam[client] = true;
 			UC_PrintToChatAll("%s \x05%s\x01 wants a \x07medic!", PREFIX, name);
-			CreateTimer(g_SetTimeCooldown.FloatValue, medicHandler, client);
+			CreateTimer(g_SetTimeCooldown.FloatValue, medicHandler, GetClientUserId(client));
 			return Plugin_Handled;
 		}
 	}
 	return Plugin_Continue;
 }
 
-public Action medicHandler(Handle timer, any client)
+public Action medicHandler(Handle timer, any UserId)
 {
+	int client = GetClientOfUserId(UserId);
+
+	if(client == 0)
+		return Plugin_Continue;
+
 	if (nospam[client])
 	{
 		nospam[client] = false;
 		KillTimer(timer);    // pervent memory leak
 	}
+
+	return Plugin_Continue;
 }
 
-public Action cmd_deagle(int client, args)
+public Action cmd_deagle(int client, int args)
 {
 	if (IsClientInGame(client) && GetClientTeam(client) == CS_TEAM_T && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
@@ -1016,6 +1033,8 @@ public Action MuteHandler(Handle timer, any client)
 	}
 
 	hTimer_ExpireMute = INVALID_HANDLE;
+
+	return Plugin_Continue;
 }
 
 public Action Event_PlayerTeam(Event event, char[] name, bool dontBroadcast)
@@ -1023,6 +1042,8 @@ public Action Event_PlayerTeam(Event event, char[] name, bool dontBroadcast)
 	int UserId = event.GetInt("userid");
 
 	CreateTimer(0.1, CheckDeathOnJoin, UserId, TIMER_FLAG_NO_MAPCHANGE);
+
+	return Plugin_Continue;
 }
 
 public Action CheckDeathOnJoin(Handle hTimer, int UserId)
@@ -1030,13 +1051,15 @@ public Action CheckDeathOnJoin(Handle hTimer, int UserId)
 	int client = GetClientOfUserId(UserId);
 
 	if (client == 0)
-		return;
+		return Plugin_Continue;
 
 	else if (IsPlayerAlive(client) || GetConVarBool(hcv_DeadTalk))
-		return;
+		return Plugin_Continue;
 
 	if (!GetConVarBool(hcv_DeadTalk) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 		SetClientListeningFlags(client, VOICE_MUTED);
+
+	return Plugin_Continue;
 }
 
 public Action cmd_givelr(int client, int args)

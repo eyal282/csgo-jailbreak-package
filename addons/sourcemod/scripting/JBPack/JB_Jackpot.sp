@@ -10,8 +10,8 @@
 #define REQUIRE_PLUGIN
 #define REQUIRE_EXTENSIONS
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 #define PLUGIN_VERSION "1.0"
 
@@ -96,7 +96,7 @@ void ConnectToDatabase()
 		SQL_TQuery(dbJackpot, SQLCB_Error, "CREATE TABLE IF NOT EXISTS Jackpot_Debt (AuthId VARCHAR(35) NOT NULL UNIQUE, credits INT(11) NOT NULL)");
 }
 
-public int SQLCB_Error(Handle db, Handle hResults, const char[] Error, int data)
+public void SQLCB_Error(Handle db, Handle hResults, const char[] Error, int data)
 {
 	/* If something fucked up. */
 	if (hResults == null)
@@ -116,6 +116,8 @@ public void OnPluginEnd()
 public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	CheckJackpotEnd();
+
+	return Plugin_Continue;
 }
 
 public void CheckJackpotEnd()
@@ -247,7 +249,7 @@ public Action Timer_LoadJackpotDebt(Handle hTimer, int UserId)
 	int client = GetClientOfUserId(UserId);
 
 	if (client == 0)
-		return;
+			return Plugin_Continue;
 
 	char sQuery[256];
 	char AuthId[35];
@@ -255,6 +257,8 @@ public Action Timer_LoadJackpotDebt(Handle hTimer, int UserId)
 
 	Format(sQuery, sizeof(sQuery), "SELECT * FROM Jackpot_Debt WHERE AuthId = '%s'", AuthId);
 	SQL_TQuery(dbJackpot, SQLCB_LoadDebt, sQuery, GetClientUserId(client));
+
+	return Plugin_Continue;
 }
 
 public int SQLCB_LoadDebt(Handle db, Handle hResults, const char[] Error, int UserId)
@@ -265,10 +269,10 @@ public int SQLCB_LoadDebt(Handle db, Handle hResults, const char[] Error, int Us
 	int client = GetClientOfUserId(UserId);
 
 	if (client == 0)
-		return;
+		return 0;
 
 	else if (!FullyAuthorized[client])
-		return;
+		return 0;
 
 	else if (SQL_GetRowCount(hResults) > 0)
 	{
@@ -288,6 +292,8 @@ public int SQLCB_LoadDebt(Handle db, Handle hResults, const char[] Error, int Us
 
 		Store_SetClientCredits(client, Store_GetClientCredits(client) + debt);
 	}
+
+	return 0;
 }
 
 stock float GetJackpotChance(const char[] AuthId)

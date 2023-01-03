@@ -2,8 +2,8 @@
 #include <sdktools>
 #include <sourcemod>
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 public Plugin myinfo =
 {
@@ -28,6 +28,8 @@ public Action Event_OnFullConnect(Handle event, const char[] name, bool dontBroa
 	{
 		CreateTimer(1.0, AssignTeam, GetClientUserId(client));
 	}
+
+	return Plugin_Continue;
 }
 
 public Action AssignTeam(Handle timer, any userid)
@@ -35,7 +37,9 @@ public Action AssignTeam(Handle timer, any userid)
 	int client = GetClientOfUserId(userid);
 
 	if(client == 0)
-		return;
+		return Plugin_Continue;
 
 	ChangeClientTeam(client, CS_TEAM_T);
+
+	return Plugin_Continue;
 }

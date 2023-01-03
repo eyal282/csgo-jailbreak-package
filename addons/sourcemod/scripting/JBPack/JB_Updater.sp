@@ -9,8 +9,8 @@
 
 #define UPDATE_URL "https://raw.githubusercontent.com/eyal282/csgo-jailbreak-package/master/addons/sourcemod/updatefile.txt"
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 public Plugin myinfo =
 {
@@ -39,7 +39,7 @@ public void OnClientConnected(int client)
 	}
 }
 
-public int Updater_OnPluginUpdated()
+public void Updater_OnPluginUpdated()
 {
 	if(!LibraryExists("JB_Core"))
 	{

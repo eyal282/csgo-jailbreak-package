@@ -3,7 +3,8 @@
 #include <sdktools>
 #include <sourcemod>
 
-#pragma newdecls required
+#pragma semicolon 1
+#pragma newdecls  required
 
 native int Store_GetClientCredits(int client);
 native int Store_SetClientCredits(int client, int amount);
@@ -25,8 +26,7 @@ public Plugin myinfo =
 
 }
 
-native float
-	Gangs_GetCooldownPercent(int client);
+native float Gangs_GetCooldownPercent(int client);
 
 enum PrizeTypes
 {
@@ -60,12 +60,14 @@ Handle HudSync = INVALID_HANDLE;
 
 bool isSpinning[MAXPLAYERS + 1];
 
+// This error thrower won't work...
+/*
 #if sizeof(Prizes) < 3
 
 	#error "Plugin needs at least 3 prizes in order to properly set itself up"
 
 #endif
-
+*/
 public void OnPluginStart()
 {
 	RegConsoleCmd("sm_wheel", Command_Wheel);
@@ -100,6 +102,8 @@ public Action Timer_CheckConfig(Handle hTimer)
 		UC_PrintToChatEyal(sFilename);
 		ServerCommand("sm plugins unload %s", sFilename);
 	}
+
+	return Plugin_Continue;
 }
 
 void ConnectToDatabase()
@@ -229,7 +233,7 @@ public int Wheel_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 			case 1:
 			{
 				if (!CheckCommandAccess(client, "sm_rcon", ADMFLAG_ROOT, true))
-					return;
+					return 0;
 
 				SQL_TQuery(dbWheel, SQLCB_Error, "UPDATE Wheel_players SET spins = 1 WHERE spins = 0", DBPrio_High);
 
@@ -237,6 +241,8 @@ public int Wheel_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 			}
 		}
 	}
+
+	return 0;
 }
 
 void SpinTheWheel(int client)
@@ -342,7 +348,7 @@ public Action Timer_DisplayWheel(Handle hTimer, Handle DP)
 				SQL_TQuery(dbWheel, SQLCB_Error, sQuery, DBPrio_High);
 			}
 		}
-		return;
+		return Plugin_Continue;
 	}
 
 	CurrentItem += 1;
@@ -372,6 +378,8 @@ public Action Timer_DisplayWheel(Handle hTimer, Handle DP)
 	WritePackCell(otherDP, CurrentItem);    // Current item in the wheel itself
 
 	WritePackCell(otherDP, LuckyItem);
+
+	return Plugin_Continue;
 }
 
 stock void FormatTimeHMS(char[] Time, int length, int timestamp, bool LimitTo24H = false)

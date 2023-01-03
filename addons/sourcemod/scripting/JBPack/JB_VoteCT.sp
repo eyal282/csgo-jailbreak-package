@@ -8,8 +8,8 @@
 #include <sdktools>
 #include <sourcemod>
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 native bool IsPlayerBannedFromGuardsTeam(int client);
 native void LR_FinishTimers(Handle hTimer_Ignore = INVALID_HANDLE);
@@ -29,7 +29,7 @@ enum enGame
 	Game_MathContest,
 	Game_ElectionDay,
 	Game_MAX
-}
+};
 
 char GameInfo[Game_MAX][] = {
 	"First Writes {VOTE_COUNT}\nRepeat the text on your screen",
@@ -38,12 +38,19 @@ char GameInfo[Game_MAX][] = {
 	"Random Player {VOTE_COUNT}\nA random player will become CT automatically",
 	"Math Contest {VOTE_COUNT}\nA very easy math question from the multiplication table",
 	"Election Day {VOTE_COUNT}\nThe players will vote on who will become CT"
-}
+};
 
 char   PREFIX[256];
 Handle hcv_Prefix = INVALID_HANDLE;
 
-char GameTitle[Game_MAX][] = { "First Writes\nBe the first player to repeat the text to become CT", "Random Number\nChoose a number between 1-300, closest result to the chosen number becomes CT", "Combo Contest\nRepeat the moves before everybody else to become CT", "Random Player\nWould you like to become CT?", "Math Contest\nA very easy question from the multiplication table e.g. 9x3", "Election Day\nWould you like to become CT?" }
+char GameTitle[Game_MAX][] = {
+	"First Writes\nBe the first player to repeat the text to become CT",
+	"Random Number\nChoose a number between 1-300, closest result to the chosen number becomes CT",
+	"Combo Contest\nRepeat the moves before everybody else to become CT",
+	"Random Player\nWould you like to become CT?",
+	"Math Contest\nA very easy question from the multiplication table e.g. 9x3",
+	"Election Day\nWould you like to become CT?"
+	};
 
 float ExpireGraceTime = 0.0;
 
@@ -64,9 +71,9 @@ bool NextRoundSpecialDay;
 
 char GameValue[64];
 
-int MathFirstNumber = 0, MathSecondNumber = 0
+int MathFirstNumber = 0, MathSecondNumber = 0;
 
-						 int NumberSelected[MAXPLAYERS + 1];
+int NumberSelected[MAXPLAYERS + 1];
 
 bool WantsToBeCT[MAXPLAYERS + 1];
 
@@ -100,9 +107,21 @@ char ComboNames[][] = {
 	"-- Use --",
 	"-- Reload --",
 	"-- Duck --"
-}
+};
 
-int ComboBits[] = { IN_ATTACK, IN_ATTACK2, IN_JUMP, IN_SCORE, IN_MOVELEFT, IN_MOVERIGHT, IN_FORWARD, IN_BACK, IN_USE, IN_RELOAD, IN_DUCK }
+int ComboBits[] = { 
+	IN_ATTACK,
+	IN_ATTACK2,
+	IN_JUMP,
+	IN_SCORE,
+	IN_MOVELEFT,
+	IN_MOVERIGHT,
+	IN_FORWARD,
+	IN_BACK,
+	IN_USE,
+	IN_RELOAD, 
+	IN_DUCK
+};
 
 int ChosenUserId;
 
@@ -163,6 +182,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 public int Native_StopVoteCT(Handle plugin, int numParams)
 {
 	EndVoteCT();
+
+	return 0;
 }
 
 public int Native_IsChosen(Handle plugin, int numParams)
@@ -188,6 +209,8 @@ public int Native_SetChosen(Handle plugin, int numParams)
 	SetChosenCT(client);
 
 	EndVoteCT();
+
+	return 0;
 }
 
 public void OnPluginStart()
@@ -388,6 +411,8 @@ public Action Timer_CheckVoteCT(Handle hTimer)
 			PrintCenterTextAll("Vote CT will start when T has %i players", GetConVarInt(hcv_VoteCTMin));
 		}
 	}
+
+	return Plugin_Continue;
 }
 
 public void OnClientConnected(int client)
@@ -451,10 +476,12 @@ public Action JoinTeam_SpectatorCheck(Handle hTimer, int UserId)
 	int client = GetClientOfUserId(UserId);
 
 	if (client == 0)
-		return;
+		return Plugin_Continue;
 
 	else if (GetClientTeam(client) == CS_TEAM_NONE)
 		ClientCommand(client, "jointeam %i", CS_TEAM_T);
+
+	return Plugin_Continue;
 }
 
 public Action Listener_Say(int client, const char[] command, int args)
@@ -555,7 +582,7 @@ public Action Listener_JoinTeam(int client, const char[] command, int args)
 public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if (GetClientOfUserId(ChosenUserId) == 0)
-		return;
+		return Plugin_Continue;
 
 	RoundsLeft--;
 
@@ -574,7 +601,7 @@ public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcas
 
 		RoundsLeft = GetConVarInt(hcv_MaxRounds);
 
-		return;
+		return Plugin_Continue;
 	}
 
 	else if (RoundsLeft == 1)
@@ -584,6 +611,8 @@ public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcas
 
 	IsPreviewRound = false;
 	UC_PrintToChatAll("%s \x05Vote-CT \x01will start in \x07%i \x01round%s. ", PREFIX, RoundsLeft, RoundsLeft == 1 ? "" : "s");
+
+	return Plugin_Continue;
 }
 
 public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -614,6 +643,8 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 
 	NextRoundPreviewRound = false;
 	NextRoundSpecialDay   = false;
+
+	return Plugin_Continue;
 }
 
 void StartVoteDay()
@@ -657,6 +688,8 @@ public Action Timer_CheckPreviewRound(Handle hTimer)
 public Action Event_RoundFreezeEnd(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	ExpireGraceTime = GetGameTime() + GetConVarFloat(hcv_JoinGraceTime);
+
+	return Plugin_Continue;
 }
 
 public Action Event_PlayerTeam(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -681,6 +714,8 @@ public Action Event_PlayerTeam(Handle hEvent, const char[] Name, bool dontBroadc
 		if (client != 0)
 			CS_RespawnPlayer(client);
 	}
+
+	return Plugin_Continue;
 }
 
 public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -692,11 +727,13 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 		int client = GetClientOfUserId(UserId);
 
 		if (GetClientTeam(client) != CS_TEAM_CT)
-			return;
+			return Plugin_Continue;
 
 		else if (GetAvailableInviteCT() > 0)
 			Command_TList(client, 0);
 	}
+
+	return Plugin_Continue;
 }
 
 public Action Command_KickCT(int client, int args)
@@ -760,13 +797,13 @@ public int KickCT_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 		int Chosen = GetClientOfUserId(ChosenUserId);
 
 		if (Chosen != client)
-			return;
+			return 0;
 
 		if (target == 0 || GetClientTeam(target) != CS_TEAM_CT)
 		{
 			UC_PrintToChat(client, "%s \x01Target player is not \x05connected. ", PREFIX);
 
-			return;
+			return 0;
 		}
 
 		CS_SwitchTeam(target, CS_TEAM_T);
@@ -777,6 +814,8 @@ public int KickCT_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 		else
 			ForcePlayerSuicide(target);
 	}
+
+	return 0;
 }
 
 public Action Command_TList(int client, int args)
@@ -851,17 +890,19 @@ public int TList_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 		int Chosen = GetClientOfUserId(ChosenUserId);
 
 		if (Chosen != client)
-			return;
+			return 0;
 
 		if (target == 0 || GetClientTeam(target) != CS_TEAM_T || IsPlayerBannedFromGuardsTeam(target))
 		{
 			UC_PrintToChat(client, "%s \x01Target player is not \x05connected. ", PREFIX);
 
-			return;
+			return 0;
 		}
 
 		ShowAcceptInviteMenu(target);
 	}
+
+	return 0;
 }
 
 public Action Command_EndPreviewRound(int client, int args)
@@ -909,18 +950,18 @@ public int AcceptInvite_MenuHandler(Handle hMenu, MenuAction action, int client,
 	else if (action == MenuAction_Select)
 	{
 		if (GetClientTeam(client) != CS_TEAM_T)
-			return;
+			return 0;
 
 		else if (item != 0)
-			return;
+			return 0;
 
 		else if (GetAvailableInviteCT() == 0)
-			return;
+			return 0;
 
 		else if (IsPlayerBannedFromGuardsTeam(client))
 		{
 			UC_PrintToChat(client, "%s \x01You're \x07banned \x01from \x05CT ", PREFIX);
-			return;
+			return 0;
 		}
 
 		CS_SwitchTeam(client, CS_TEAM_CT);
@@ -931,6 +972,8 @@ public int AcceptInvite_MenuHandler(Handle hMenu, MenuAction action, int client,
 		else
 			ForcePlayerSuicide(client);
 	}
+
+	return 0;
 }
 
 public Action Command_Chosen(int client, int args)
@@ -1119,7 +1162,7 @@ void StartVoteCT()
 
 	VoteMenuToAll(hVoteCTMenu, 15);
 
-	CreateTimer(1.0, Timer_DrawVoteCTMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT)
+	CreateTimer(1.0, Timer_DrawVoteCTMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 
 public Action Timer_DrawVoteCTMenu(Handle hTimer)
@@ -1191,7 +1234,7 @@ public int VoteCT_VoteHandler(Handle hMenu, MenuAction action, int param1, int p
 	else if (action == MenuAction_VoteEnd)
 	{
 		if (!VoteCTRunning)
-			return;
+			return 0;
 
 		CheckVoteCTResult();
 	}
@@ -1199,6 +1242,8 @@ public int VoteCT_VoteHandler(Handle hMenu, MenuAction action, int param1, int p
 	{
 		votedItem[param1] = param2;
 	}
+
+	return 0;
 }
 
 void CheckVoteCTResult()
@@ -1371,6 +1416,8 @@ public int dummyvalue_MenuHandler(Handle hMenu, MenuAction action, int param1, i
 {
 	if (action == MenuAction_End)
 		CloseHandle(hMenu);
+
+	return 0;
 }
 
 public int RandomPlayer_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -1384,7 +1431,7 @@ public int RandomPlayer_MenuHandler(Handle hMenu, MenuAction action, int client,
 		{
 			UC_PrintToChat(client, "%s You're \x07banned \x01from CT, you cannot attempt to win it", PREFIX);
 
-			return;
+			return 0;
 		}
 		if (item == 0)
 			WantsToBeCT[client] = true;
@@ -1392,6 +1439,8 @@ public int RandomPlayer_MenuHandler(Handle hMenu, MenuAction action, int client,
 		else if (item == 1)
 			WantsToBeCT[client] = false;
 	}
+
+	return 0;
 }
 
 void StartGame(Handle hTimer_Ignore)
@@ -1617,7 +1666,7 @@ void StartGame(Handle hTimer_Ignore)
 
 			VoteMenuToAll(hElectionDayMenu, 20);
 
-			CreateTimer(1.0, Timer_DrawElectionDayMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT)
+			CreateTimer(1.0, Timer_DrawElectionDayMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 		}
 	}
 }
@@ -1697,7 +1746,7 @@ public int ElectionDay_VoteHandler(Handle hMenu, MenuAction action, int param1, 
 	else if (action == MenuAction_VoteEnd)
 	{
 		if (!VoteCTRunning)
-			return;
+			return 0;
 
 		CheckElectionDayResult();
 	}
@@ -1714,6 +1763,8 @@ public int ElectionDay_VoteHandler(Handle hMenu, MenuAction action, int param1, 
 		else
 			votedItem[param1] = target;
 	}
+
+	return 0;
 }
 
 void CheckElectionDayResult()
@@ -1763,6 +1814,8 @@ public Action Timer_FailGame(Handle hTimer)
 	UC_PrintToChatAll(" \x01Nobody won the \x05Vote CT! \x01Picking another game...");
 
 	EndVoteCT(hTimer_FailGame);
+
+	return Plugin_Continue;
 }
 
 public void ShowComboMenu(int client)
@@ -1992,7 +2045,7 @@ stock bool IsValidTeam(int client)
 	return GetClientTeam(client) == CS_TEAM_CT || GetClientTeam(client) == CS_TEAM_T;
 }
 
-stock CalculateVotes()
+stock int[] CalculateVotes()
 {
 	int arr[MAXPLAYERS + 1];
 

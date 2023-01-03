@@ -12,8 +12,8 @@ Despite the fact that I wrote down most of the code, I copied a few small things
 #include <sdktools>
 #include <sourcemod>
 
-#pragma newdecls required
 #pragma semicolon 1
+#pragma newdecls  required
 
 native bool Gangs_HasGang(int client);
 native void Gangs_GetClientGangName(int client, char[] GangName, int len);
@@ -122,7 +122,7 @@ Database dbLRWins;
 
 Handle TIMER_INFOMSG                = INVALID_HANDLE;
 Handle TIMER_COUNTDOWN              = INVALID_HANDLE;
-Handle TIMER_BEACON[MAXPLAYERS + 1] = INVALID_HANDLE;
+Handle TIMER_BEACON[MAXPLAYERS + 1] = { INVALID_HANDLE, ... };
 Handle TIMER_FAILREACTION           = INVALID_HANDLE;
 Handle TIMER_REACTION               = INVALID_HANDLE;
 Handle TIMER_SLAYALL                = INVALID_HANDLE;
@@ -266,11 +266,11 @@ char OppositeWords2[][] = {
 	"Black"
 };
 
-char FWwords[][] = {
+/*char FWwords[][] = {
 	"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
 	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 };
-
+*/
 int EnglishLetters[] = {
 	'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
@@ -705,6 +705,8 @@ public Action Timer_BeaconRacePositions(Handle hTimer)
 
 		TE_SendToAll();
 	}
+
+	return Plugin_Continue;
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -724,6 +726,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	MarkNativeAsOptional("Gangs_AddClientDonations");
 	MarkNativeAsOptional("Gangs_HasGang");
 	MarkNativeAsOptional("Gangs_GetClientGangName");
+
+	return APLRes_Success;
 }
 /*
 public LR_isDodgeball(Handle:plugin, numParams)
@@ -749,18 +753,23 @@ public int LR_GetPrisoner(Handle plugin, int numParams)
 public int LR_isParticipant(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
+
 	return view_as<bool>(LRPart(client));
 }
 
 public int LR_Stop(Handle plugin, int numParams)
 {
 	EndLR(view_as<bool>(GetNativeCell(1)));
+
+	return 0;
 }
 
 public int LR_FinishTimers(Handle plugin, int numParams)
 {
 	Handle hTimer = GetNativeCell(1);
 	FinishTimers(hTimer);
+
+	return 0;
 }
 
 public int LR_isAutoBhopEnabled(Handle plugin, int numParams)
@@ -787,6 +796,8 @@ public int LR_isParachuteEnabled(Handle plugin, int numParams)
 public int LR_CheckAnnounce(Handle plugin, int numParams)
 {
 	CheckAnnounceLR();
+
+	return 0;
 }
 
 public void Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -810,7 +821,7 @@ public void Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadca
 
 public void OnEntityCreated(int entity, const char[] Classname)
 {
-	if (StrEqual(Classname, "hegrenade_projectile") || StrEqual(Classname, "decoy_projectile"))
+	if (StrEqual(Classname, "hegrenade_projectile") || StrEqual(Classname, "decoy_projectile") || StrEqual(Classname, "molotov_projectile"))
 	{
 		SDKHook(entity, SDKHook_SpawnPost, SpawnPost_Grenade);
 	}
@@ -840,18 +851,15 @@ public void SpawnPost_Grenade(int entity)
 	ReplaceString(WeaponName, sizeof(WeaponName), "_projectile", "");
 	Format(Weapon, sizeof(Weapon), "weapon_%s", WeaponName);
 
-	if (StrEqual(Weapon, "weapon_decoy"))
+	if (StrEqual(Weapon, "weapon_decoy") && Dodgeball)
 	{
 		StripPlayerWeapons(thrower);
 		GivePlayerItem(thrower, Weapon);
+
 		SetEntPropString(entity, Prop_Data, "m_iName", "Dodgeball");
 		RequestFrame(Decoy_FixAngles, entity);
 		SDKHook(entity, SDKHook_TouchPost, Event_DecoyTouch);
 		RequestFrame(Decoy_Chicken, entity);
-	}
-	else if (StrEqual(Weapon, "weapon_smokegrenade"))
-	{
-		CreateTimer(3.0, GiveSmoke, thrower, TIMER_FLAG_NO_MAPCHANGE);
 	}
 	else
 	{
@@ -932,6 +940,8 @@ public Action GiveSmoke(Handle hTimer, int thrower)
 {
 	StripPlayerWeapons(thrower);
 	GivePlayerItem(thrower, "weapon_smokegrenade");
+
+	return Plugin_Continue;
 }
 
 public void Decoy_FixAngles(int entity)
@@ -1028,11 +1038,15 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 	LRAnnounced = false;
 
 	CheckAnnounceLR();
+
+	return Plugin_Continue;
 }
 
 public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	EndLR();
+
+	return Plugin_Continue;
 }
 
 public Action Command_C4(int client, int args)
@@ -1164,6 +1178,8 @@ public Action SetGlow(Handle hTimer, int UserId)
 	UC_PrintToChatAll("%s \x05%N \x01is freeday in the round.", PREFIX, client);
 
 	ServerCommand("sm_vip #%i", UserId);
+
+	return Plugin_Continue;
 }
 
 public Action Command_InfoMsg(int client, int args)
@@ -1172,6 +1188,8 @@ public Action Command_InfoMsg(int client, int args)
 
 	ShowMessage[client] = SetClientInfoMessage(client, !val);
 	UC_PrintToChat(client, "%s \x01Your info message status is now \x07%sabled.", PREFIX, ShowMessage[client] ? "En" : "Dis");
+
+	return Plugin_Continue;
 }
 
 public Action Command_LOL(int client, int args)
@@ -1185,6 +1203,8 @@ public Action Command_LOL(int client, int args)
 public int InfoMessageCookieMenu_Handler(int client, CookieMenuAction action, int info, char[] buffer, int maxlen)
 {
 	ShowInfoMessageMenu(client);
+
+	return 0;
 }
 
 public void ShowInfoMessageMenu(int client)
@@ -1701,7 +1721,7 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 	if (!LRStarted)
 	{
 		CheckAnnounceLR();
-		return;
+		return Plugin_Continue;
 	}
 
 	// LRStarted
@@ -1758,6 +1778,8 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 			}
 		}
 	}
+
+	return Plugin_Continue;
 }
 
 void CheckAnnounceLR()
@@ -1863,6 +1885,8 @@ public Action Event_PlayerTeam(Handle hEvent, const char[] name, bool dontBroadc
 	{
 		EndLR();
 	}
+
+	return Plugin_Continue;
 }
 
 public Action Event_PlayerHurt(Handle hEvent, const char[] name, bool dontBroadcast)
@@ -1875,6 +1899,8 @@ public Action Event_PlayerHurt(Handle hEvent, const char[] name, bool dontBroadc
 		SetEntityMaxHealth(Guard, GetEntityHealth(Guard));
 		SetEntityMaxHealth(Prisoner, GetEntityHealth(Prisoner));
 	}
+
+	return Plugin_Continue;
 }
 
 public void BitchSlapBackwards(int victim, int weapon, float strength)    // Stole the dodgeball tactic from https://forums.alliedmods.net/showthread.php?t=17116
@@ -2511,7 +2537,7 @@ public int LR_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 		if (!LastRequest(client))
 		{
 			hMenu = INVALID_HANDLE;
-			return;
+			return 0;
 		}
 
 		char sDigit[16];
@@ -2566,6 +2592,8 @@ public int LR_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
 
 		hMenu = INVALID_HANDLE;
 	}
+
+	return 0;
 }
 
 public void ShowWeaponMenu(int client)
@@ -2629,7 +2657,7 @@ public int Weapons_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 		if (!LastRequest(client))
 		{
 			hMenu = INVALID_HANDLE;
-			return;
+			return 0;
 		}
 		int Type;    // S4S = 0, Custom = 1
 		PrimNum = CSWeapon_NONE;
@@ -2750,7 +2778,10 @@ public int Weapons_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 				BPAmmo = 10000;
 		}
 	}
+
 	hMenu = INVALID_HANDLE;
+
+	return 0;
 }
 
 public void ShowCustomMenu(int client)
@@ -2806,7 +2837,7 @@ public int Custom_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 		if (!LastRequest(client))
 		{
 			hMenu = INVALID_HANDLE;
-			return;
+			return 0;
 		}
 
 		char sDigit[2];
@@ -2851,7 +2882,10 @@ public int Custom_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 		if (item + 1 != 1)
 			CanSetHealth[client] = false;
 	}
+
 	hMenu = INVALID_HANDLE;
+
+	return 0;
 }
 
 public void ChooseRules(int client)
@@ -2937,7 +2971,7 @@ public int Rules_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 	if (action == MenuAction_Select)
 	{
 		if (!LastRequest(client))
-			return;
+			return 0;
 
 		char sDigit[16];
 
@@ -3009,6 +3043,8 @@ public int Rules_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 
 		if ((Type == 0 && item + 1 != 5) || (Type == 1 && item + 1 != 7)) ChooseRules(client);    // This is to return to rules menu except when player decides to begin the duel.
 	}
+
+	return 0;
 }
 
 public void ShowFunMenu(int client)
@@ -3060,7 +3096,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 		if (!LastRequest(client))
 		{
 			hMenu = INVALID_HANDLE;
-			return;
+			return 0;
 		}
 		PrimWep  = "";
 		PrimNum  = CSWeapon_NONE;
@@ -3249,6 +3285,8 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 	}
 
 	hMenu = INVALID_HANDLE;
+
+	return 0;
 }
 
 public void ChooseSeeker(int client)
@@ -3289,7 +3327,7 @@ public int Seeker_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 		if (!LastRequest(client))
 		{
 			hMenu = INVALID_HANDLE;
-			return;
+			return 0;
 		}
 
 		char sDigit[16];
@@ -3315,6 +3353,8 @@ public int Seeker_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 	}
 
 	hMenu = INVALID_HANDLE;
+
+	return 0;
 }
 
 public void ChooseRaceCoords(int client)
@@ -3341,7 +3381,7 @@ public int Race_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 		if (!LastRequest(client))
 		{
 			hMenu = INVALID_HANDLE;
-			return;
+			return 0;
 		}
 
 		switch (item)
@@ -3387,6 +3427,8 @@ public int Race_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 	}
 
 	hMenu = INVALID_HANDLE;
+
+	return 0;
 }
 
 public void ShowAutoMenu(int client)
@@ -3427,7 +3469,7 @@ public int Auto_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 		if (!LastRequest(client))
 		{
 			hMenu = INVALID_HANDLE;
-			return;
+			return 0;
 		}
 		EndLR(false);
 		HPamount = GetMaxHealthValue();
@@ -3469,6 +3511,8 @@ public int Auto_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 	}
 
 	hMenu = INVALID_HANDLE;
+
+	return 0;
 }
 
 public void ChooseOpponent(int client)
@@ -3528,7 +3572,7 @@ public int Opponent_MenuHandler(Handle hMenu, MenuAction action, int client, int
 		if (!LastRequest(client))
 		{
 			hMenu = INVALID_HANDLE;
-			return;
+			return 0;
 		}
 		char UID[20];
 		GetMenuItem(hMenu, item, UID, sizeof(UID));
@@ -3562,6 +3606,8 @@ public int Opponent_MenuHandler(Handle hMenu, MenuAction action, int client, int
 	}
 
 	hMenu = INVALID_HANDLE;
+
+	return 0;
 }
 
 public void OpenAllCells()
@@ -4006,6 +4052,8 @@ public Action DisallowGunTossPickup(Handle hTimer)
 	AllowGunTossPickup = false;
 
 	TIMER_100MILISECONDS = INVALID_HANDLE;
+
+	return Plugin_Continue;
 }
 
 public Action BeaconPlayer(Handle hTimer, int client)    // It is guaranteed that no way another player will be used instead of the client, no need for user id.
@@ -4088,6 +4136,8 @@ public Action FailReaction(Handle hTimer)
 	UC_PrintToChatAll("%s Duel time has \x07expired! \x01Winner is \x05%N!", PREFIX, target);
 
 	TIMER_FAILREACTION = INVALID_HANDLE;
+
+	return Plugin_Continue;
 }
 
 public Action EndMostJumps(Handle hTimer)
@@ -4126,6 +4176,8 @@ public Action EndMostJumps(Handle hTimer)
 	}
 
 	TIMER_MOSTJUMPS = INVALID_HANDLE;
+
+	return Plugin_Continue;
 }
 /*
 public Action:OnCustomSpray_Post(client, Float:HeightFromGround, Cheater)
@@ -4585,13 +4637,6 @@ public Action MostJumpsCountDown(Handle hTimer)
 
 	return Plugin_Continue;
 }
-stock void RandomWord()
-{
-	int Random[2];
-	Format(Random, sizeof(Random), "%s", FWwords[GetRandomInt(0, sizeof(FWwords))]);
-
-	return Random;
-}
 /*
 public Beacon() // I won't even pretend that I understand in message_begin function, absolutely stolen from somewhere.
 {
@@ -4720,12 +4765,12 @@ public Action ShowToAll(Handle hTimer)
 public Action Event_WeaponFire(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if (!LRStarted)
-		return;
+		return Plugin_Continue;
 
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 
 	if (!LRPart(client))
-		return;
+		return Plugin_Continue;
 
 	if (GunToss)
 	{
@@ -4745,7 +4790,7 @@ public Action Event_WeaponFire(Handle hEvent, const char[] Name, bool dontBroadc
 				FinishHim(Prisoner, Guard);
 			}
 		}
-		return;
+		return Plugin_Continue;
 	}
 	if (BPAmmo > 100 && StrContains(DuelName, "S4S") == -1)    // No clue why I need this check of s4s...
 	{
@@ -4767,13 +4812,13 @@ public Action Event_WeaponFire(Handle hEvent, const char[] Name, bool dontBroadc
 		}
 	}
 	if (StrContains(DuelName, "S4S") == -1)
-		return;
+		return Plugin_Continue;
 
 	char Classname[50];
 	GetEventString(hEvent, "weapon", Classname, sizeof(Classname));
 
 	if (IsKnifeClass(Classname))
-		return;
+		return Plugin_Continue;
 
 	PrintCenterText(Guard == client ? Prisoner : Guard, "It's your turn to shoot!");
 
@@ -4801,17 +4846,19 @@ public Action Event_WeaponFire(Handle hEvent, const char[] Name, bool dontBroadc
 			SetEntProp(Guard, Prop_Send, "m_bDrawViewmodel", 1);    // For the !lol command :D
 		}
 	}
+
+	return Plugin_Continue;
 }
 
 public Action Event_WeaponFireOnEmpty(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if (!LRStarted)
-		return;
+		return Plugin_Continue;
 
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 
 	if (!LRPart(client))
-		return;
+		return Plugin_Continue;
 
 	if (BPAmmo > 100)
 	{
@@ -4822,13 +4869,13 @@ public Action Event_WeaponFireOnEmpty(Handle hEvent, const char[] Name, bool don
 			SetClientAmmo(client, client == Prisoner ? PrisonerSec : GuardSec, BPAmmo);
 	}
 	if (StrContains(DuelName, "S4S") == -1)
-		return;
+		return Plugin_Continue;
 
 	char Classname[50];
 	GetEventString(hEvent, "weapon", Classname, sizeof(Classname));
 
 	if (IsKnifeClass(Classname))
-		return;
+		return Plugin_Continue;
 
 	int WeaponToUse;
 	if (Guard == client)
@@ -4841,6 +4888,8 @@ public Action Event_WeaponFireOnEmpty(Handle hEvent, const char[] Name, bool don
 		WeaponToUse = PrimNum != CSWeapon_KNIFE ? GuardPrim : GuardSec;
 		SetWeaponClip(WeaponToUse, 1);
 	}
+
+	return Plugin_Continue;
 }
 
 public Action Event_DecoyStarted(Handle hEvent, const char[] Name, bool dontBroadcast)
@@ -4862,24 +4911,26 @@ public Action Event_DecoyStarted(Handle hEvent, const char[] Name, bool dontBroa
 public Action Event_PlayerJump(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if (!LRStarted)
-		return;
+		return Plugin_Continue;
 
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 
 	if (!LRPart(client))
-		return;
+		return Plugin_Continue;
 
 	else if (!MostJumps)
-		return;
+		return Plugin_Continue;
 
 	else if (!mostjumpsmovable)
-		return;
+		return Plugin_Continue;
 
 	if (Guard == client)
 		GuardJumps++;
 
 	else if (Prisoner == client)
 		PrisonerJumps++;
+
+	return Plugin_Continue;
 }
 
 public Action Event_Sound(int clients[64], int& numClients, char sample[PLATFORM_MAX_PATH], int& entity, int& channel, float& volume, int& level, int& pitch, int& flags)
@@ -4968,7 +5019,7 @@ public int PanelHandler_InfoMessage(Handle hPanel, MenuAction action, int client
 	{
 		CloseHandle(hPanel);
 
-		return;
+		return 0;
 	}
 	else if (action == MenuAction_Select)
 	{
@@ -4994,6 +5045,8 @@ public int PanelHandler_InfoMessage(Handle hPanel, MenuAction action, int client
 			EmitSoundToClient(client, MENU_EXIT_SOUND);    // Fauken panels...
 		}
 	}
+
+	return 0;
 }
 
 public void ShowReactionInfo(int client)
@@ -5316,7 +5369,7 @@ stock void ShowHudMessage(int client, int channel = -1, char[] Message, any...)
 	}
 }
 
-stock bool StripGunByClassname(int client, int[] WeaponName)
+stock bool StripGunByClassname(int client, char[] WeaponName)
 {
 	char Classname[50];
 
@@ -5328,7 +5381,7 @@ stock bool StripGunByClassname(int client, int[] WeaponName)
 		{
 			GetEdictClassname(weapon, Classname, sizeof(Classname));
 
-			if (StrEquali(WeaponName, Classname, true))
+			if (StrEqual(WeaponName, Classname, true))
 			{
 				AcceptEntityInput(weapon, "Kill");
 				return true;
@@ -5596,7 +5649,7 @@ stock void Entity_SetEFlags(int entity, Entity_Flags flags)
 
 stock Entity_Flags Entity_GetEFlags(int entity)
 {
-	return Entity_Flags GetEntProp(entity, Prop_Data, "m_iEFlags");
+	return view_as<Entity_Flags>(GetEntProp(entity, Prop_Data, "m_iEFlags"));
 }
 
 stock void Entity_AddEFlags(int entity, Entity_Flags flags)
@@ -5838,6 +5891,8 @@ public int SQL_QueryGetTopPlayersMenuHandler(Handle hMenu, MenuAction action, in
 	{
 		hMenu = INVALID_HANDLE;
 	}
+
+	return 0;
 }
 
 stock void PrintToConsoleEyal(const char[] format, any...)

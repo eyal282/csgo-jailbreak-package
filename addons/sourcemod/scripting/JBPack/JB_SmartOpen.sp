@@ -11,7 +11,8 @@
 
 #define PLUGIN_VERSION "1.1"
 
-#pragma newdecls required
+#pragma semicolon 1
+#pragma newdecls  required
 
 char   PREFIX[256];
 Handle hcv_Prefix = INVALID_HANDLE;
@@ -57,6 +58,8 @@ enum struct enQueue
 }
 
 ArrayList g_aQueueOutputs;
+ArrayList g_aTargetnamesOpen;
+ArrayList g_aTargetnamesBreak;
 
 native bool JailBreakDays_IsDayActive();
 native bool SmartOpen_AreCellsOpen();
@@ -68,6 +71,8 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] Error, int errorL
 {
 	CreateNative("SmartOpen_AreCellsOpen", Native_AreCellsOpen);
 	CreateNative("SmartOpen_OpenCells", Native_OpenCells);
+
+	return APLRes_Success;
 }
 
 public any Native_AreCellsOpen(Handle plugin, int numParams)
@@ -96,7 +101,10 @@ public any Native_OpenCells(Handle plugin, int numParams)
 
 public void OnPluginStart()
 {
+
 	g_aQueueOutputs = new ArrayList(sizeof(enQueue));
+	g_aTargetnamesOpen = new ArrayList(256);
+	g_aTargetnamesBreak = new ArrayList(256);
 
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("player_team", Event_PlayerTeam, EventHookMode_Post);
@@ -148,8 +156,13 @@ public void cvChange_Prefix(Handle convar, const char[] oldValue, const char[] n
 	FormatEx(PREFIX, sizeof(PREFIX), newValue);
 }
 
+bool blockOpen = false;
+
 public void OnMapStart()
 {
+	g_aTargetnamesOpen.Clear();
+	g_aTargetnamesBreak.Clear();
+
 	ButtonHID       = -1;
 	OpenedThisRound = false;
 	ConnectToDatabase();
@@ -237,28 +250,30 @@ public void SQLCB_Error(Handle db, Handle hndl, const char[] sError, int data)
 public Action Event_PlayerTeam(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	if (!GetConVarBool(hcv_GraceBeforeOpen))
-		return;
+		return Plugin_Continue;
 
 	if (ButtonHID == -1)
-		return;
+		return Plugin_Continue;
 
 	int NewTeam = GetEventInt(hEvent, "team");
 
 	if (NewTeam <= CS_TEAM_SPECTATOR)
-		return;
+		return Plugin_Continue;
 
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 
 	if (client == 0)
-		return;
+		return Plugin_Continue;
 
 	if (!CanBeGraced[client])
-		return;
+		return Plugin_Continue;
 
 	if (OpenedThisRound)
-		return;
+		return Plugin_Continue;
 
 	RequestFrame(Frame_GraceSpawn, GetClientUserId(client));
+
+	return Plugin_Continue;
 }
 
 public void Frame_GraceSpawn(int UserId)
@@ -290,16 +305,22 @@ public Action Event_PlayerSpawnOrDeath(Handle hEvent, const char[] Name, bool do
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 
 	if (client == 0)
-		return;
+		return Plugin_Continue;
 
 	else if (!IsValidTeam(client))
-		return;
+		return Plugin_Continue;
 
 	CanBeGraced[client] = false;
+
+	return Plugin_Continue;
 }
 
 public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
+	blockOpen = true;
+	OpenCells();
+	blockOpen = false;
+
 	g_aQueueOutputs.Clear();
 
 	UnhookEntityOutput("func_button", "OnPressed", OnButtonPressed);
@@ -329,6 +350,8 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 	}
 
 	ClearTrie(Trie_Retriers);
+
+	return Plugin_Continue;
 }
 
 public void OnButtonPressed(const char[] output, int caller, int activator, float delay)
@@ -381,6 +404,8 @@ public Action AutoOpenCells(Handle hTimer)
 		OpenCells();
 
 	hTimer_AutoOpen = INVALID_HANDLE;
+
+	return Plugin_Continue;
 }
 
 public Action Command_AssignOpen(int client, int args)
@@ -577,22 +602,48 @@ stock bool OpenCells()
 	int ent = -1;
 	if (ButtonHID == -1)
 	{
-		while ((ent = FindEntityByClassname(ent, "func_button")) != -1)
+		if(g_aTargetnamesOpen.Length > 0 || g_aTargetnamesBreak.Length > 0)
 		{
-			QueueOpenDoorsForOutput(ent, "OnPressed");
-			QueueOpenDoorsForOutput(ent, "OnIn");
-			QueueOpenDoorsForOutput(ent, "OnUseLocked");
-			QueueOpenDoorsForOutput(ent, "OnDamaged");
-		}
 
-		while ((ent = FindEntityByClassname(ent, "func_door")) != -1)
+			// blockOpen is meant to just register the targetnames without opening.
+			if(!blockOpen)
+			{
+				for(int i=0;i < g_aTargetnamesOpen.Length;i++)
+				{
+					char sTarget[256];
+					g_aTargetnamesOpen.GetString(i, sTarget, sizeof(sTarget));
+
+					AcceptEntityInputForTargetname(sTarget, "Open");
+				}
+
+				for(int i=0;i < g_aTargetnamesBreak.Length;i++)
+				{
+					char sTarget[256];
+					g_aTargetnamesBreak.GetString(i, sTarget, sizeof(sTarget));
+
+					AcceptEntityInputForTargetname(sTarget, "Break");
+				}			
+			}
+		}
+		else
 		{
-			QueueOpenDoorsForOutput(ent, "OnOpen");
-			QueueOpenDoorsForOutput(ent, "OnClose");
+			while ((ent = FindEntityByClassname(ent, "func_button")) != -1)
+			{
+				QueueOpenDoorsForOutput(ent, "OnPressed");
+				QueueOpenDoorsForOutput(ent, "OnIn");
+				QueueOpenDoorsForOutput(ent, "OnUseLocked");
+				QueueOpenDoorsForOutput(ent, "OnDamaged");
+			}
+
+			while ((ent = FindEntityByClassname(ent, "func_door")) != -1)
+			{
+				QueueOpenDoorsForOutput(ent, "OnOpen");
+				QueueOpenDoorsForOutput(ent, "OnClose");
+			}
 		}
 	}
 
-	else
+	else if(!blockOpen)
 	{
 		bool Found = false;
 		while ((ent = FindEntityByClassname(ent, "func_button")) != -1)
@@ -775,7 +826,7 @@ stock bool IsValidTeam(int client)
 
 public void OnGameFrame()
 {
-	OnFramedGame(20)
+	OnFramedGame(20);
 }
 
 public void OnFramedGame(int count)
@@ -840,12 +891,24 @@ stock bool OpenDoorsForOutput(int ent, const char[] output, bool recursive=false
 		
 		if(StrEqual(input, "Toggle") || StrEqual(input, "Open") || strncmp(input, "OpenAwayFrom", 12) == 0 || strncmp(input,"SetPosition", 11) == 0)
 		{
-			AcceptEntityInputForTargetname(sTarget, "Open");
+			if(g_aTargetnamesOpen.FindString(sTarget) == -1)
+			{
+				g_aTargetnamesOpen.PushString(sTarget);
+
+				if(!blockOpen)
+					AcceptEntityInputForTargetname(sTarget, "Open");
+			}
 		}
 		
 		else if(StrEqual(input, "Break"))
 		{
-			AcceptEntityInputForTargetname(sTarget, "Break");
+			if(g_aTargetnamesBreak.FindString(sTarget) == -1)
+			{
+				g_aTargetnamesBreak.PushString(sTarget);
+
+				if(!blockOpen)
+					AcceptEntityInputForTargetname(sTarget, "Break");
+			}
 		}
 		else if(StrEqual(input, "Trigger") && !recursive)
 		{

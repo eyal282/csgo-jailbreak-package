@@ -2,8 +2,8 @@
 #include <sourcemod>
 #include <eyal-jailbreak>
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 native void LR_isAutoBhopEnabled();
 
@@ -45,12 +45,14 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 
 	if (client == 0 || !IsPlayerAlive(client))
-		return;
+		return Plugin_Continue;
 
 	else if (IsFakeClient(client))
-		return;
+		return Plugin_Continue;
 
 	SetConVarBool(hcv_OriginalAutoBhop, GetConVarBool(hcv_AutoBhop));
+
+	return Plugin_Continue;
 }
 
 public void LastRequest_OnLRStarted(int Prisoner, int Guard)

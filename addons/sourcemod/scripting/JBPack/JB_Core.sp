@@ -9,8 +9,8 @@
 
 #define UPDATE_URL "https://raw.githubusercontent.com/eyal282/csgo-jailbreak-package/master/addons/sourcemod/updatefile.txt"
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 public Plugin myinfo =
 {
@@ -24,6 +24,8 @@ public Plugin myinfo =
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	RegPluginLibrary("JB_Core");
+
+	return APLRes_Success;
 }
 public void OnPluginStart()
 {

@@ -1,5 +1,3 @@
-#pragma semicolon 1
-
 #define DEBUG
 
 #define PLUGIN_AUTHOR  "xFlane, edit by Eyal282"
@@ -12,10 +10,12 @@
 //#include <sdkhooks>
 #include <eyal-jailbreak>
 
+#pragma newdecls required
+
 #define SECONDS_IN_MINUTE 60
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 char   PREFIX[256];
 Handle hcv_Prefix = INVALID_HANDLE;
@@ -109,6 +109,8 @@ public APLRes AskPluginLoad2(Handle plugin, bool late, char[] error, int err_max
 	CreateNative("IsPlayerBannedFromGuardsTeam", Native_IsPlayerBanned);
 
 	CreateNative("GetPlayerBanCTUnix", Native_GetPlayerUnix);
+
+	return APLRes_Success;
 }
 
 public int Native_IsPlayerBanned(Handle plugin, int numParams)
@@ -337,7 +339,7 @@ public Action Command_CTBanList(int client, int args)
 	return Plugin_Handled;
 }
 
-public SQL_ShowCTBanList(Handle DB, Handle hndl, const char[] sError, UserId)
+public void SQL_ShowCTBanList(Handle DB, Handle hndl, const char[] sError, int UserId)
 {
 	if (hndl == null)
 		ThrowError(sError);
@@ -381,9 +383,11 @@ public int MenuHandler_BanInfo(Handle hMenu, MenuAction action, int client, int 
 
 		SQL_TQuery(dbCTBan, SQL_ShowBanInfo, aQuery, GetClientUserId(client));
 	}
+
+	return 0;
 }
 
-public SQL_ShowBanInfo(Handle DB, Handle hndl, const char[] sError, UserId)
+public void SQL_ShowBanInfo(Handle DB, Handle hndl, const char[] sError, int UserId)
 {
 	if (hndl == null)
 		ThrowError(sError);
@@ -444,6 +448,8 @@ public int MenuHandler_DeleteBan(Handle hMenu, MenuAction action, int client, in
 			g_iBanCTUnix[target] = 0;
 		}
 	}
+
+	return 0;
 }
 
 stock int FindClientByAuthId(const char[] AuthId)

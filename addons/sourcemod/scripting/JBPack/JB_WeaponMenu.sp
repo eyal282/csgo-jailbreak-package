@@ -4,8 +4,8 @@
 #include <sourcemod>
 #include <eyal-jailbreak>
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 Handle cpLastRifle  = INVALID_HANDLE;
 Handle cpLastPistol = INVALID_HANDLE;
@@ -205,7 +205,10 @@ public int Choice_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 			}
 		}
 	}
+
 	hMenu = INVALID_HANDLE;
+
+	return 0;
 }
 
 public void ShowWeaponsMenu(int client)
@@ -245,7 +248,10 @@ public int Weapons_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 			}
 		}
 	}
+
 	hMenu = INVALID_HANDLE;
+
+	return 0;
 }
 
 void ShowPistolMenu(int client)
@@ -292,7 +298,10 @@ public int Pistols_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 			}
 		}
 	}
+
 	hMenu = INVALID_HANDLE;
+
+	return 0;
 }
 
 public void GivePistol(int UserId)

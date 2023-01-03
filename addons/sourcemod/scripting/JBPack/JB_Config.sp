@@ -3,8 +3,8 @@
 #include <eyal-jailbreak>
 #include <autoexecconfig>
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 public Plugin myinfo =
 {
@@ -75,6 +75,8 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 	{
 		ServerCommand("mp_warmup_end");
 	}
+
+	return Plugin_Continue;
 }
 public void OnMapStart()
 {
@@ -96,4 +98,6 @@ public Action Timer_ExecuteConfig(Handle hTimer)
 	}
 
 	SetConVarInt(hcv_mpRoundTime, GetConVarInt(hcv_RoundTime));
+
+	return Plugin_Continue;
 }
