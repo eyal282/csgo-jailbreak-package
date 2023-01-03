@@ -1,2 +1,6 @@
 # Ignore plugins
 *.smx
+
+# Ignore archives
+*.rar
+*.zip
