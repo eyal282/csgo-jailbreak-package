@@ -107,6 +107,7 @@ public void OnPluginStart()
 	g_aTargetnamesBreak = new ArrayList(256);
 
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("round_freeze_end", Event_RoundFreezeEnd, EventHookMode_PostNoCopy);
 	HookEvent("player_team", Event_PlayerTeam, EventHookMode_Post);
 	HookEvent("player_spawn", Event_PlayerSpawnOrDeath, EventHookMode_Post);
 
@@ -317,9 +318,11 @@ public Action Event_PlayerSpawnOrDeath(Handle hEvent, const char[] Name, bool do
 
 public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
+	g_fNextOpen = 0.0;
 	blockOpen = true;
 	OpenCells();
 	blockOpen = false;
+	g_fNextOpen = 0.0;
 
 	g_aQueueOutputs.Clear();
 
@@ -350,6 +353,17 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 	}
 
 	ClearTrie(Trie_Retriers);
+
+	return Plugin_Continue;
+}
+
+public Action Event_RoundFreezeEnd(Handle hEvent, const char[] Name, bool dontBroadcast)
+{
+	g_fNextOpen = 0.0;
+
+	if(GetTeamPlayerCount(CS_TEAM_CT) <= 0 || GetTeamPlayerCount(CS_TEAM_T) == 1)
+		OpenCells();
+
 
 	return Plugin_Continue;
 }
@@ -676,11 +690,14 @@ stock bool OpenCells()
 
 	OpenedThisRound = true;
 
-	Call_StartForward(fw_OnCellsOpened);
+	if(!blockOpen)
+	{
+		Call_StartForward(fw_OnCellsOpened);
 
-	Call_PushCell(true);
+		Call_PushCell(true);
 
-	Call_Finish();
+		Call_Finish();
+	}
 
 	return true;
 }

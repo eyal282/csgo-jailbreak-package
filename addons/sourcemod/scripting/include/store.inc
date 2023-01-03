@@ -1,111 +1,137 @@
-#if defined _Store_INCLUDED
-    #endinput
+#if defined _store_included
+	#endinput
 #endif
+#define _store_included
 
-#define _Store_INCLUDED
+int g_cvarChatTag = -1;
+#define CHAT_TAG g_eCvars[g_cvarChatTag].sCache
 
-public SharedPlugin __pl_store = 
+#define LOG_ERROR 0
+#define LOG_CREDITS 1
+#define LOG_ADMIN 2
+#define LOG_EVENT 3
+
+#define ITEM_NAME_LENGTH 64
+#define STORE_MAX_ITEMS 2048
+#define STORE_MAX_HANDLERS 64
+#define STORE_MAX_PLANS 8
+#define STORE_MAX_SLOTS 12
+
+enum struct Item_Plan
 {
-	name = "store",
-	file = "store.smx",
-#if defined REQUIRE_PLUGIN
-	required = 1
-#else
-	required = 0
-#endif
-};
-
-
-#define ITEM_NAME_LENGTH    64
-#define STORE_MAX_ITEMS     1024
-#define STORE_MAX_HANDLERS  64
-#define STORE_MAX_PLANS     8
-#define STORE_MAX_SLOTS     6
-
-enum Store_Item
-{
-    String:szName[ITEM_NAME_LENGTH],
-    String:szUniqueId[32],
-    String:szDesc[128],
-    String:szSteam[256],
-    iData,
-    iPrice,
-    iParent,
-    iHandler,
-    iPlans,
-    iTeam,
-    iLevels,
-    iCaseType,
-    bool:bIgnore,
-    bool:bBuyable,
-    bool:bGiftable,
-    bool:bCompose,
-    bool:bVIP
+	char szName_Plan[ITEM_NAME_LENGTH];
+	int iPrice_Plan;
+	int iTime_Plan;
 }
 
-enum SkinData_t
+enum struct Store_Item
 {
-    String:m_Name[ITEM_NAME_LENGTH],
-    String:m_UId[32],
-    String:m_Skin[128],
-    String:m_Arms[128]
+	char szName[ITEM_NAME_LENGTH];
+	char szUniqueId[PLATFORM_MAX_PATH];
+	char szShortcut[64];
+	char szSteam[256];
+	char szDescription[256];
+	int iId;
+	int iPrice;
+	int iParent;
+	int iHandler;
+	int iFlagBits;
+	int iData;
+	int iPlans;
+	bool bBuyable;
+	bool bIgnoreFree;
+	bool bIgnoreVIP;
+	bool bPreview;
+	Handle hAttributes;
 }
 
-native int Store_RegisterHandler(const char[] type, Function mapstart, Function reset, Function config, Function use, Function remove, bool equipable = true, bool raw = false, bool disposable = false);
-native int Store_RegisterMenuHandler(const char[] identifier, Function menu, Function handler);
-native int Store_SetDataIndex(int itemid, int index);
+enum struct Type_Handler
+{
+	char szType[64];
+	char szUniqueKey[32];
+	bool bEquipable;
+	bool bRaw;
+	Handle hPlugin;
+	Function fnMapStart;
+	Function fnReset;
+	Function fnConfig;
+	Function fnUse;
+	Function fnRemove;
+}
+
+enum struct Client_Item
+{
+	int iId_Client_Item;
+	int iUniqueId;
+	bool bSynced;
+	bool bDeleted;
+	int iDateOfPurchase;
+	int iDateOfExpiration;
+	int iPriceOfPurchase;
+}
+
+native int Store_RegisterHandler(char[] type, char[] uniquekey, Function mapstart = INVALID_FUNCTION, Function reset = INVALID_FUNCTION, Function config = INVALID_FUNCTION, Function use = INVALID_FUNCTION, Function remove = INVALID_FUNCTION, bool equipable = true, bool raw = false);
+native int Store_RegisterMenuHandler(char[] identifier, Function menu, Function handler);
+native void Store_SetDataIndex(int itemid, int index);
 native int Store_GetDataIndex(int itemid);
-native int Store_GetEquippedItem(int client, const char[] type, int slot = 0);
-native int Store_DisplayPreviousMenu(int client);
-native int Store_SetClientMenu(int client, int num);
-native int Store_GetClientCredits(int client);
-native int Store_SetClientCredits(int client, int credits, const char[] log = "未知");
-native int Store_DisplayConfirmMenu(int client, const char[] title, Function callback, any data);
-native int Store_GetTypeId(const char[] type);
-native int Store_GetItemId(const char[] uid);
-native int Store_GetItemData(int itemid, const any[] local);
-native int Store_GiveItem(int client, int itemid, int purchase = 0, int expiration = 0, int price = 0);
-native int Store_RemoveItem(int client, int itemid);
-native int Store_GetClientID(int client);
-native int Store_GetItemExpiration(int client, int itemid);
-native int Store_GetSkinLevel(int client);
-native bool Store_IsClientBanned(int client);
-native void Store_SetClientBanState(int client, bool ban);
+native int Store_GetEquippedItem(int client, char[] type, int slot=0);
 native bool Store_IsClientLoaded(int client);
+native void Store_DisplayPreviousMenu(int client);
+native void Store_SetClientMenu(int client, int num);
+native int Store_GetClientCredits(int client);
+native void Store_SetClientCredits(int client, int credits);
+native bool Store_IsClientVIP(int client);
+native bool Store_IsItemInBoughtPackage(int client, int itemid, int uid=-1);
+native bool Store_ShouldConfirm();
+native void Store_DisplayConfirmMenu(int client, char[] title, Function callback,int data);
+native int Store_GetItem(int itemid, any output[sizeof(Store_Item)]);
+native void Store_GetHandler(int index, any output[sizeof(Type_Handler)]);
+native void Store_GiveItem(int client, int itemid, int purchase=0, int expiration=0, int price=0);
+native void Store_RemoveItem(int client, int itemid);
+native bool Store_GetClientItem(int client, int itemid, any output[sizeof(Client_Item)]);
+native int Store_GetClientTarget(int client);
+native int Store_GiveClientItem(int client, int recipient, int itemid);
 native bool Store_HasClientItem(int client, int itemid);
-native bool Store_ExtClientItem(int client, int itemid, int expiration);
-native bool Store_IsItemInBoughtPackage(int client, int itemid, int uid = -1);
-native bool Store_HasPlayerSkin(int client);
-native bool Store_GetPlayerSkin(int client, char[] skin, int maxLen);
-native void Store_SaveClientAll(int client);
-native bool Store_IsPlayerTP(int client);
-native bool Store_IsPlayerHide(int client);
-native bool Store_IsStoreSpray(int client);
-native bool Store_GetClientPlayerSkins(int client, ArrayList array);
-native bool Store_GetAllPlayerSkins(ArrayList array);
-native bool Store_ApplyPlayerSkin(int client);
-native void Store_LogOpencase(int client, int item, int days, const char[] handle, int type);
+native int Store_IterateEquippedItems(int client,int &start, bool attributes=false);
+native int Store_GetItemIdbyUniqueId(char[] unique_id);
 
-native ArrayList Store_GetItemList(); // List<Store_Item>
+native int Store_SQLEscape(char[] escapeString);
+native int Store_SQLQuery(char[] query, SQLQueryCallback callback, any data);
+native int Store_SQLTransaction(Transaction tnx, SQLTxnSuccess callback, any data);
 
-forward void   Store_OnStoreInit(Handle store_plugin);
-forward void   Store_OnStoreAvailable(ArrayList items); // ArrayList will be automatically freed.  List<Store_Item>
-forward void   Store_OnClientLoaded(int client);
-forward Action Store_OnClientBuyItem(int client, const char[] uid, int length, int price);
-forward void   Store_OnClientPurchased(int client, const char[] uid, int length, int price);
-forward bool   Store_OnPlayerSkinDefault(int client, int team, char[] skin, int skinLen, char[] arms, int armsLen);
-forward Action Store_OnFPDeathCamera(int client);
-forward Action Store_OnSetPlayerSkin(int client, char skin[128], char arms[128]);
-forward void   Store_OnHatsCreated(int client, int entity, int slot);
-forward void   Store_OnTrailsCreated(int client, int entity);
-forward void   Store_OnParticlesCreated(int client, int entity);
-forward void   Store_OnNeonCreated(int client, int entity);
-forward void   Store_OnPetsCreated(int client, int entity);
-forward Action Store_OnSetPlayerSkinArms(int client, char[] arms, int len);
-forward Action Store_OnClientComposing(int client, int &probability, int itemid, const char[] uid, const char[] itemName, const char[] itemParentName);
-forward void   Store_OnClientComposed(int client, bool success, int itemid, const char[] itemName, const char[] itemParentName);
-forward Action Store_OnCheerSound(int client, char sound[256], char name[64]);
+/**
+ * Set an mystore Log Message
+ *
+ * @param client		Client triggered logging event
+ * @param callback		Message to log
+ * @param data			Log Level
+ * 						LOG_ERROR
+ * 						LOG_CREDITS
+ * 						LOG_ADMIN
+ * 						LOG_EVENT
+ *
+ * @noreturn
+ */
+native void Store_SQLLogMessage(int client = 0, int level, char[] message, any ...);
 
-// CP Support
-forward Action CP_OnChatMessage(int& client, ArrayList recipients, char[] flagstring, char[] name, char[] message, bool& processcolors, bool& removecolors);
-forward void   CP_OnChatMessagePost(int client, ArrayList recipients, const char[] flags, const char[] name, const char[] message, bool processColors, bool removeColors);
+forward void Store_OnClientModelChanged(int client, char[] model);
+
+
+forward void Store_OnPreviewItem(int client, char[] type, int index);
+forward void Store_OnConfigExecuted(char[] prefix);
+
+native bool Store_IsInRecurringMenu(int client);
+native void Store_SetClientRecurringMenu(int client, bool active);
+
+/*
+public Extension:__ext_store_sm =
+{
+	name = "Store - The Resurrection",
+	file = "store_sm.ext",
+#if defined AUTOLOAD_EXTENSIONS
+	autoload = 1,
+#else
+	autoload = 0,
+#endif
+	required = 0,
+};*/

@@ -79,7 +79,10 @@ public void OnPluginStart()
 	RegAdminCmd("sm_silentstopck", Command_SilentStopCK, ADMFLAG_ROOT, "Turns off CK silently");
 
 	hcv_TeammatesAreEnemies = FindConVar("mp_teammates_are_enemies");
-	hcv_DeadTalk            = FindConVar("sv_deadtalk");
+	hcv_DeadTalk            = FindConVar("sm_deadtalk");
+
+	if(hcv_DeadTalk == INVALID_HANDLE)
+		hcv_DeadTalk = CreateConVar("sm_deadtalk", "0", "Can players hear dead players?");
 
 	AutoExecConfig_SetFile("JB_CTCommands", "sourcemod/JBPack");
 
