@@ -659,33 +659,59 @@ stock bool OpenCells()
 
 	else if(!blockOpen)
 	{
-		bool Found = false;
-		while ((ent = FindEntityByClassname(ent, "func_button")) != -1)
+		if(g_aTargetnamesOpen.Length > 0 || g_aTargetnamesBreak.Length > 0)
 		{
-			if (GetEntProp(ent, Prop_Data, "m_iHammerID") == ButtonHID)
+
+			// blockOpen is meant to just register the targetnames without opening.
+			if(!blockOpen)
 			{
-				Found = true;
-				break;
+				for(int i=0;i < g_aTargetnamesOpen.Length;i++)
+				{
+					char sTarget[256];
+					g_aTargetnamesOpen.GetString(i, sTarget, sizeof(sTarget));
+
+					AcceptEntityInputForTargetname(sTarget, "Open");
+				}
+
+				for(int i=0;i < g_aTargetnamesBreak.Length;i++)
+				{
+					char sTarget[256];
+					g_aTargetnamesBreak.GetString(i, sTarget, sizeof(sTarget));
+
+					AcceptEntityInputForTargetname(sTarget, "Break");
+				}			
 			}
 		}
+		else
+		{
+			bool Found = false;
+			while ((ent = FindEntityByClassname(ent, "func_button")) != -1)
+			{
+				if (GetEntProp(ent, Prop_Data, "m_iHammerID") == ButtonHID)
+				{
+					Found = true;
+					break;
+				}
+			}
 
-		if (!Found)
-			return false;
-			
-		QueueOpenDoorsForOutput(ent, "OnPressed");
-		QueueOpenDoorsForOutput(ent, "OnIn");
-		QueueOpenDoorsForOutput(ent, "OnUseLocked");
-		QueueOpenDoorsForOutput(ent, "OnDamaged");
+			if (!Found)
+				return false;
+				
+			QueueOpenDoorsForOutput(ent, "OnPressed");
+			QueueOpenDoorsForOutput(ent, "OnIn");
+			QueueOpenDoorsForOutput(ent, "OnUseLocked");
+			QueueOpenDoorsForOutput(ent, "OnDamaged");
 
-		AcceptEntityInput(ent, "Lock");
+			AcceptEntityInput(ent, "Lock");
 
-		char strBuffer[255];
+			char strBuffer[255];
 
-		FormatEx(strBuffer, sizeof(strBuffer), "OnUser1 !self:Unlock:0:2.5:1");
+			FormatEx(strBuffer, sizeof(strBuffer), "OnUser1 !self:Unlock:0:2.5:1");
 
-		SetVariantString(strBuffer);
-		AcceptEntityInput(ent, "AddOutput");
-		AcceptEntityInput(ent, "FireUser1");
+			SetVariantString(strBuffer);
+			AcceptEntityInput(ent, "AddOutput");
+			AcceptEntityInput(ent, "FireUser1");
+		}
 	}
 
 	OpenedThisRound = true;
