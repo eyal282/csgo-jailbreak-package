@@ -34,6 +34,34 @@ public Plugin myinfo =
 #define FSOLID_NOT_SOLID 0x0004
 #define FSOLID_TRIGGER 0x0008
 
+
+enum Collision_Group_t {
+	COLLISION_GROUP_NONE = 0,
+	COLLISION_GROUP_DEBRIS,                // Collides with nothing but world and static stuff
+	COLLISION_GROUP_DEBRIS_TRIGGER,        // Same as debris, but hits triggers
+	COLLISION_GROUP_INTERACTIVE_DEBRIS,    // Collides with everything except other interactive debris or debris
+	COLLISION_GROUP_INTERACTIVE,           // Collides with everything except interactive debris or debris
+	COLLISION_GROUP_PLAYER,
+	COLLISION_GROUP_BREAKABLE_GLASS,
+	COLLISION_GROUP_VEHICLE,
+	COLLISION_GROUP_PLAYER_MOVEMENT,    // For HL2, same as Collision_Group_Player, for
+	                                    // TF2, this filters out other players and CBaseObjects
+	COLLISION_GROUP_NPC,                // Generic NPC group
+	COLLISION_GROUP_IN_VEHICLE,         // for any entity inside a vehicle
+	COLLISION_GROUP_WEAPON,             // for any weapons that need collision detection
+	COLLISION_GROUP_VEHICLE_CLIP,       // vehicle clip brush to restrict vehicle movement
+	COLLISION_GROUP_PROJECTILE,         // Projectiles!
+	COLLISION_GROUP_DOOR_BLOCKER,       // Blocks entities not permitted to get near moving doors
+	COLLISION_GROUP_PASSABLE_DOOR,      // Doors that the player shouldn't collide with
+	COLLISION_GROUP_DISSOLVING,         // Things that are dissolving are in this group
+	COLLISION_GROUP_PUSHAWAY,           // Nonsolid on client and server, pushaway in player code
+
+	COLLISION_GROUP_NPC_ACTOR,       // Used so NPCs in scripts ignore the player.
+	COLLISION_GROUP_NPC_SCRIPTED,    // USed for NPCs in scripts that should not collide with each other
+
+	LAST_SHARED_COLLISION_GROUP
+};
+
 int g_BallRef = INVALID_ENT_REFERENCE;
 int g_BallHolder;
 float g_fNextTouch[MAXPLAYERS+1];
@@ -57,7 +85,7 @@ public void OnPluginEnd()
 
 public void OnPluginStart()
 {
-	RegAdminCmd("ball", CommandBallMenu, BALL_ADMIN_MENU_FLAG);
+	RegAdminCmd("sm_ball", CommandBallMenu, BALL_ADMIN_MENU_FLAG);
 	
 	AddNormalSoundHook(Event_SoundPlayed);
 
@@ -68,14 +96,12 @@ public void OnPluginStart()
 
 public Action CommandBallMenu(int client, int args)
 {
-	if(!IsClientInGame(client))
-	{
-		return Plugin_Continue;
-	}
+	if(client == 0)
+		return Plugin_Handled;
 	
 	BallMenu(client);
 	
-	return Plugin_Continue;
+	return Plugin_Handled;
 }
 
 void BallMenu(int client)
@@ -212,6 +238,8 @@ public void OnMapStart()
 
 	InitializeVariables();
 	
+	PrecacheModel("models/error.mdl", true);
+
 	PrecacheSound("knastjunkies/bounce.mp3", true);
 	AddFileToDownloadsTable("sound/knastjunkies/bounce.mp3");
 	PrecacheSound("knastjunkies/gotball.mp3", true);
@@ -227,22 +255,20 @@ public void OnMapStart()
 	AddFileToDownloadsTable("materials/knastjunkies/Material__1.vmt");
 	
 	LoadBall();
-
-	CreateTimer(0.1, Timer_CheckZone, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 }
 
-public Action Timer_CheckZone(Handle hTimer)
+public void OnGameFrame()
 {
 	if(GetFeatureStatus(FeatureType_Native, "fuckZones_GetZoneList") != FeatureStatus_Available)
-		return Plugin_Continue;
+		return;
 
 	int ball = EntRefToEntIndex(g_BallRef);
 
 	if(ball == INVALID_ENT_REFERENCE)
-		return Plugin_Continue;
+		return;
 
 	else if(g_BallHolder > 0)
-		 return Plugin_Continue;
+		 return;
 
 	float fOrigin[3];
 	GetEntPropVector(ball, Prop_Data, "m_vecAbsOrigin", fOrigin);
@@ -254,12 +280,8 @@ public Action Timer_CheckZone(Handle hTimer)
 		char zoneName[64];
 		int zone = EntRefToEntIndex(zones.Get(i));
 
-		
-
 		if(!fuckZones_GetZoneName(zone, zoneName, sizeof(zoneName)))
-		{
 			continue;
-		}
 
 		else if(StrContains(zoneName, "Net", false) == -1)
 			continue;
@@ -279,8 +301,6 @@ public Action Timer_CheckZone(Handle hTimer)
 	}
 
 	CloseHandle(zones);
-
-	return Plugin_Continue;
 }
 
 public Action Event_SoundPlayed(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
@@ -437,9 +457,14 @@ int CreateBall()
 	
 	DispatchSpawn(ball);
 	SetEntityModel(ball, "models/knastjunkies/soccerball.mdl");
+	SetEntProp(ball, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_DEBRIS_TRIGGER);
 
 	SetEntProp(ball, Prop_Send, "m_usSolidFlags", FSOLID_NOT_SOLID | FSOLID_TRIGGER);
 	SetEntPropFloat(ball, Prop_Data, "m_flModelScale", 0.60);
+
+	SetEntPropEnt(ball, Prop_Send, "m_hThrower", 1);
+	SetEntProp(ball, Prop_Data, "m_iTeamNum", 2);
+	SetEntPropEnt(ball, Prop_Send, "m_hOwnerEntity", 1);
 	
 	Entity_SetMinSize(ball, view_as<float>({-BALL_RADIUS, -BALL_RADIUS, -BALL_RADIUS}));
 	Entity_SetMaxSize(ball, view_as<float>({BALL_RADIUS, BALL_RADIUS, BALL_RADIUS}));
@@ -449,7 +474,7 @@ int CreateBall()
 	SDKHook(ball, SDKHook_StartTouchPost, OnBallTouch);
 
 	g_BallRef = EntIndexToEntRef(ball);
-
+	
 	return ball;
 }
 
@@ -478,6 +503,7 @@ void DestroyBall()
 		return;
 
 	
+	SetEntProp(ball, Prop_Send, "m_fEffects", GetEntProp(ball, Prop_Send, "m_fEffects") | 32);
 	AcceptEntityInput(ball, "Kill");
 }
 
