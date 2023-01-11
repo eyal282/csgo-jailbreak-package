@@ -17,6 +17,7 @@
 char   PREFIX[256];
 Handle hcv_Prefix = INVALID_HANDLE;
 
+Handle hcv_Close           = INVALID_HANDLE;
 Handle hcv_Mode            = INVALID_HANDLE;
 Handle hcv_Auto            = INVALID_HANDLE;
 Handle hcv_GraceBeforeOpen = INVALID_HANDLE;
@@ -113,6 +114,7 @@ public void OnPluginStart()
 
 	RegConsoleCmd("sm_open", Command_Open, "Opens jail cells");
 	RegConsoleCmd("sm_hardopen", Command_HardOpen, "Opens jail cells and isolation");
+	RegConsoleCmd("sm_close", Command_Close, "Closes jail cells and isolation");
 
 	RegAdminCmd("sm_open_override", Command_OpenOverride, ADMFLAG_SLAY, "Command used for override purposes");
 	RegAdminCmd("sm_assignopen", Command_AssignOpen, ADMFLAG_SLAY);
@@ -121,6 +123,7 @@ public void OnPluginStart()
 
 	AutoExecConfig_SetFile("JB_SmartOpen", "sourcemod/JBPack");
 
+	hcv_Close            = UC_CreateConVar("close_cells", "2", "0 - Close Cells does not work, 1 - Close Cells works if button is assigned to map, 2 - Close cells always works.");
 	hcv_Mode            = UC_CreateConVar("open_cells_mode", "1", "0 - Command will not work if an admin didn't assign a button to the map, 1 - Uses all buttons in the map if button wasn't assigned to map");
 	hcv_Auto            = UC_CreateConVar("open_cells_auto", "60", "After how much time to open the cells, set to -1 to disable");
 	hcv_GraceBeforeOpen = UC_CreateConVar("open_cells_grace_pre_open", "1", "1 - Players will respawn when joining before cells open");
@@ -181,6 +184,13 @@ public void OnClientAuthorized(int client)
 	int dummy_value;
 	if (!GetTrieValue(Trie_Retriers, AuthId, dummy_value))
 		CanBeGraced[client] = true;
+
+	if(GetClientCount(true) == 1)
+	{
+		blockOpen = true;
+		OpenCells();
+		blockOpen = false;
+	}
 }
 
 public void OnClientDisconnect(int client)
@@ -318,12 +328,6 @@ public Action Event_PlayerSpawnOrDeath(Handle hEvent, const char[] Name, bool do
 
 public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	g_fNextOpen = 0.0;
-	blockOpen = true;
-	OpenCells();
-	blockOpen = false;
-	g_fNextOpen = 0.0;
-
 	g_aQueueOutputs.Clear();
 
 	UnhookEntityOutput("func_button", "OnPressed", OnButtonPressed);
@@ -363,6 +367,15 @@ public Action Event_RoundFreezeEnd(Handle hEvent, const char[] Name, bool dontBr
 
 	if(GetTeamPlayerCount(CS_TEAM_CT) <= 0 || GetTeamPlayerCount(CS_TEAM_T) == 1)
 		OpenCells();
+
+	else
+	{
+		g_fNextOpen = 0.0;
+		blockOpen = true;
+		OpenCells();
+		blockOpen = false;
+		g_fNextOpen = 0.0;
+	}
 
 
 	return Plugin_Continue;
@@ -606,6 +619,71 @@ public Action Command_HardOpen(int client, int args)
 	return Plugin_Handled;
 }
 
+
+public Action Command_Close(int client, int args)
+{
+	switch(GetConVarInt(hcv_Close))
+	{
+		case 0:
+		{
+			UC_PrintToChat(client, "%s This command is disabled.", PREFIX);
+			return Plugin_Handled;
+		}
+		case 1:
+		{
+			if(ButtonHID == -1)
+			{
+				UC_PrintToChat(client, "Map does not have an assigned open button!");
+				UC_PrintToChat(client, "An admin must use !assignopen to assign a button.");
+				return Plugin_Handled;
+			}
+		}
+	}
+	if (client != 0 && GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false))
+	{
+		UC_PrintToChat(client, "%s You must be \x0BCT \x01to use this \x07command!", PREFIX);
+		return Plugin_Handled;
+	}
+
+	else if (!OpenedThisRound)
+	{
+		UC_PrintToChat(client, "%s Cells are \x07already \x01closed!", PREFIX);
+		return Plugin_Handled;
+	}
+	else if (!CloseCells())
+	{
+		UC_PrintToChat(client, "The map's assigned open button is bugged!");
+		return Plugin_Handled;
+	}
+
+	char Title[64];
+
+	if (client != 0)
+	{
+		int Team = GetClientTeam(client);
+
+		if (Team == CS_TEAM_CT)
+			Title = "Guard";
+
+		else if (Team == CS_TEAM_T && CanEmptyRebel())
+			Title = "Rebel";
+
+		else if (Team == CS_TEAM_T && CanLRChainsaw())
+			Title = "LR";
+
+		else if (CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false))
+			Title = "Admin";
+	}
+	else
+		Title = "Admin";
+
+	if (client != 0)
+		UC_PrintToChatAll("%s %s \x05%N \x01closed the \x07jail \x01cells!", PREFIX, Title, client);
+
+	CloseIsolation();
+	return Plugin_Handled;
+}
+
 stock bool OpenCells()
 {
 	if(g_fNextOpen > GetGameTime())
@@ -639,20 +717,39 @@ stock bool OpenCells()
 				}			
 			}
 		}
-		else
+		else if(GetClientCount(true) > 0)
 		{
 			while ((ent = FindEntityByClassname(ent, "func_button")) != -1)
 			{
-				QueueOpenDoorsForOutput(ent, "OnPressed");
-				QueueOpenDoorsForOutput(ent, "OnIn");
-				QueueOpenDoorsForOutput(ent, "OnUseLocked");
-				QueueOpenDoorsForOutput(ent, "OnDamaged");
+				if(blockOpen)
+				{
+					OpenDoorsForOutput(ent, "OnPressed");
+					OpenDoorsForOutput(ent, "OnIn");
+					OpenDoorsForOutput(ent, "OnUseLocked");
+					OpenDoorsForOutput(ent, "OnDamaged");
+				}
+				else
+				{
+					QueueOpenDoorsForOutput(ent, "OnPressed");
+					QueueOpenDoorsForOutput(ent, "OnIn");
+					QueueOpenDoorsForOutput(ent, "OnUseLocked");
+					QueueOpenDoorsForOutput(ent, "OnDamaged");
+				}
+
 			}
 
 			while ((ent = FindEntityByClassname(ent, "func_door")) != -1)
 			{
-				QueueOpenDoorsForOutput(ent, "OnOpen");
-				QueueOpenDoorsForOutput(ent, "OnClose");
+				if(blockOpen)
+				{
+					QueueOpenDoorsForOutput(ent, "OnOpen");
+					QueueOpenDoorsForOutput(ent, "OnClose");
+				}
+				else
+				{
+					OpenDoorsForOutput(ent, "OnOpen");
+					OpenDoorsForOutput(ent, "OnClose");
+				}
 			}
 		}
 	}
@@ -775,6 +872,100 @@ stock bool OpenIsolation()
 	return true;
 }
 
+stock bool CloseCells()
+{
+	if(g_fNextOpen > GetGameTime())
+		return true;
+
+	g_fNextOpen = GetGameTime() + 2.5;
+
+	int ent = -1;
+	if (ButtonHID == -1)
+	{
+		if(g_aTargetnamesOpen.Length > 0 || g_aTargetnamesBreak.Length > 0)
+		{
+
+			for(int i=0;i < g_aTargetnamesOpen.Length;i++)
+			{
+				char sTarget[256];
+				g_aTargetnamesOpen.GetString(i, sTarget, sizeof(sTarget));
+
+				AcceptEntityInputForTargetname(sTarget, "Close");
+			}
+		}
+	}
+
+	else if(!blockOpen)
+	{
+		if(g_aTargetnamesOpen.Length > 0 || g_aTargetnamesBreak.Length > 0)
+		{
+
+			// blockOpen is meant to just register the targetnames without opening.
+			if(!blockOpen)
+			{
+				for(int i=0;i < g_aTargetnamesOpen.Length;i++)
+				{
+					char sTarget[256];
+					g_aTargetnamesOpen.GetString(i, sTarget, sizeof(sTarget));
+
+					AcceptEntityInputForTargetname(sTarget, "Close");
+				}		
+			}
+		}
+	}
+
+	OpenedThisRound = false;
+
+	return true;
+}
+
+stock bool CloseIsolation()
+{
+	int target;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		target = i;
+		break;
+	}
+
+	if (target == 0)
+		return false;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		else if (GetClientTeam(i) != CS_TEAM_CT)
+			continue;
+
+		target = i;
+		break;
+	}
+	bool Found = false;
+
+	int ent = -1;
+	while ((ent = FindEntityByClassname(ent, "func_door")) != -1)
+	{
+		if (GetEntProp(ent, Prop_Data, "m_iHammerID") == IsolationHID)
+		{
+			Found = true;
+			break;
+		}
+	}
+
+	if (!Found)
+		return false;
+
+	AcceptEntityInput(ent, "Close", target);
+
+	return true;
+}
+
 stock void DestroyTimer(Handle& timer)
 {
 	if (timer != INVALID_HANDLE)
@@ -869,7 +1060,7 @@ stock bool IsValidTeam(int client)
 
 public void OnGameFrame()
 {
-	OnFramedGame(20);
+	OnFramedGame(10);
 }
 
 public void OnFramedGame(int count)
