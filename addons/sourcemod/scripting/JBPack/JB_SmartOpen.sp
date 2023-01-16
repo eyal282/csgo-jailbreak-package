@@ -879,7 +879,6 @@ stock bool CloseCells()
 
 	g_fNextOpen = GetGameTime() + 2.5;
 
-	int ent = -1;
 	if (ButtonHID == -1)
 	{
 		if(g_aTargetnamesOpen.Length > 0 || g_aTargetnamesBreak.Length > 0)

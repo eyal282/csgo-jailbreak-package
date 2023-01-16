@@ -408,7 +408,8 @@ public Action Timer_CheckVoteCT(Handle hTimer)
 		}
 		else
 		{
-			PrintCenterTextAll("Vote CT will start when T has %i players", GetConVarInt(hcv_VoteCTMin));
+			// Feels unnecessary, better instead to use PrintCenterText to indicate a player is muted.
+			//PrintCenterTextAll("Vote CT will start when T has %i players", GetConVarInt(hcv_VoteCTMin));
 		}
 	}
 

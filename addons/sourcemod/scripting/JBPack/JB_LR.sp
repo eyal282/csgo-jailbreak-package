@@ -294,7 +294,8 @@ public void OnPluginStart()
 	RegAdminCmd("sm_abortlr", Command_StopLR, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_cancellr", Command_StopLR, ADMFLAG_GENERIC);
 
-	RegConsoleCmd("sm_ball", Command_StopBall);
+	// deleted as it's blocking !ball by JBPack/JB_Ball.sp
+	//RegConsoleCmd("sm_ball", Command_StopBall);
 	RegConsoleCmd("sm_lrwins", Command_LRWins);
 	RegConsoleCmd("sm_lrtop", Command_LRTop);
 	// RegConsoleCmd("sm_lrmanage", Command_LRManage);
