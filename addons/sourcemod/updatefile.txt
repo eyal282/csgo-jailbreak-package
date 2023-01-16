@@ -23,6 +23,7 @@
     "Plugin"	"Path_SM/plugins/force_alltalk.smx"
 
     "Plugin"	"Path_SM/plugins/JBPack/JB_AutoJoinT.smx"
+    "Plugin"	"Path_SM/plugins/JBPack/JB_Ball.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_BanCT.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_Bhop.smx"
     "Plugin"	"Path_SM/plugins/JBPack/JB_Config.smx"
