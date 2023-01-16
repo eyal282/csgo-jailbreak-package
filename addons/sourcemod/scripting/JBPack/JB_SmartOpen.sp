@@ -811,10 +811,10 @@ stock bool OpenCells()
 		}
 	}
 
-	OpenedThisRound = true;
-
 	if(!blockOpen)
 	{
+		OpenedThisRound = true;
+		
 		Call_StartForward(fw_OnCellsOpened);
 
 		Call_PushCell(true);

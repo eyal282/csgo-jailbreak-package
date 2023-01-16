@@ -41,12 +41,14 @@ int BeamIndex, HaloIdx;    // HaloIndex is stolen by an include.
 Handle hcv_TeammatesAreEnemies = INVALID_HANDLE;
 Handle hcv_CKHealthPerT        = INVALID_HANDLE;
 Handle hcv_VoicePriorityMode = INVALID_HANDLE;
-ConVar hcv_SetTimeMute;
-ConVar hcv_tMinMute;
+ConVar hcv_MuteTTime;
+ConVar hcv_MinTMute;
 ConVar hcv_SetTimeCooldown;
 
 Handle hTimer_Beacon          = INVALID_HANDLE;
 bool   nospam[MAXPLAYERS + 1] = { false, ... };
+
+float g_fMuteEnd;
 
 Handle hcv_DeadTalk = INVALID_HANDLE;
 
@@ -91,8 +93,8 @@ public void OnPluginStart()
 
 	hcv_CKHealthPerT = UC_CreateConVar("jbpack_ck_health_per_t", "20", "Amount of health a CT gains per T. Formula: 100 + ((cvar * tcount) / ctcount)");
 	hcv_VoicePriorityMode    = UC_CreateConVar("jbpack_voice_priority", "2", "0 - No Voice Priority.\n1 - Voice Priority of CT over T.\n2 - Voice Priority of CT over T, AND Voice Priority of Chosen CT over CT");
-	hcv_SetTimeMute    = UC_CreateConVar("jbpack_tmutetime", "30.0", "Set the mute timer on round start");
-	hcv_tMinMute       = UC_CreateConVar("jbpack_min_t_mute", "2", "Minimum amount of T before round start mute occurs.");
+	hcv_MuteTTime    = UC_CreateConVar("jbpack_t_mute_time", "30.0", "Set the mute timer on round start, or set to -1 to prevent T from talking entirely");
+	hcv_MinTMute       = UC_CreateConVar("jbpack_min_t_mute", "2", "Minimum amount of T before round start mute occurs.");
 
 	AutoExecConfig_ExecuteFile();
 
@@ -140,6 +142,68 @@ public void cvChange_MenuPrefix(Handle convar, const char[] oldValue, const char
 	FormatEx(MENU_PREFIX, sizeof(MENU_PREFIX), newValue);
 }
 
+enum struct g_message
+{
+    char message[512];
+    // In seconds
+    int timeleft;
+}
+
+
+public Action OnMuteIndicate(int client, bool realtime, ArrayList messages)
+{
+	switch(CheckVoicePriority(client))
+	{
+		case 1:
+		{
+			if(GetClientTeam(client) == CS_TEAM_T)
+			{
+				g_message msg;
+				FormatEx(msg.message, sizeof(g_message::message), "You are muted as T.");
+				msg.timeleft = -4;
+				messages.PushArray(msg);
+			}
+
+		}
+		case 2:
+		{
+			if(GetClientTeam(client) == CS_TEAM_T)
+			{
+				g_message msg;
+				FormatEx(msg.message, sizeof(g_message::message), "You are muted as T.\nYou will be unmuted in %.1f seconds", g_fMuteEnd - GetGameTime());
+				msg.timeleft = RoundToCeil(g_fMuteEnd - GetGameTime());
+
+				messages.PushArray(msg);
+			}
+		}
+		case 3:
+		{
+			if(GetClientTeam(client) == CS_TEAM_T)
+			{
+				g_message msg;
+				FormatEx(msg.message, sizeof(g_message::message), "You are muted while CT is talking.");
+				msg.timeleft = -4;
+				messages.PushArray(msg);
+			}
+		}
+		case 4:
+		{
+			g_message msg;
+
+			if(GetClientTeam(client) == CS_TEAM_CT)
+				FormatEx(msg.message, sizeof(g_message::message), "You are muted while Chosen CT is talking.");
+
+			else
+				FormatEx(msg.message, sizeof(g_message::message), "You are muted while CT is talking.");
+			
+			
+			msg.timeleft = -4;
+			messages.PushArray(msg);
+		}
+		default: return Plugin_Continue;
+	}
+	return Plugin_Changed;
+}
 public void OnClientSpeaking(int client)
 {
 	if(!g_bSpeaking[client])
@@ -161,24 +225,114 @@ public void OnClientSpeakingEnd(int client)
 }
 
 
-public void CheckVoicePriority()
-{
-	if(hTimer_ExpireMute != INVALID_HANDLE)
-		return;
-	
-	else if(GetTeamClientCount(CS_TEAM_T) <= 1)
-		return;
+// 0 for generic priority.
+// 1 for generic T mute.
+// 2 for mute by time.
+// 3 for Mute by talking CT.
+// 4 for Mute by talking Chosen CT.
+stock int CheckVoicePriority(int client=0)
+{	
+	if(client == 0 || GetClientTeam(client) == CS_TEAM_T)
+	{
+		if(hcv_MuteTTime.FloatValue < 0.0)
+			return 1;
+
+		else if(hTimer_ExpireMute != INVALID_HANDLE)
+			return 2;
+	}
+
+	else if(GetTeamClientCount(CS_TEAM_T) < GetConVarInt(hcv_MinTMute))
+		return 0;
 
 	switch(GetConVarInt(hcv_VoicePriorityMode))
 	{
-		case 0: return;
 		case 1:
 		{
+			if(hTimer_ExpireMute != INVALID_HANDLE)
+				return 2;
+
 			bool priority = false;
 
 			for(int i=1;i <= MaxClients;i++)
 			{
-				if(!g_bSpeaking[i])
+				if(!IsClientInGame(i))
+					continue;
+
+				else if(!g_bSpeaking[i])
+					continue;
+					
+				else if(GetClientTeam(i) != CS_TEAM_CT)
+					continue;
+					
+				else if(!IsPlayerAlive(i))
+					continue;
+					
+				priority = true;
+				break;
+			}
+
+			if(priority)
+			{
+				for(int i=1;i <= MaxClients;i++)
+				{		
+					if(!IsClientInGame(i))
+						continue;
+
+					else if(GetClientTeam(i) == CS_TEAM_CT && IsPlayerAlive(i))
+						continue;
+						
+					else if(CheckCommandAccess(i, "sm_admin", ADMFLAG_GENERIC))
+						continue;
+
+					SetClientListeningFlags(i, VOICE_MUTED);
+				}
+
+				return 3;
+			}
+			else
+			{
+				RestoreTalkingRights();
+				return 0;
+			}
+		}
+
+		case 2:
+		{
+			int chosen = GetClientOfUserId(Eyal282_VoteCT_GetChosenUserId());
+
+			if(chosen != 0)
+			{
+				if(g_bSpeaking[chosen])
+				{
+					for(int i=1;i <= MaxClients;i++)
+					{		
+						if(chosen == i)
+							continue;
+
+						else if(!IsClientInGame(i))
+							continue;
+
+						else if(CheckCommandAccess(i, "sm_admin", ADMFLAG_GENERIC))
+							continue;
+
+						SetClientListeningFlags(i, VOICE_MUTED);
+					}
+
+					return 4;
+				}
+			}
+
+			if(hTimer_ExpireMute != INVALID_HANDLE)
+				return 2;
+
+			bool priority = false;
+
+			for(int i=1;i <= MaxClients;i++)
+			{
+				if(!IsClientInGame(i))
+					continue;
+
+				else if(!g_bSpeaking[i])
 					continue;
 					
 				else if(GetClientTeam(i) != CS_TEAM_CT)
@@ -195,94 +349,31 @@ public void CheckVoicePriority()
 			{
 				for(int i=1;i <= MaxClients;i++)
 				{
-					if(!g_bSpeaking[i])
-						continue;
-						
-					else if(GetClientTeam(i) == CS_TEAM_CT)
-						continue;
-						
-					else if(CheckCommandAccess(i, "sm_admin", ADMFLAG_GENERIC))
+					if(!IsClientInGame(i))
 						continue;
 
-					SetClientListeningFlags(i, VOICE_MUTED);
-					break;
-				}
-			}
-			else
-			{
-				RestoreTalkingRights();
-			}
-		}
-
-		case 2:
-		{
-			int chosen = GetClientOfUserId(Eyal282_VoteCT_GetChosenUserId());
-
-			bool bRestore = true;
-
-			if(chosen != 0)
-			{
-				if(g_bSpeaking[chosen])
-				{
-					bRestore = false;
-
-					for(int i=1;i <= MaxClients;i++)
-					{
-						if(!g_bSpeaking[i])
-							continue;
-							
-						else if(CheckCommandAccess(i, "sm_admin", ADMFLAG_GENERIC))
-							continue;
-
-						SetClientListeningFlags(i, VOICE_MUTED);
-						break;
-					}
-				}
-			}
-			bool priority = false;
-
-			// If not bRestore, then chosen stole priority.
-			if(bRestore)
-			{
-				for(int i=1;i <= MaxClients;i++)
-				{
-					if(!g_bSpeaking[i])
-						continue;
-						
-					else if(GetClientTeam(i) != CS_TEAM_CT)
-						continue;
-						
-					else if(!IsPlayerAlive(i))
-						continue;
-						
-					priority = true;
-					bRestore = false;
-					break;
-				}
-			}
-
-			if(priority)
-			{
-				for(int i=1;i <= MaxClients;i++)
-				{
-					if(!g_bSpeaking[i])
-						continue;
-						
-					else if(GetClientTeam(i) == CS_TEAM_CT)
+					else if(GetClientTeam(i) == CS_TEAM_CT && IsPlayerAlive(i))
 						continue;
 						
 					else if(CheckCommandAccess(i, "sm_admin", ADMFLAG_GENERIC))
 						continue;
 
 					SetClientListeningFlags(i, VOICE_MUTED);
-					break;
 				}
+
+				return 3;
 			}
 			
-			if(bRestore)
-			{
-				RestoreTalkingRights();
-			}
+			RestoreTalkingRights();
+			return 0;
+		}
+
+		default:
+		{
+			if(hTimer_ExpireMute != INVALID_HANDLE)
+				return 2;
+
+			return 0;
 		}
 	}
 }
@@ -291,7 +382,7 @@ public void CheckVoicePriority()
 // note: This forward will NOT fire if the cells were opened without being assigned.
 public void SmartOpen_OnCellsOpened(bool cmd)
 {
-	if (cmd && hTimer_ExpireMute != INVALID_HANDLE)
+	if (cmd && hTimer_ExpireMute != INVALID_HANDLE && hcv_MuteTTime.FloatValue > 0.0)
 	{
 		CloseHandle(hTimer_ExpireMute);
 		hTimer_ExpireMute = INVALID_HANDLE;
@@ -315,6 +406,7 @@ public void OnMapStart()
 
 	hTimer_ExpireMute = INVALID_HANDLE;
 	hTimer_Beacon     = INVALID_HANDLE;
+	g_fMuteEnd = 0.0;
 
 	if (!JailBreakDays_IsDayActive())
 		SetConVarBool(hcv_TeammatesAreEnemies, false);
@@ -534,7 +626,7 @@ public Action Event_RoundStart(Event hEvent, const char[] Name, bool dontBroadca
 	ServerCommand("mp_forcecamera 1");
 	ServerCommand("sm_silentcvar sv_full_alltalk 1");
 
-	if (GetTeamAliveCount(CS_TEAM_T) < hcv_tMinMute.IntValue)
+	if (GetTeamAliveCount(CS_TEAM_T) < hcv_MinTMute.IntValue)
 	{
 		if (hTimer_ExpireMute != INVALID_HANDLE)
 		{
@@ -551,11 +643,20 @@ public Action Event_RoundStart(Event hEvent, const char[] Name, bool dontBroadca
 		CloseHandle(hTimer_ExpireMute);
 		hTimer_ExpireMute = INVALID_HANDLE;
 	}
-	hTimer_ExpireMute = CreateTimer(hcv_SetTimeMute.FloatValue, MuteHandler);
 
-	RestoreTalkingRights();
+	if(hcv_MuteTTime.FloatValue > 0)
+	{
+		hTimer_ExpireMute = CreateTimer(hcv_MuteTTime.FloatValue, MuteHandler);
+		g_fMuteEnd = GetGameTime() + hcv_MuteTTime.FloatValue;
 
-	UC_PrintToChatAll("%s The \x02terrorist \x01have been muted, they will be able to speak in \x05%d \x01seconds", PREFIX, hcv_SetTimeMute.IntValue);
+		RestoreTalkingRights();
+
+		UC_PrintToChatAll("%s The \x02terrorist \x01have been muted, they will be able to speak in \x05%d \x01seconds", PREFIX, hcv_MuteTTime.IntValue);
+	}
+	else if(hcv_MuteTTime.FloatValue <= 0)
+	{
+		RestoreTalkingRights();
+	}
 
 	return Plugin_Continue;
 }
@@ -734,6 +835,7 @@ public Action Timer_BeaconVIP(Handle hTimer)
 
 public Action Command_Box(int client, int args)
 {
+	g_bSpeaking[client] = true;
 	if (JailBreakDays_IsDayActive())
 		return Plugin_Handled;
 
@@ -1156,13 +1258,11 @@ public Action MuteHandler(Handle timer, any client)
 		{
 			UC_PrintToChat(i, "%s The \x02terrorists \x01can talk right \x05now!", PREFIX);
 		}
-		if (IsClientInGame(i) && (IsPlayerAlive(i) || GetConVarBool(hcv_DeadTalk)) && !BaseComm_IsClientMuted(i))
-		{
-			SetClientListeningFlags(i, VOICE_NORMAL);
-		}
 	}
 
 	hTimer_ExpireMute = INVALID_HANDLE;
+
+	RestoreTalkingRights();
 
 	return Plugin_Continue;
 }
@@ -1294,8 +1394,16 @@ stock void RestoreTalkingRights()
 	{
 		if (!IsClientInGame(i))
 			continue;
-			
-		if(hTimer_ExpireMute != INVALID_HANDLE)
+		
+		if(GetTeamAliveCount(CS_TEAM_T) < hcv_MinTMute.IntValue)
+		{
+			if(!IsPlayerAlive(i) && !GetConVarBool(hcv_DeadTalk) && !CheckCommandAccess(i, "sm_admin", ADMFLAG_GENERIC))
+				SetClientListeningFlags(i, VOICE_MUTED);
+
+			else
+				SetClientListeningFlags(i, VOICE_NORMAL);
+		}
+		else if(hTimer_ExpireMute != INVALID_HANDLE || hcv_MuteTTime.FloatValue < 0.0)
 		{
 			if(!IsPlayerAlive(i) && !GetConVarBool(hcv_DeadTalk) && !CheckCommandAccess(i, "sm_admin", ADMFLAG_GENERIC))
 				SetClientListeningFlags(i, VOICE_MUTED);
