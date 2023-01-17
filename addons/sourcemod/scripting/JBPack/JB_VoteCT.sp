@@ -215,6 +215,8 @@ public int Native_SetChosen(Handle plugin, int numParams)
 
 public void OnPluginStart()
 {
+	LoadTranslations("common.phrases"); // Fixing errors in target
+	
 	RegAdminCmd("sm_disablevotect", Command_DisableVoteCT, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_votect", Command_VoteCT, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_stopvotect", Command_StopVoteCT, ADMFLAG_GENERIC);

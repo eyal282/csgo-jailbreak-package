@@ -184,7 +184,11 @@ public void OnClientAuthorized(int client)
 	int dummy_value;
 	if (!GetTrieValue(Trie_Retriers, AuthId, dummy_value))
 		CanBeGraced[client] = true;
+}
 
+public void OnClientPutInServer(int client)
+{
+	// Weird error was given. Keep an eye because if OpenCells throws an error, blockOpen won't necessarily be switched off.
 	if(GetClientCount(true) == 1)
 	{
 		blockOpen = true;

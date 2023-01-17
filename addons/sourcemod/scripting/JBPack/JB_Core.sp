@@ -8,6 +8,7 @@
 #define REQUIRE_EXTENSIONS
 
 #define UPDATE_URL "https://raw.githubusercontent.com/eyal282/csgo-jailbreak-package/master/addons/sourcemod/updatefile.txt"
+#define UPDATE_URL2 "https://raw.githubusercontent.com/eyal282/sm_muted_indicator/master/addons/sourcemod/updatefile.txt"
 
 #pragma semicolon 1
 #pragma newdecls  required
@@ -42,11 +43,14 @@ public void OnPluginStart()
 	AutoExecConfig_ExecuteFile();
 
 	AutoExecConfig_CleanFile();
+
 #if defined _updater_included
 
 	if (LibraryExists("updater"))
 	{
 		Updater_AddPlugin(UPDATE_URL);
+		Updater_AddPlugin(UPDATE_URL2);
+		
 	}
 
 #endif
@@ -59,6 +63,7 @@ public void OnLibraryAdded(const char[] name)
 	if (StrEqual(name, "updater"))
 	{
 		Updater_AddPlugin(UPDATE_URL);
+		Updater_AddPlugin(UPDATE_URL2);
 	}
 
 #endif

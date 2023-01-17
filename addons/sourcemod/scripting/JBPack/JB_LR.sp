@@ -150,7 +150,7 @@ char       LRHealthArgument[MAXPLAYERS + 1][64];
 char       SavedLRArguments[MAXPLAYERS + 1][64];
 char       SavedLRHealthArgument[MAXPLAYERS + 1][64];
 // True Prisoner ignores TSeeker reverting them
-int        Prisoner, Guard, TruePrisoner, TrueGuard, FreeDayUID = -1, ChokeTimer, GeneralTimer;
+int        Prisoner, Guard, TruePrisoner, TrueGuard, ChokeTimer, GeneralTimer;
 int        PrisonerPrim, PrisonerSec, GuardPrim, GuardSec;    //, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;//, PrisonerGangPrim, PrisonerGangSec, GuardGangPrim, GuardGangSec;
 int        HPamount, BPAmmo, Vest;
 char       PrimWep[32], SecWep[32];
@@ -1028,12 +1028,6 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 
 public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	if (GetClientOfUserId(FreeDayUID) != 0)
-	{
-		CreateTimer(1.0, SetGlow, FreeDayUID);
-		FreeDayUID = 0;
-	}
-
 	EndLR();
 	g_bLRSound  = false;
 	LRAnnounced = false;
@@ -1172,17 +1166,6 @@ public Action Listener_Suicide(int client, const char[] command, int args)
 	return Plugin_Handled;
 }
 
-public Action SetGlow(Handle hTimer, int UserId)
-{
-	int client = GetClientOfUserId(UserId);
-	// SetEntityGlow(client, true, GetRandomInt(0, 255), GetRandomInt(0, 255), GetRandomInt(0, 255));
-	UC_PrintToChatAll("%s \x05%N \x01is freeday in the round.", PREFIX, client);
-
-	ServerCommand("sm_vip #%i", UserId);
-
-	return Plugin_Continue;
-}
-
 public Action Command_InfoMsg(int client, int args)
 {
 	bool val = ShowMessage[client];
@@ -1191,14 +1174,6 @@ public Action Command_InfoMsg(int client, int args)
 	UC_PrintToChat(client, "%s \x01Your info message status is now \x07%sabled.", PREFIX, ShowMessage[client] ? "En" : "Dis");
 
 	return Plugin_Continue;
-}
-
-public Action Command_LOL(int client, int args)
-{
-	SetEntProp(client, Prop_Send, "m_bDrawViewmodel", 0);
-	SetEntPropEnt(client, Prop_Send, "m_hActiveWeapon", -1);
-
-	return Plugin_Handled;
 }
 
 public int InfoMessageCookieMenu_Handler(int client, CookieMenuAction action, int info, char[] buffer, int maxlen)
@@ -1665,8 +1640,6 @@ public ShowFunDuelNames(id)
     if(MapOkay)
         menu_additem(FunDuels, "Jump");
 
-    //menu_additem(FunDuels, "Freeday");
-
     menu_display(id, FunDuels);
 }
 public HandleShowFunDuelNames(id, FunDuels, item)
@@ -1852,8 +1825,15 @@ public Action Timer_CheckChokeRound(Handle hTimer)
 	}
 	ChokeTimer--;
 
-	if (ChokeTimer == 0)
+	if (ChokeTimer <= 0)
 	{
+		if(GetTeamClientCount(CS_TEAM_T) == 1)
+		{
+			PrintCenterTextAll("<font color='#FFFFFF'>Prisoner will be slayed immediately after another player joins.");
+
+			return Plugin_Continue;
+		}
+		
 		TIMER_KILLCHOKINGROUND = INVALID_HANDLE;
 
 		Prisoner = GetRandomAlivePlayer(CS_TEAM_T);
@@ -3065,22 +3045,23 @@ public void ShowFunMenu(int client)
 	{
 		Handle hMenu = CreateMenu(Fun_MenuHandler);
 
-		AddMenuItem(hMenu, "", "Shot4Shot Duels");
-		AddMenuItem(hMenu, "", "Custom War");
-		AddMenuItem(hMenu, "", "RAMBO REBEL");
-		AddMenuItem(hMenu, "", "Night Crawler ( Invisible )");
-		AddMenuItem(hMenu, "", "Hide'N'Seek");
-		AddMenuItem(hMenu, "", "Fast HnR");
-		AddMenuItem(hMenu, "", "Super Deagle");
-		AddMenuItem(hMenu, "", "Negev No Spread");
-		AddMenuItem(hMenu, "", "Gun Toss");
-		AddMenuItem(hMenu, "", "Dodgeball");
-		AddMenuItem(hMenu, "", "Backstabs");
-		AddMenuItem(hMenu, "", "Race");
+		AddMenuItem(hMenu, "S4S", "Shot4Shot Duels");
+		AddMenuItem(hMenu, "Custom", "Custom War");
+		AddMenuItem(hMenu, "Rambo", "RAMBO REBEL");
+		AddMenuItem(hMenu, "NightCrawler", "Night Crawler ( Invisible )");
+		AddMenuItem(hMenu, "HNS", "Hide'N'Seek");
+		AddMenuItem(hMenu, "HNR", "Fast HnR");
+		AddMenuItem(hMenu, "SuperDeagle", "Super Deagle");
+		AddMenuItem(hMenu, "NegevNoSpread", "Negev No Spread");
+		AddMenuItem(hMenu, "GunToss", "Gun Toss");
+		AddMenuItem(hMenu, "Dodgeball", "Dodgeball");
+		AddMenuItem(hMenu, "Backstabs", "Backstabs");
+		AddMenuItem(hMenu, "Race", "Race");
 
-		AddMenuItem(hMenu, "", "Freeday");
+		if(LibraryExists("CrossbowAPI"))
+			AddMenuItem(hMenu, "Crossbow", "Crossbow");
 
-		AddMenuItem(hMenu, "", "Random");
+		AddMenuItem(hMenu, "Random", "Random");
 
 		SetMenuTitle(hMenu, "%s Fun Duels:", MENU_PREFIX);
 		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
@@ -3131,144 +3112,156 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 
 		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
 
-		switch (item + 1)
+		char info[64];
+		GetMenuItem(hMenu, item, info, sizeof(info));
+
+		if(StrEqual(info, "S4S", false))
 		{
-			case 1:
-			{
-				DuelName = "S4S";
-				ShowWeaponMenu(client);
-			}
+			DuelName = "S4S";
+			ShowWeaponMenu(client);
+		}
+		else if(StrEqual(info, "Custom", false))
+		{
+			PrimWep                       = "weapon_m4a1";
+			PrimNum                       = CSWeapon_M4A1;
+			Zoom                          = true;
+			HeadShot                      = false;
+			BPAmmo                        = 10000;
+			HPamount                      = 1000;
+			SavedLRHealthArgument[client] = "1000";
+			Vest                          = 2;
+			DuelName                      = "S4S | M4A1";
+			ShowCustomMenu(client);
+		}
+		else if(StrEqual(info, "Rambo", false))
+		{
+			DuelName = "RAMBO REBEL";
 
-			case 2:
+			if (LastRequest(client))
 			{
-				PrimWep                       = "weapon_m4a1";
-				PrimNum                       = CSWeapon_M4A1;
-				Zoom                          = true;
-				HeadShot                      = false;
-				BPAmmo                        = 10000;
-				HPamount                      = 1000;
-				SavedLRHealthArgument[client] = "1000";
-				Vest                          = 2;
-				DuelName                      = "S4S | M4A1";
-				ShowCustomMenu(client);
-			}
-			case 3:
-			{
-				// Avoid ChooseOpponent from triggering.
-				DuelName = "RAMBO REBEL";
-
-				if (LastRequest(client))
+				if (T >= 3)
 				{
-					if (T >= 3)
-					{
-						Prisoner  = client;
-						LRStarted = true;
-						Vest      = 2;
+					Prisoner  = client;
+					LRStarted = true;
+					Vest      = 2;
 
-						// OpenAllCells();
-						FinishTimers();
-						StartRambo();
+					// OpenAllCells();
+					FinishTimers();
+					StartRambo();
 
-						// BAR COLOR!!!
-						UC_PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
-						UC_PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
-						UC_PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
-					}
-					else
-						UC_PrintToChat(client, "%s You can only start Rambo when there are \x073 \x01or more total terror.", PREFIX);
+					// BAR COLOR!!!
+					UC_PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
+					UC_PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
+					UC_PrintToChatAll("%s \x01%s \x07%N \x01vs \x07%N", PREFIX, DuelName, Prisoner, Guard);
 				}
-			}
-			case 4:
-			{
-				DuelName = "Fun | Night Crawler";
-				PrimWep  = "weapon_m4a1";
-				PrimNum  = CSWeapon_M4A1;
-				SecWep   = "weapon_knife";
-				SecNum   = CSWeapon_KNIFE;
-				BPAmmo   = 10000;
-				HPamount = 100;
-			}
-			case 5:
-			{
-				DuelName = "Fun | HNS";
-				SecWep   = "weapon_knife";
-				SecNum   = CSWeapon_KNIFE;
-
-				noBeacon = true;
-			}
-			case 6:
-			{
-				DuelName = "Fun | Fast HnR";
-				PrimWep  = "weapon_ssg08";
-				PrimNum  = CSWeapon_SSG08;
-
-				SecWep = "weapon_knife";
-				SecNum = CSWeapon_KNIFE;
-
-				HPamount = 30000;
-				BPAmmo   = 10000;
-			}
-			case 7:
-			{
-				DuelName = "Fun | Super Deagle";
-				HPamount = 500;
-				BPAmmo   = 10000;
-				PrimWep  = "weapon_deagle";
-				PrimNum  = CSWeapon_DEAGLE;
-			}
-			case 8:
-			{
-				DuelName = "Fun | Negev No Recoil";
-				NoRecoil = true;
-				HPamount = 1000;
-				BPAmmo   = 10000;
-				PrimWep  = "weapon_negev";
-				PrimNum  = CSWeapon_NEGEV;
-			}
-			case 9:
-			{
-				DuelName = "Fun | Gun Toss";
-				HPamount = 100;
-				PrimWep  = "weapon_deagle";
-				PrimNum  = CSWeapon_DEAGLE;
-				SecWep   = "weapon_knife";
-				SecNum   = CSWeapon_KNIFE;
-				BPAmmo   = 0;
+				else
+					UC_PrintToChat(client, "%s You can only start Rambo when there are \x073 \x01or more total terror.", PREFIX);
 			}
 
-			case 10:
+			return 0;
+		}
+		else if(StrEqual(info, "NightCrawler", false))
+		{
+			DuelName = "Fun | Night Crawler";
+			PrimWep  = "weapon_m4a1";
+			PrimNum  = CSWeapon_M4A1;
+			SecWep   = "weapon_knife";
+			SecNum   = CSWeapon_KNIFE;
+			BPAmmo   = 10000;
+			HPamount = 100;
+		}
+		else if(StrEqual(info, "HNS", false))
+		{
+			DuelName = "Fun | HNS";
+			SecWep   = "weapon_knife";
+			SecNum   = CSWeapon_KNIFE;
+
+			noBeacon = true;
+		}
+		else if(StrEqual(info, "HNR", false))
+		{
+			DuelName = "Fun | Fast HnR";
+			PrimWep  = "weapon_ssg08";
+			PrimNum  = CSWeapon_SSG08;
+
+			SecWep = "weapon_knife";
+			SecNum = CSWeapon_KNIFE;
+
+			HPamount = 30000;
+			BPAmmo   = 10000;
+		}
+		else if(StrEqual(info, "SuperDeagle", false))
+		{
+			DuelName = "Fun | Super Deagle";
+			HPamount = 500;
+			BPAmmo   = 10000;
+			PrimWep  = "weapon_deagle";
+			PrimNum  = CSWeapon_DEAGLE;
+		}
+		else if(StrEqual(info, "NegevNoSpread", false))
+		{
+			DuelName = "Fun | Negev No Recoil";
+			NoRecoil = true;
+			HPamount = 1000;
+			BPAmmo   = 10000;
+			PrimWep  = "weapon_negev";
+			PrimNum  = CSWeapon_NEGEV;
+		}
+		else if(StrEqual(info, "GunToss", false))
+		{
+			DuelName = "Fun | Gun Toss";
+			HPamount = 100;
+			PrimWep  = "weapon_deagle";
+			PrimNum  = CSWeapon_DEAGLE;
+			SecWep   = "weapon_knife";
+			SecNum   = CSWeapon_KNIFE;
+			BPAmmo   = 0;
+		}
+		else if(StrEqual(info, "Dodgeball", false))
+		{
+			DuelName = "Fun | Dodgeball";
+			HPamount = 100;
+			BPAmmo   = 1;
+			PrimWep  = "weapon_decoy";
+			PrimNum  = CSWeapon_DECOY;
+		}
+		else if(StrEqual(info, "Backstabs", false))
+		{
+			DuelName = "Fun | Backstabs";
+			HPamount = 100;
+			Vest     = 0;
+			PrimWep  = "weapon_knife";
+			PrimNum  = CSWeapon_KNIFE;
+		}
+		else if(StrEqual(info, "Race", false))
+		{
+			DuelName = "Fun | Race";
+			HPamount = 100;
+			PrimNum  = CSWeapon_NONE;
+
+			noBeacon = true;
+		}
+		else if(StrEqual(info, "Crossbow", false))
+		{
+			DuelName = "Fun | Crossbow";
+			HPamount = 750;
+			BPAmmo = 10000;
+			Vest     = 0;
+			PrimWep  = "weapon_m4a1";
+			PrimNum  = CSWeapon_M4A1;
+			// The crossbow is given in "OnShouldPlayerHaveCrossbow"
+		}
+		else if(StrEqual(info, "Random", false))
+		{
+			int lastItem;
+
+			while(GetMenuItem(hMenu, lastItem++, info, sizeof(info)))
 			{
-				DuelName = "Fun | Dodgeball";
-				HPamount = 100;
-				BPAmmo   = 1;
-				PrimWep  = "weapon_decoy";
-				PrimNum  = CSWeapon_DECOY;
+				// Do nothing here, just wait until last item.
 			}
 
-			case 11:
-			{
-				DuelName = "Fun | Backstabs";
-				HPamount = 100;
-				Vest     = 0;
-				PrimWep  = "weapon_knife";
-				PrimNum  = CSWeapon_KNIFE;
-			}
-
-			case 12:
-			{
-				DuelName = "Fun | Race";
-				HPamount = 100;
-				PrimNum  = CSWeapon_NONE;
-
-				noBeacon = true;
-			}
-
-			case 13: SetFreeday(client);
-
-			case 14:
-			{
-				Fun_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 11));
-			}
+			Fun_MenuHandler(hMenu, MenuAction_Select, client, GetRandomInt(0, lastItem-1));
+			return 0;
 		}
 
 		bool HNS;
@@ -3281,7 +3274,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 		else if (StrContains(DuelName, "Race", false) != -1)
 			ChooseRaceCoords(client);
 
-		else if (item + 1 < 13 && item + 1 > 3)
+		else if (item + 1 > 3)
 			ChooseOpponent(client);
 	}
 
@@ -3289,7 +3282,6 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 
 	return 0;
 }
-
 public void ChooseSeeker(int client)
 {
 	if (LRArguments[client][0] != EOS)
@@ -4015,6 +4007,14 @@ public void ContinueStartDuel()
 	// Teleport();
 
 	// UC_PrintToChat(TruePrisoner, "LR Sequence: !lr %s %s", SavedLRArguments[Prisoner], SavedLRHealthArgument[Prisoner][0] == EOS ? "" : SavedLRHealthArgument[Prisoner]);
+}
+
+public bool OnShouldPlayerHaveCrossbow(int client)
+{
+	if(LRPart(client) && StrContains(DuelName, "Crossbow", false) != -1)
+		return true;
+
+	return false;
 }
 
 public void DeleteAllGuns()
@@ -5133,12 +5133,6 @@ public Action BleedTimer(Handle hTimer)
 	return Plugin_Continue;
 }
 
-public void SetFreeday(int client)
-{
-	UC_PrintToChatAll("%s \x05%N \x01selected \x07Free Day \x01for the next round!", PREFIX, client);
-	ForcePlayerSuicide(client);
-	FreeDayUID = GetClientUserId(client);
-}
 /*
 stock track_weapon(index)
 {
