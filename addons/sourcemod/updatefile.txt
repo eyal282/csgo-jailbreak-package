@@ -13,6 +13,9 @@
     "Plugin"    "Path_SM/gamedata/entityIO.games.txt"
     "Plugin"    "Path_SM/gamedata/csgo_movement_unlocker.games.txt"
     
+    
+    "Plugin"	"Path_SM/plugins/CrossbowAPI.smx"
+    "Plugin"	"Path_SM/plugins/customweapons.smx"
     "Plugin"	"Path_SM/plugins/noblock.smx"
     "Plugin"	"Path_SM/plugins/csgo_movement_unlocker.smx"
     "Plugin"	"Path_SM/plugins/DisableRadar.smx"
