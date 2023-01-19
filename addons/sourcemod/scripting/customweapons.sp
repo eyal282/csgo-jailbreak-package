@@ -3,6 +3,7 @@
 #include <sdkhooks>
 #include <anymap>
 #include <customweapons>
+#include <cstrike>
 
 #pragma semicolon 1
 #pragma newdecls required
