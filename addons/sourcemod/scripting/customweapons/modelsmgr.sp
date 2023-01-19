@@ -80,13 +80,15 @@ Action Hook_OnWeaponEquip(int client, int weapon)
 	// Try to retrieve and validate the weapon customization data.
 	// If it failed, that means that there are no customizations applied on this weapon.
 	CustomWeaponData custom_weapon_data;
-	if (!custom_weapon_data.GetMyself(weapon) || !custom_weapon_data.world_model[0])
+	if (!custom_weapon_data.GetMyself(weapon))
 	{
 		return Plugin_Continue;
 	}
 	
 	// A FIX for: Failed to set custom material for 'x', no matching material name found on model y
 	// Not really a smart one, the real cause is unknown at the moment.
+	Call_OnModel(client, weapon, CustomWeaponModel_Dropped, custom_weapon_data.dropped_model);
+
 	if (custom_weapon_data.dropped_model[0] && !IsModelPrecached(custom_weapon_data.dropped_model))
 	{
 		PrecacheModel(custom_weapon_data.dropped_model);
@@ -97,6 +99,10 @@ Action Hook_OnWeaponEquip(int client, int weapon)
 		return Plugin_Continue;
 	}
 	
+	if(!custom_weapon_data.world_model[0])
+	{
+		return Plugin_Continue;
+	}
 	int precache_index = GetModelPrecacheIndex(custom_weapon_data.world_model);
 	if (precache_index == INVALID_STRING_INDEX)
 	{
@@ -136,8 +142,7 @@ void Frame_SetDroppedModel(any weapon_reference)
 	// If it failed, that means that there are no customizations applied on this weapon.
 	CustomWeaponData custom_weapon_data;
 	if (!custom_weapon_data.GetMyselfByReference(weapon_reference)
-		 || !custom_weapon_data.dropped_model[0]
-		 || Call_OnModel(0, weapon, CustomWeaponModel_Dropped, custom_weapon_data.dropped_model) >= Plugin_Handled)
+		 || Call_OnModel(0, weapon, CustomWeaponModel_Dropped, custom_weapon_data.dropped_model) >= Plugin_Handled || !custom_weapon_data.dropped_model[0])
 	{
 		return;
 	}
