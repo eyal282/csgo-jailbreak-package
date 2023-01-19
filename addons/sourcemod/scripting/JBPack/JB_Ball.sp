@@ -310,7 +310,7 @@ public void OnGameFrame()
 		g_TimerRespawn = CreateTimer(2.0, TimerRespawnBall, _, TIMER_FLAG_NO_MAPCHANGE);
 	}
 
-	CloseHandle(zones);
+	delete zones;
 }
 
 public Action Event_SoundPlayed(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)

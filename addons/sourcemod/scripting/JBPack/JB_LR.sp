@@ -1984,12 +1984,31 @@ public void Event_TakeDamagePost(int victim, int attacker, int inflictor, float 
 	else if (!IsPlayer(attacker) || attacker == victim)
 		return;
 
+	bool transfered = false;
+
+	if(BleedTarget == attacker)
+		transfered = true;
+
+	SetEntityRenderMode(BleedTarget, RENDER_NORMAL);
+	SetEntityRenderFx(BleedTarget, RENDERFX_NONE);
+
+	SetEntityRenderColor(BleedTarget, 255, 255, 255, 255);
+
 	if (victim == Guard)
 		BleedTarget = Guard;
 
 	else if (victim == Prisoner)
 		BleedTarget = Prisoner;
 
+	if(transfered)
+		ClientCommand(BleedTarget, "play error");
+
+	SetEntityRenderMode(BleedTarget, RENDER_GLOW);
+	SetEntityRenderFx(BleedTarget, RENDERFX_GLOWSHELL);
+
+	SetEntityRenderColor(BleedTarget, GetRandomInt(0, 255), GetRandomInt(0, 255), GetRandomInt(0, 255), 255);
+
+	// Dealing damage for 700 whenever you shoot even if you're not bleeding is a feature, not a bug.
 	TriggerTimer(TIMER_COUNTDOWN, true);
 
 	return;
@@ -3640,7 +3659,7 @@ public void StartRambo()
 
 	SetClientArmor(Prisoner, Vest == 0 ? 0 : 100, Vest == 2 ? 1 : 0);
 
-	TIMER_INFOMSG = CreateTimer(0.1, ShowToAll, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	TIMER_INFOMSG = CreateTimer(0.1, Timer_ShowToAll, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 	TIMER_SLAYALL = CreateTimer(420.0, SlayAllParts, _, TIMER_FLAG_NO_MAPCHANGE);
 
@@ -3724,9 +3743,6 @@ public void StartDuel()
 
 public void ContinueStartDuel()
 {
-	SetEntityGlow(Guard, true, 128, 0, 128);
-	SetEntityGlow(Prisoner, true, 128, 0, 128);
-
 	if (NoRecoil)
 	{
 		SendConVarValue(Guard, hcv_NoSpread, "1");
@@ -3987,7 +4003,7 @@ public void ContinueStartDuel()
 	bool NC;
 
 	NC            = StrContains(DuelName, "Night Crawler") != -1 ? true : false;
-	TIMER_INFOMSG = CreateTimer(0.1, ShowToAll, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	TIMER_INFOMSG = CreateTimer(0.1, Timer_ShowToAll, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
 	if (!noBeacon)
 	{
@@ -3995,6 +4011,13 @@ public void ContinueStartDuel()
 		TIMER_BEACON[Guard]    = CreateTimer(1.0, BeaconPlayer, Guard, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	}
 
+
+	if(!Bleed)
+	{
+		SetEntityGlow(Guard, true, 128, 0, 128);
+		SetEntityGlow(Prisoner, true, 128, 0, 128);
+	}
+	
 	int nullint;
 	Call_StartForward(fw_LRStarted);
 
@@ -4713,12 +4736,20 @@ public void ResetClip(int AlexaPlayDespacitoByToto)
 	SetClientAmmo(Prisoner, Type ? PrisonerPrim : PrisonerSec, 0);
 }
 
-public Action ShowToAll(Handle hTimer)
+public Action Timer_ShowToAll(Handle hTimer)
 {
 	if (!LRStarted)
 	{
 		TIMER_INFOMSG = INVALID_HANDLE;
 		return Plugin_Stop;
+	}
+
+	if(Bleed && BleedTarget != 0)
+	{
+		SetEntityRenderMode(BleedTarget, RENDER_GLOW);
+		SetEntityRenderFx(BleedTarget, RENDERFX_GLOWSHELL);
+
+		SetEntityRenderColor(BleedTarget, GetRandomInt(0, 255), GetRandomInt(0, 255), GetRandomInt(0, 255), 255);
 	}
 
 	bool HNS;
@@ -5104,12 +5135,14 @@ public Action DecrementTimer(Handle hTimer)
 	return Plugin_Continue;
 }
 
+
+// The rainbow color appears in info message at "Timer_ShowToAll"
 public Action BleedTimer(Handle hTimer)
 {
 	if (BleedTarget == 0)
 	{
-		PrintCenterText(Prisoner, "You are not bleeding. Try not to get hit last");
-		PrintCenterText(Guard, "You are not bleeding. Try not to get hit last");
+		PrintCenterText(Prisoner, "You are not infected. Hit the Guard last to infect him.");
+		PrintCenterText(Guard, "You are not infected. Hit the Prisoner lastto infect him.");
 		return Plugin_Continue;
 	}
 	else
@@ -5118,15 +5151,15 @@ public Action BleedTimer(Handle hTimer)
 		{
 			SDKHooks_TakeDamage(Prisoner, Guard, Guard, 700.0, DMG_POISON);
 
-			PrintCenterText(Prisoner, "You are bleeding. Hit the Guard quickly before you die!");
-			PrintCenterText(Guard, "You are not bleeding. Try not to get hit last");
+			PrintCenterText(Prisoner, "You are infected. Hit the Guard quickly before you die!");
+			PrintCenterText(Guard, "You are not infected. Try not to get hit last");
 		}
 		else if (BleedTarget == Guard)
 		{
 			SDKHooks_TakeDamage(Guard, Prisoner, Prisoner, 700.0, DMG_POISON);
 
-			PrintCenterText(Guard, "You are bleeding. Hit the Guard quickly before you die!");
-			PrintCenterText(Prisoner, "You are not bleeding. Try not to get hit last");
+			PrintCenterText(Guard, "You are infected. Hit the Prisoner quickly before you die!");
+			PrintCenterText(Prisoner, "You are not infected. Try not to get hit last");
 		}
 	}
 
@@ -5399,6 +5432,7 @@ stock void StripPlayerWeapons(int client)
 		if (weapon != -1)
 		{
 			RemovePlayerItem(client, weapon);
+			AcceptEntityInput(weapon, "Kill");
 			i--;
 		}
 	}

@@ -22,6 +22,8 @@ enum enDay
 	KNIFE_DAY,
 	WAR_DAY,
 	SDEAGLE_DAY,
+	HNR_DAY,
+	CROSSBOW_DAY,
 
 	MAX_DAYS
 };
@@ -35,7 +37,9 @@ char DayName[][] = {
 	"Scout Day",
 	"Knife Day",
 	"War Day",
-	"Super Deagle Day"
+	"Super Deagle Day",
+	"Hit'N'Run Day",
+	"Crossbow Day"
 };
 
 char DayCommand[][] = {
@@ -47,7 +51,10 @@ char DayCommand[][] = {
 	"sm_startscoutday",
 	"sm_startknifeday",
 	"sm_startwarday",
-	"sm_startsdeagleday"
+	"sm_startsdeagleday",
+	"sm_starthnrday",
+	"sm_startcrossbowday",
+
 };
 
 enum struct enWeapon {
@@ -77,6 +84,7 @@ native int   Gangs_AreClientsSameGang(int client, int otherClient);
 native int   Gangs_TryDestroyGlow(int client);
 native float Gangs_GetFFDamageDecrease(int client);
 native void LR_CheckAnnounce();
+native bool LR_isActive();
 
 char   PREFIX[256];
 Handle hcv_Prefix = INVALID_HANDLE;
@@ -125,6 +133,9 @@ int DayCountDown;
 bool GlowRemoved;
 
 char DodgeballModel[] = "models/chicken/chicken.mdl";
+
+int g_Infected;
+float g_fNextHNRDeath;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
@@ -186,6 +197,12 @@ void BuildUpVoteDayMenu()
 
 	for (int i = view_as<int>(LR_DAY) + 1; i < view_as<int>(MAX_DAYS); i++)
 	{
+		if(StrContains(DayName[i], "Crossbow") != -1)
+		{
+			// Skip crossbow day if no API found.
+			if(!LibraryExists("CrossbowAPI"))
+				continue;
+		}
 		FormatEx(TempFormat, sizeof(TempFormat), "%s {VOTE_COUNT}", DayName[i]);
 
 		FormatEx(replace, sizeof(replace), "[%i]", VoteList[i]);
@@ -262,6 +279,8 @@ public void OnPluginStart()
 	RegServerCmd("sm_startknifeday", Command_StartKnifeDay);
 	RegServerCmd("sm_startwarday", Command_StartWarDay);
 	RegServerCmd("sm_startsdeagleday", Command_StartSDeagleDay);
+	RegServerCmd("sm_starthnrday", Command_StartHNRDay);
+	RegServerCmd("sm_startcrossbowday", Command_StartCrossbowDay);
 
 	HookEvent("weapon_fire", Event_WeaponTryFire, EventHookMode_Post);
 	HookEvent("weapon_fire_on_empty", Event_WeaponTryFire, EventHookMode_Post);
@@ -349,6 +368,56 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 public void OnMapStart()
 {
 	hTimer_StartDay = INVALID_HANDLE;
+
+	CreateTimer(0.1, Timer_CheckHNRInfected, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+}
+
+public Action Timer_CheckHNRInfected(Handle hTimer)
+{
+	if(DayActive != HNR_DAY)
+		return Plugin_Continue;
+
+	else if(DayCountDown > 0)
+		return Plugin_Continue;
+
+	
+	if(g_Infected == 0 || !IsClientInGame(g_Infected) || !IsPlayerAlive(g_Infected))
+	{
+		g_Infected = 0;
+		g_fNextHNRDeath = GetGameTime() + 20.0;
+		PrintCenterTextAll("Nobody is infected\nThe first player to be hit will become infected.");
+		return Plugin_Continue;
+	}
+
+	float fTimeLeft = g_fNextHNRDeath - GetGameTime();
+
+	if(fTimeLeft <= 0.0)
+	{
+		ForcePlayerSuicide(g_Infected);
+		g_Infected = 0;
+		return Plugin_Continue;
+	}
+
+	char sTimeColor[16];
+
+	// In case someone changes the HnR timer, don't break colors...
+	if(fTimeLeft <= 60.0)
+		sTimeColor = "00FF00";
+
+	if(fTimeLeft <= 10.0)
+		sTimeColor = "FFFF00";
+
+	if(fTimeLeft <= 5)
+		sTimeColor = "FF0000";
+
+	PrintCenterTextAll("<font color='#5e81ac'>Infected:</font> %N\n<font color='#5e81ac'>Time Left:</font><font color='#%s'> %.1f</font>", g_Infected, sTimeColor, fTimeLeft);
+
+	SetEntityRenderMode(g_Infected, RENDER_GLOW);
+	SetEntityRenderFx(g_Infected, RENDERFX_GLOWSHELL);
+
+	SetEntityRenderColor(g_Infected, GetRandomInt(0, 255), GetRandomInt(0, 255), GetRandomInt(0, 255), 255);
+
+	return Plugin_Continue;
 }
 
 public void OnClientPutInServer(int client)
@@ -365,10 +434,58 @@ public void OnClientPutInServer(int client)
 public Action SDKEvent_OnTakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
 {
 	if (!IsEntityPlayer(attacker))
+	{
+		if(DayActive == HNR_DAY)
+		{
+			damage = 0.0;
+			return Plugin_Changed;
+		}
 		return Plugin_Continue;
+	}
 
 	else if (DayActive <= LR_DAY)
 		return Plugin_Continue;
+
+	if(DayActive == HNR_DAY)
+	{
+		if(g_Infected == 0 || !IsClientInGame(g_Infected) || !IsPlayerAlive(g_Infected))
+		{
+			SetEntityRenderMode(attacker, RENDER_NORMAL);
+			SetEntityRenderFx(attacker, RENDERFX_NONE);
+
+			SetEntityRenderColor(attacker, 255, 255, 255, 255);
+
+			g_Infected = victim;
+			g_fNextHNRDeath = GetGameTime() + 20.0;
+			ClientCommand(g_Infected, "play error");
+
+			SetEntityRenderMode(g_Infected, RENDER_GLOW);
+			SetEntityRenderFx(g_Infected, RENDERFX_GLOWSHELL);
+
+			SetEntityRenderColor(g_Infected, GetRandomInt(0, 255), GetRandomInt(0, 255), GetRandomInt(0, 255), 255);
+		}
+		else if(g_Infected == attacker)
+		{
+			SetEntityRenderMode(attacker, RENDER_NORMAL);
+			SetEntityRenderFx(attacker, RENDERFX_NONE);
+
+			SetEntityRenderColor(attacker, 255, 255, 255, 255);
+
+			g_Infected = victim;
+
+			ClientCommand(victim, "play error");
+
+			ClientCommand(g_Infected, "play error");
+
+			SetEntityRenderMode(g_Infected, RENDER_GLOW);
+			SetEntityRenderFx(g_Infected, RENDERFX_GLOWSHELL);
+
+			SetEntityRenderColor(g_Infected, GetRandomInt(0, 255), GetRandomInt(0, 255), GetRandomInt(0, 255), 255);
+		}
+
+		damage = 0.0;
+		return Plugin_Stop;
+	}
 
 	if (!Gangs_AreClientsSameGang(victim, attacker))
 		return Plugin_Continue;
@@ -453,10 +570,19 @@ public Action Eyal282_VoteCT_OnVoteCTStartAutoPre()
 	if (DayActive >= LR_DAY)
 	{
 		if (hTimer_StartDay == INVALID_HANDLE && !IsVoteInProgress())
+		{
 			ServerCommand("sm_silentcvar mp_teammates_are_enemies 1");
+		}
 
 		return Plugin_Handled;
 	}
+
+	if(LR_isActive() || DayActive >= LR_DAY)
+		ServerCommand("sm_silentcvar mp_death_drop_gun 0");
+
+	else
+		ServerCommand("sm_silentcvar mp_death_drop_gun 1");
+
 	return Plugin_Continue;
 }
 
@@ -464,6 +590,7 @@ public Action SDKEvent_WeaponCanUse(int client, int weapon)
 {
 	if (IgnorePlayerDeaths)    // The very moment a day begins.
 		return Plugin_Continue;
+
 	switch (DayActive)
 	{
 		case ZEUS_DAY:
@@ -533,6 +660,33 @@ public Action SDKEvent_WeaponCanUse(int client, int weapon)
 			GetEdictClassname(weapon, Classname, sizeof(Classname));
 
 			if (StrEqual(Classname, "weapon_deagle"))
+				return Plugin_Continue;
+
+			AcceptEntityInput(weapon, "Kill");
+			return Plugin_Handled;
+		}
+
+		case HNR_DAY:
+		{
+			char Classname[64];
+			GetEdictClassname(weapon, Classname, sizeof(Classname));
+			
+			if (StrEqual(Classname, "weapon_ssg08"))
+				return Plugin_Continue;
+
+			else if (strncmp(Classname, "weapon_knife", 12) == 0)
+				return Plugin_Continue;
+
+			AcceptEntityInput(weapon, "Kill");
+			return Plugin_Handled;
+		}
+
+		case CROSSBOW_DAY:
+		{
+			char Classname[64];
+			GetEdictClassname(weapon, Classname, sizeof(Classname));
+
+			if (StrEqual(Classname, "weapon_m4a1"))
 				return Plugin_Continue;
 
 			AcceptEntityInput(weapon, "Kill");
@@ -793,11 +947,46 @@ public Action Command_StartSDeagleDay(int args)
 	return Plugin_Handled;
 }
 
+
+public Action Command_StartHNRDay(int args)
+{
+	ServerCommand("sm_silentstopck");
+
+	EndVoteDay();
+	StopDay(false);
+	Eyal282_VoteCT_StopVoteCT();
+	ServerCommand("sm_egr");
+
+	StartHNRDay();
+
+	UC_PrintToChatAll("%s \x07%s\x05 has started! ", PREFIX, DayName[DayActive]);
+
+	return Plugin_Handled;
+}
+
+public Action Command_StartCrossbowDay(int args)
+{
+	ServerCommand("sm_silentstopck");
+
+	EndVoteDay();
+	StopDay(false);
+	Eyal282_VoteCT_StopVoteCT();
+	ServerCommand("sm_egr");
+
+	StartCrossbowDay();
+
+	UC_PrintToChatAll("%s \x07%s\x05 has started! ", PREFIX, DayName[DayActive]);
+
+	return Plugin_Handled;
+}
 public void StartFSDay()
 {
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 
 	DayActive = FS_DAY;
+
+	DayCountDown    = 10 + 1;
+	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 
 	IgnorePlayerDeaths = true;
 
@@ -815,9 +1004,6 @@ public void StartFSDay()
 	}
 
 	IgnorePlayerDeaths = false;
-
-	DayCountDown    = 10 + 1;
-	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 
 public void StartZeusDay()
@@ -827,6 +1013,9 @@ public void StartZeusDay()
 
 	DayActive = ZEUS_DAY;
 
+	DayCountDown    = 10 + 1;
+	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+
 	IgnorePlayerDeaths = true;
 
 	DestroyAllWeapons();
@@ -845,9 +1034,6 @@ public void StartZeusDay()
 	}
 
 	IgnorePlayerDeaths = false;
-
-	DayCountDown    = 10 + 1;
-	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 
 public void StartDodgeballDay()
@@ -856,6 +1042,9 @@ public void StartDodgeballDay()
 
 	DayActive = DODGEBALL_DAY;
 
+	DayCountDown    = 10 + 1;
+	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+
 	IgnorePlayerDeaths = true;
 
 	DestroyAllWeapons();
@@ -874,9 +1063,6 @@ public void StartDodgeballDay()
 	}
 
 	IgnorePlayerDeaths = false;
-
-	DayCountDown    = 10 + 1;
-	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 
 public void StartScoutDay()
@@ -885,6 +1071,9 @@ public void StartScoutDay()
 
 	DayActive = SCOUT_DAY;
 
+	DayCountDown    = 10 + 1;
+	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+
 	IgnorePlayerDeaths = true;
 
 	DestroyAllWeapons();
@@ -903,9 +1092,6 @@ public void StartScoutDay()
 	}
 
 	IgnorePlayerDeaths = false;
-
-	DayCountDown    = 10 + 1;
-	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 
 public void StartKnifeDay()
@@ -914,6 +1100,69 @@ public void StartKnifeDay()
 
 	DayActive = KNIFE_DAY;
 
+	DayCountDown    = 10 + 1;
+	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+
+	IgnorePlayerDeaths = true;
+
+	DestroyAllWeapons();
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		else if (!IsValidTeam(i))
+			continue;
+
+		ChangeClientTeam(i, CS_TEAM_T);
+
+		CS_RespawnPlayer(i);
+	}
+
+	IgnorePlayerDeaths = false;
+}
+
+public void StartSDeagleDay()
+{
+	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
+
+	DayActive = SDEAGLE_DAY;
+
+
+	DayCountDown    = 10 + 1;
+	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+
+	IgnorePlayerDeaths = true;
+
+	DestroyAllWeapons();
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		else if (!IsValidTeam(i))
+			continue;
+
+		ChangeClientTeam(i, CS_TEAM_T);
+
+		CS_RespawnPlayer(i);
+	}
+
+	IgnorePlayerDeaths = false;
+}
+
+
+public void StartHNRDay()
+{
+	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
+
+	DayActive = HNR_DAY;
+
+	DayCountDown    = 10 + 1;
+	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+
 	IgnorePlayerDeaths = true;
 
 	DestroyAllWeapons();
@@ -933,15 +1182,14 @@ public void StartKnifeDay()
 
 	IgnorePlayerDeaths = false;
 
-	DayCountDown    = 10 + 1;
-	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+	g_Infected = 0;
 }
 
-public void StartSDeagleDay()
+public void StartCrossbowDay()
 {
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 
-	DayActive = SDEAGLE_DAY;
+	DayActive = CROSSBOW_DAY;
 
 	IgnorePlayerDeaths = true;
 
@@ -1478,18 +1726,20 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 
 public Action Event_WeaponTryFire(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
-	if (DayActive == NULL_DAY)
+	if (DayActive <= LR_DAY)
 		return Plugin_Continue;
 
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 
 	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 
+	if(weapon == -1)
+		return Plugin_Continue;
+
 	char Classname[64];
 	GetEdictClassname(weapon, Classname, sizeof(Classname));
 
-	if (StrEqual(Classname, "weapon_deagle") || StrEqual(Classname, "weapon_ssg08"))
-		SetClientAmmo(client, weapon, 999);
+	SetClientAmmo(client, weapon, 999);
 
 	return Plugin_Continue;
 }
@@ -1506,6 +1756,12 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 		StopDay(true);
 
 		return Plugin_Continue;
+	}
+
+	else if(DayActive == HNR_DAY)
+	{
+		if(g_Infected == victim)
+			g_Infected = 0;
 	}
 
 	ProcessPlayerDeath(victim);
@@ -1631,6 +1887,13 @@ void ProcessPlayerDeath(int victim)
 		RequestFrame(Frame_MoveSecondWinnerToCT, victim);
 
 		DayActive = LR_DAY;
+
+		UC_StripPlayerWeapons(Winner);
+
+		// Fixes awful crossbow bug. Because the crossbow model is set on client instead of on weapon, keeping the M4, or being stripped of the M4 makes the M4 permanent until you swap...
+		// ... to another weapon.
+		GivePlayerItem(Winner, "weapon_knife");
+
 	}
 	else
 		ServerCommand("mp_restartgame 1");
@@ -1759,6 +2022,15 @@ public Action Timer_PlayerSpawn(Handle hTimer, int UserId)
 				GivePlayerItem(client, "weapon_knife");
 		}
 
+		case WAR_DAY:
+		{
+			UC_StripPlayerWeapons(client);
+
+			GivePlayerItem(client, DayWeapon);
+
+			SetEntityHealth(client, 250);
+		}
+
 		case SDEAGLE_DAY:
 		{
 			UC_StripPlayerWeapons(client);
@@ -1768,19 +2040,39 @@ public Action Timer_PlayerSpawn(Handle hTimer, int UserId)
 			SetEntityHealth(client, 350);
 		}
 
-		case WAR_DAY:
+		case HNR_DAY:
 		{
 			UC_StripPlayerWeapons(client);
 
-			GivePlayerItem(client, DayWeapon);
+			GivePlayerItem(client, "weapon_ssg08");
+			GivePlayerItem(client, "weapon_knife");
 
-			SetEntityHealth(client, 250);
+			SetEntityHealth(client, 100);
+		}
+
+		case CROSSBOW_DAY:
+		{
+			UC_StripPlayerWeapons(client);
+
+			// The crossbow itself is given in "OnShouldPlayerHaveCrossbow"
+
+			GivePlayerItem(client, "weapon_m4a1");
+
+			SetEntityHealth(client, 350);
 		}
 	}
 
 	SetEntityMaxHealth(client, GetEntityHealth(client));
 
 	return Plugin_Continue;
+}
+
+public bool OnShouldPlayerHaveCrossbow(int client)
+{
+	if(DayActive == CROSSBOW_DAY)
+		return true;
+
+	return false;
 }
 
 public void OnEntityCreated(int entity, const char[] Classname)
@@ -1923,6 +2215,7 @@ stock void UC_StripPlayerWeapons(int client)
 		if (weapon != -1)
 		{
 			RemovePlayerItem(client, weapon);
+			AcceptEntityInput(weapon, "Kill");
 			i--;    // This is to strip all nades, and zeus & knife
 		}
 	}
