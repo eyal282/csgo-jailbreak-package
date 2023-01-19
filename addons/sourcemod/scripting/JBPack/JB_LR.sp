@@ -982,11 +982,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 	{
 		if (GetGameTime() - LastHoldReload[Guard] > 5.0 && GetGameTime() - LastHoldReload[Prisoner] > 5.0)
 		{
-			float Origin[3];
-
-			GetEntPropVector(Prisoner, Prop_Data, "m_vecOrigin", Origin);
-
-			TeleportEntity(Guard, Origin, NULL_VECTOR, NULL_VECTOR);
+			PerfectTeleport(Guard, Prisoner);
 		}
 	}
 	if (!Duck)
@@ -1235,6 +1231,7 @@ public Action Command_StopLR(int client, int args)
 	return Plugin_Handled;
 }
 
+// This command is disabled for now.
 public Action Command_StopBall(int client, int args)
 {
 	if (!LRStarted)
@@ -3069,13 +3066,12 @@ public void ShowFunMenu(int client)
 		AddMenuItem(hMenu, "Rambo", "RAMBO REBEL");
 		AddMenuItem(hMenu, "NightCrawler", "Night Crawler ( Invisible )");
 		AddMenuItem(hMenu, "HNS", "Hide'N'Seek");
-		AddMenuItem(hMenu, "HNR", "Fast HnR");
+		AddMenuItem(hMenu, "HNR", "Slow HnR");
 		AddMenuItem(hMenu, "SuperDeagle", "Super Deagle");
 		AddMenuItem(hMenu, "NegevNoSpread", "Negev No Spread");
 		AddMenuItem(hMenu, "GunToss", "Gun Toss");
 		AddMenuItem(hMenu, "Dodgeball", "Dodgeball");
 		AddMenuItem(hMenu, "Backstabs", "Backstabs");
-		AddMenuItem(hMenu, "Race", "Race");
 
 		if(LibraryExists("CrossbowAPI"))
 			AddMenuItem(hMenu, "Crossbow", "Crossbow");
@@ -3199,7 +3195,7 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 		}
 		else if(StrEqual(info, "HNR", false))
 		{
-			DuelName = "Fun | Fast HnR";
+			DuelName = "Fun | Slow HnR";
 			PrimWep  = "weapon_ssg08";
 			PrimNum  = CSWeapon_SSG08;
 
@@ -3289,9 +3285,6 @@ public int Fun_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 
 		if (HNS)
 			ChooseSeeker(client);    // Basically reversing Guard and Prisoner.
-
-		else if (StrContains(DuelName, "Race", false) != -1)
-			ChooseRaceCoords(client);
 
 		else if (item + 1 > 3)
 			ChooseOpponent(client);
@@ -3460,11 +3453,12 @@ public void ShowAutoMenu(int client)
 	{
 		Handle hMenu = CreateMenu(Auto_MenuHandler);
 
-		AddMenuItem(hMenu, "", "First Writes");
-		AddMenuItem(hMenu, "", "Combo Contest");
-		AddMenuItem(hMenu, "", "Math Contest");
-		AddMenuItem(hMenu, "", "Most Jumps");
-		AddMenuItem(hMenu, "", "Random");
+		AddMenuItem(hMenu, "FirstWrites", "First Writes");
+		AddMenuItem(hMenu, "ComboContest", "Combo Contest");
+		AddMenuItem(hMenu, "MathContest", "Math Contest");
+		AddMenuItem(hMenu, "MostJumps", "Most Jumps");
+		AddMenuItem(hMenu, "Race", "Race");
+		AddMenuItem(hMenu, "Random", "Random");
 
 		SetMenuTitle(hMenu, "%s Automatic Contests:", MENU_PREFIX);
 		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
@@ -3486,6 +3480,9 @@ public int Auto_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 		EndLR(false);
 		HPamount = GetMaxHealthValue();
 
+		char info[32];
+		GetMenuItem(hMenu, item, info, sizeof(info));
+
 		char sDigit[16];
 
 		if (item >= 9)
@@ -3496,27 +3493,39 @@ public int Auto_MenuHandler(Handle hMenu, MenuAction action, int client, int ite
 
 		StrCat(SavedLRArguments[client], sizeof(SavedLRArguments[]), sDigit);
 
-		switch (item + 1)
+		if(StrEqual(info, "FirstWrites", false))
 		{
-			case 1: DuelName = "Auto | First Writes";
+			DuelName = "Auto | First Writes";
+		}
+		else if(StrEqual(info, "ComboContest", false))
+		{
+			DuelName = "Auto | Combo Contest";
+		}
+		else if(StrEqual(info, "MathContest", false))
+		{
+			DuelName = "Auto | Math Contest";
+		}
+		else if(StrEqual(info, "MostJumps", false))
+		{
+			DuelName = "Auto | Most Jumps";
+		}
+		else if(StrEqual(info, "Race", false))
+		{
+			DuelName = "Auto | Race";
+			ChooseRaceCoords(client);
+			return 0;
+		}
+		else if(StrEqual(info, "Random", false))
+		{
+			int lastItem;
 
-			case 2: DuelName = "Auto | Combo Contest";
-
-			case 3: DuelName = "Auto | Math Contest";
-
-			case 4: DuelName = "Auto | Most Jumps";
-			/*
-			case 6:
+			while(GetMenuItem(hMenu, lastItem++, info, sizeof(info)))
 			{
-				DuelName = "Auto | Spray";
-				PrimWep = "weapon_knife";
-				PrimNum = CSWeapon_KNIFE;
+				// Do nothing here, just wait until last item.
 			}
-			*/
-			case 5:
-			{
-				Auto_MenuHandler(INVALID_HANDLE, MenuAction_Select, client, GetRandomInt(0, 3));
-			}
+
+			Auto_MenuHandler(hMenu, MenuAction_Select, client, GetRandomInt(0, lastItem-1));
+			return 0;
 		}
 
 		ChooseOpponent(client);
@@ -3793,13 +3802,13 @@ public void ContinueStartDuel()
 		TIMER_COUNTDOWN = CreateTimer(1.0, DecrementTimer, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	}
 
-	else if (StrContains(DuelName, "Fast HnR") != -1)
+	else if (StrContains(DuelName, "Slow HnR") != -1)
 	{
 		Bleed = true;
 
 		BleedTarget = 0;
 
-		UC_PrintToChatAll("Fast HNR has started. You must not be the last hit");
+		UC_PrintToChatAll("Slow HnR has started. You must not be the last hit");
 
 		TIMER_COUNTDOWN = CreateTimer(1.0, BleedTimer, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 
@@ -3866,8 +3875,16 @@ public void ContinueStartDuel()
 	{
 		Race = true;
 
-		TeleportEntity(Prisoner, raceStartOrigin, NULL_VECTOR, view_as<float>({ 0.0, 0.0, -0.1 }));
-		TeleportEntity(Guard, raceStartOrigin, NULL_VECTOR, view_as<float>({ 0.0, 0.0, -0.1 }));
+		if(IsPlayerStuck(Prisoner, raceStartOrigin))
+		{
+			SetEntPropFloat(Prisoner, Prop_Send, "m_flDuckAmount", 1.0);
+		}
+
+		TeleportEntity(Prisoner, raceStartOrigin, NULL_VECTOR, view_as<float>({ 0.0, 0.0, -0.1 }));	
+
+
+		// Perfect teleport to prevent very specific abuse where you make start point on crouch point to bug the guard.
+		PerfectTeleport(Guard, Prisoner);
 
 		StripPlayerWeapons(Prisoner);
 		StripPlayerWeapons(Guard);
@@ -3970,11 +3987,8 @@ public void ContinueStartDuel()
 
 		UC_PrintToChatAll("%s All players have \x0715 \x01seconds to jump as much as they can!", PREFIX);
 
-		float fOrigin[3];
-
-		GetEntPropVector(Prisoner, Prop_Data, "m_vecOrigin", fOrigin);
-
-		TeleportEntity(Guard, fOrigin, NULL_VECTOR, NULL_VECTOR);
+		// Guard teleports to Prisoner.
+		PerfectTeleport(Guard, Prisoner);
 	}
 	else if (StrContains(DuelName, "Auto") != -1)
 	{
@@ -4017,7 +4031,7 @@ public void ContinueStartDuel()
 		SetEntityGlow(Guard, true, 128, 0, 128);
 		SetEntityGlow(Prisoner, true, 128, 0, 128);
 	}
-	
+
 	int nullint;
 	Call_StartForward(fw_LRStarted);
 
@@ -5523,7 +5537,7 @@ stock void SetRandomRules(int Type)
 
 stock int GetMaxHealthValue()
 {
-	if (StrContains(DuelName, "Fast HnR") != -1)
+	if (StrContains(DuelName, "Slow HnR") != -1)
 		return 30000;
 
 	bool Knife = (StrContains(DuelName, "Knife") != -1);
@@ -6095,6 +6109,46 @@ stock Handle FindPluginByName(const char[] PluginName, bool Sensitivity = true, 
 
 	CloseHandle(iterator);
 	return INVALID_HANDLE;
+}
+
+stock void PerfectTeleport(int clientFrom, int clientTo)
+{
+	float fOrigin[3];
+
+	GetEntPropVector(clientTo, Prop_Data, "m_vecOrigin", fOrigin);
+
+	SetEntPropFloat(clientFrom, Prop_Send, "m_flDuckAmount", GetEntPropFloat(clientTo, Prop_Send, "m_flDuckAmount"));
+	TeleportEntity(clientFrom, fOrigin, NULL_VECTOR, NULL_VECTOR);
+}
+
+
+stock bool IsPlayerStuck(int client, const float Origin[3] = NULL_VECTOR, float HeightOffset = 0.0)
+{
+	float vecMin[3], vecMax[3], vecOrigin[3];
+	
+	GetClientMins(client, vecMin);
+	GetClientMaxs(client, vecMax);
+    
+	if(UC_IsNullVector(Origin))
+		GetClientAbsOrigin(client, vecOrigin);
+		
+	else
+	{
+		vecOrigin = Origin;
+		vecOrigin[2] += HeightOffset;
+    }
+	
+	TR_TraceHullFilter(vecOrigin, vecOrigin, vecMin, vecMax, MASK_PLAYERSOLID, TraceRayDontHitPlayers);
+	return TR_DidHit();
+}
+
+public bool TraceRayDontHitPlayers(int entityhit, int mask) 
+{
+    return (entityhit>MaxClients || entityhit == 0);
+}
+stock bool UC_IsNullVector(const float Vector[3])
+{
+	return (Vector[0] == NULL_VECTOR[0] && Vector[0] == NULL_VECTOR[1] && Vector[2] == NULL_VECTOR[2]);
 }
 
 stock void SetEntityMaxHealth(int entity, int amount)
