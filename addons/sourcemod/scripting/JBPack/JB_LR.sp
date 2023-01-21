@@ -129,6 +129,7 @@ Handle TIMER_SLAYALL                = INVALID_HANDLE;
 Handle TIMER_MOSTJUMPS              = INVALID_HANDLE;
 Handle TIMER_100MILISECONDS         = INVALID_HANDLE;
 Handle TIMER_KILLCHOKINGROUND       = INVALID_HANDLE;
+Handle g_hTimer_Ignore 				= INVALID_HANDLE;
 
 const int HUD_REACTION = 384752;
 const int HUD_WIN      = 3847384;
@@ -1804,10 +1805,19 @@ void CheckAnnounceLR()
 
 public Action Timer_CheckChokeRound(Handle hTimer)
 {
+	int client = GetRandomAlivePlayer(CS_TEAM_T);
+
+	if(!LastRequest(client))
+	{
+		TIMER_KILLCHOKINGROUND = INVALID_HANDLE;
+
+		return Plugin_Stop;
+	}
+
 	char Message[256];
 	Call_StartForward(fw_CanStartLR);
 
-	Call_PushCell(GetRandomAlivePlayer(CS_TEAM_T));
+	Call_PushCell(client);
 	Call_PushStringEx(Message, sizeof(Message), SM_PARAM_STRING_UTF8 | SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_PushCell(hTimer);
 
@@ -2312,7 +2322,9 @@ stock void EndLR(int EndTimers = true)
 	noBeacon = false;
 
 	if (EndTimers)
-		FinishTimers();
+		FinishTimers(g_hTimer_Ignore);
+
+	g_hTimer_Ignore = INVALID_HANDLE;
 
 	firstwrites         = false;
 	combo_started       = false;
@@ -4130,6 +4142,7 @@ public Action SlayAllParts(Handle hTimer)
 	int Pris = Prisoner;    // Slaying the Guard will wipe out the prisoner's integer
 	int Guar = Guard;
 
+	g_hTimer_Ignore = hTimer;
 	EndLR();
 
 	if (Guar != -1)
@@ -4150,7 +4163,18 @@ public Action FailReaction(Handle hTimer)
 	if (GetRandomInt(0, 1) == 1) target = Prisoner;
 
 	// if(!StrEquali(DuelName, "Auto | Spray"))
+				// Global ignore timer is only ever invalidated on StopLR();
+
+	g_hTimer_Ignore = hTimer;
+
 	FinishHim(target == Guard ? Prisoner : Guard, target);
+
+	// Global ignore timer is only ever invalidated on StopLR();
+	if(g_hTimer_Ignore == INVALID_HANDLE)
+	{
+		TIMER_FAILREACTION = INVALID_HANDLE;
+		return Plugin_Stop;
+	}
 	/*
 	else
 	{
@@ -4180,6 +4204,8 @@ public Action FailReaction(Handle hTimer)
 
 public Action EndMostJumps(Handle hTimer)
 {
+	g_hTimer_Ignore = hTimer;
+
 	if (GuardJumps > PrisonerJumps)
 	{
 		UC_PrintToChatAll("%s \x05%N \x01won the duel!", PREFIX, Guard);
@@ -4215,7 +4241,7 @@ public Action EndMostJumps(Handle hTimer)
 
 	TIMER_MOSTJUMPS = INVALID_HANDLE;
 
-	return Plugin_Continue;
+	return Plugin_Stop;
 }
 /*
 public Action:OnCustomSpray_Post(client, Float:HeightFromGround, Cheater)
@@ -5163,7 +5189,15 @@ public Action BleedTimer(Handle hTimer)
 	{
 		if (BleedTarget == Prisoner)
 		{
+			g_hTimer_Ignore = hTimer;
 			SDKHooks_TakeDamage(Prisoner, Guard, Guard, 700.0, DMG_POISON);
+
+			// Global ignore timer is only ever invalidated on StopLR();
+			if(g_hTimer_Ignore == INVALID_HANDLE)
+			{
+				TIMER_COUNTDOWN = INVALID_HANDLE;
+				return Plugin_Stop;
+			}
 
 			PrintCenterText(Prisoner, "You are infected. Hit the Guard quickly before you die!");
 			PrintCenterText(Guard, "You are not infected. Try not to get hit last");
