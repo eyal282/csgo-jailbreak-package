@@ -1092,7 +1092,7 @@ public Action Command_GiveLR(int client, int args)
 			if (target <= 0)
 				return Plugin_Handled;
 
-			float TrueChokeTimer = ChokeTimer + 10.0;
+			int TrueChokeTimer = ChokeTimer + 10;
 			g_fNextGiveLR = GetGameTime() + 20.0;
 			char  clientname[64];
 			char  targetname[64];
@@ -5266,6 +5266,13 @@ public Action BleedTimer(Handle hTimer)
 		else if (BleedTarget == Guard)
 		{
 			SDKHooks_TakeDamage(Guard, Prisoner, Prisoner, 700.0, DMG_POISON);
+
+			// Global ignore timer is only ever invalidated on StopLR();
+			if(g_hTimer_Ignore == INVALID_HANDLE)
+			{
+				TIMER_COUNTDOWN = INVALID_HANDLE;
+				return Plugin_Stop;
+			}
 
 			PrintCenterText(Guard, "You are infected. Hit the Prisoner quickly before you die!");
 			PrintCenterText(Prisoner, "You are not infected. Try not to get hit last");
