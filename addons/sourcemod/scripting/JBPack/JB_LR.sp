@@ -1098,6 +1098,7 @@ public Action Command_GiveLR(int client, int args)
 			char  targetname[64];
 			CS_RespawnPlayer(target);
 			PerfectTeleport(target, client);
+
 			ForcePlayerSuicide(client);
 			GetClientName(client, clientname, sizeof(clientname));
 			GetClientName(target, targetname, sizeof(targetname));
@@ -1846,15 +1847,18 @@ void CheckAnnounceLR()
 	if (T == 1 && CT > 0)
 	{
 		Command_LR(LastOne, 0);
-
-		if (TIMER_KILLCHOKINGROUND != INVALID_HANDLE)
+		
+		if(g_fNextGiveLR <= GetGameTime())
 		{
-			CloseHandle(TIMER_KILLCHOKINGROUND);
-			TIMER_KILLCHOKINGROUND = INVALID_HANDLE;
-		}
+			if (TIMER_KILLCHOKINGROUND != INVALID_HANDLE)
+			{
+				CloseHandle(TIMER_KILLCHOKINGROUND);
+				TIMER_KILLCHOKINGROUND = INVALID_HANDLE;
+			}
 
-		ChokeTimer = GetConVarInt(hcv_TimeMustBeginLR) + 1;
-		TriggerTimer(TIMER_KILLCHOKINGROUND = CreateTimer(1.0, Timer_CheckChokeRound, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE), true);
+			ChokeTimer = GetConVarInt(hcv_TimeMustBeginLR) + 1;
+			TriggerTimer(TIMER_KILLCHOKINGROUND = CreateTimer(1.0, Timer_CheckChokeRound, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE), true);
+		}
 
 		if (!g_bLRSound)
 		{

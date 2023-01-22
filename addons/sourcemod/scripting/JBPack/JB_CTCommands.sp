@@ -450,6 +450,23 @@ float g_fPressTime[MAXPLAYERS + 1][MAX_BUTTONS + 1];
 
 public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3], int& weapon, int& subtype, int& cmdnum, int& tickcount, int& seed, int mouse[2])
 {
+	if (buttons & IN_USE)
+	{
+
+		if(GetClientTeam(client) == CS_TEAM_CT && !LR_isActive())
+		{
+
+			float m_fOrigin[3], m_fImpact[3];
+
+			GetClientEyePosition(client, m_fOrigin);
+			GetClientSightEnd(client, m_fImpact);
+			TE_SetupBeamPoints(m_fOrigin, m_fImpact, BeamIndex, 0, 0, 0, 0.1, 0.12, 0.0, 1, 0.0, g_iLaserColors[GetRandomInt(0, 6)], 0);
+			TE_SendToAll();
+			TE_SetupGlowSprite(m_fImpact, HaloIdx, 0.1, 0.25, g_iLaserColors[1][3]);
+			TE_SendToAll();
+		}
+	}
+
 	for (int i = 0; i < MAX_BUTTONS; i++)
 	{
 		int button = (1 << i);
@@ -479,51 +496,31 @@ public void OnButtonPress(int client, int button)
 
 public void OnButtonRelease(int client, int button, float holdTime)
 {
-	switch(button)
+	if(button != IN_ATTACK)
+		return;
+
+	else if (bWrongWeapon[client] || bCanZoom[client] || bHasSilencer[client])
+		return;
+
+	else if (GetClientTeam(client) != CS_TEAM_CT)
+		return;
+
+	else if (LR_isActive())
+		return;
+
+	// Releasing without hold = create marker.
+	// Releasing with a short hold could be a regret of action.
+	// Releasing with a second hold = delete marker.
+	if (holdTime < 0.2)
 	{
-		case IN_USE:
-		{
-			if (GetClientTeam(client) != CS_TEAM_CT)
-				return;
+		CreateMarker(client);
 
-			else if (LR_isActive())
-				return;
-
-			float m_fOrigin[3], m_fImpact[3];
-
-			GetClientEyePosition(client, m_fOrigin);
-			GetClientSightEnd(client, m_fImpact);
-			TE_SetupBeamPoints(m_fOrigin, m_fImpact, BeamIndex, 0, 0, 0, 0.1, 0.12, 0.0, 1, 0.0, g_iLaserColors[GetRandomInt(0, 6)], 0);
-			TE_SendToAll();
-			TE_SetupGlowSprite(m_fImpact, HaloIdx, 0.1, 0.25, g_iLaserColors[1][3]);
-			TE_SendToAll();
-		}
-		case IN_ATTACK2:
-		{
-			if (bWrongWeapon[client] || bCanZoom[client] || bHasSilencer[client])
-				return;
-
-			else if (GetClientTeam(client) != CS_TEAM_CT)
-				return;
-
-			else if (LR_isActive())
-				return;
-
-			// Releasing without hold = create marker.
-			// Releasing with a short hold could be a regret of action.
-			// Releasing with a second hold = delete marker.
-			if (holdTime < 0.2)
-			{
-				CreateMarker(client);
-
-				if (GetArraySize(aMarkers) == 1)
-					UC_PrintToChat(client, "Hint: Hold +attack2 for a second to clear all marks.");
-			}
-			else if (holdTime >= 1.0)
-			{
-				DeleteAllMarkers();
-			}
-		}
+		if (GetArraySize(aMarkers) == 1)
+			UC_PrintToChat(client, "Hint: Hold +attack2 for a second to clear all marks.");
+	}
+	else if (holdTime >= 1.0)
+	{
+		DeleteAllMarkers();
 	}
 }
 
