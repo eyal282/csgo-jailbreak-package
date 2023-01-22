@@ -496,7 +496,7 @@ public void OnButtonPress(int client, int button)
 
 public void OnButtonRelease(int client, int button, float holdTime)
 {
-	if(button != IN_ATTACK)
+	if(button != IN_ATTACK2)
 		return;
 
 	else if (bWrongWeapon[client] || bCanZoom[client] || bHasSilencer[client])
