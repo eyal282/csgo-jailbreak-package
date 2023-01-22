@@ -1872,6 +1872,13 @@ public Action Timer_CheckChokeRound(Handle hTimer)
 {
 	int client = GetRandomAlivePlayer(CS_TEAM_T);
 
+	if(client == 0)
+	{
+		TIMER_KILLCHOKINGROUND = INVALID_HANDLE;
+
+		return Plugin_Stop;
+	}
+
 	if(!LastRequest(client))
 	{
 		TIMER_KILLCHOKINGROUND = INVALID_HANDLE;
