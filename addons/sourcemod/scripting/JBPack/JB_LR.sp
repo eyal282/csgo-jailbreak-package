@@ -205,6 +205,8 @@ bool        AllowGunTossPickup;
 
 bool CanSetHealth[MAXPLAYERS + 1];
 
+float g_fNextGiveLR;
+
 // new Float:GuardSprayHeight, Float:PrisonerSprayHeight;
 
 char names[][] = {
@@ -286,6 +288,7 @@ public void OnPluginStart()
 	// RegConsoleCmd("LRManage_DuelName", Command_DuelName);
 
 	RegConsoleCmd("sm_c4", Command_C4);
+	RegConsoleCmd("sm_givelr", Command_GiveLR);
 	RegConsoleCmd("sm_lr", Command_LR);
 	// RegConsoleCmd("sm_ebic", Command_Ebic);
 	RegConsoleCmd("sm_lastrequest", Command_LR);
@@ -650,6 +653,8 @@ public void OnMapStart()
 	TIMER_MOSTJUMPS        = INVALID_HANDLE;
 	TIMER_100MILISECONDS   = INVALID_HANDLE;
 	TIMER_KILLCHOKINGROUND = INVALID_HANDLE;
+
+	g_fNextGiveLR = 0.0;
 
 	EndLR();
 
@@ -1046,6 +1051,62 @@ public Action Command_C4(int client, int args)
 	if (LRPart(client) || GetClientTeam(client) == CS_TEAM_CT || CheckCommandAccess(client, "sm_checkcommandaccess_kick", ADMFLAG_KICK))
 		GivePlayerItem(client, "weapon_c4");
 
+	return Plugin_Handled;
+}
+
+public Action Command_GiveLR(int client, int args)
+{
+	if (g_fNextGiveLR > GetGameTime())
+	{
+		UC_PrintToChat(client, "%s You must wait\x03 %.1f\x04 seconds to give LR.", PREFIX, g_fNextGiveLR - GetGameTime());
+		return Plugin_Handled;
+	}
+	if (args == 0)
+	{
+		UC_PrintToChat(client, "Usage: sm_givelr <#userid|name>");
+		return Plugin_Handled;
+	}
+	else if (!IsPlayerAlive(client))
+	{
+		UC_PrintToChat(client, "%s You are dead you cant give some one lastrequest", PREFIX);
+		return Plugin_Handled;
+	}
+	else if (GetTeamAliveCount(CS_TEAM_T) != 1)
+	{
+		UC_PrintToChat(client, "%s you are not the last terrorist!", PREFIX);
+		return Plugin_Handled;
+	}
+	else if (LRStarted)
+	{
+		UC_PrintToChat(client, "%s LR is already active!", PREFIX);
+		return Plugin_Handled;
+	}
+	if (GetClientTeam(client) == CS_TEAM_T && IsPlayerAlive(client) && GetTeamAliveCount(CS_TEAM_T) == 1)
+	{
+		if (args == 1)
+		{
+			char arg1[32];
+			GetCmdArg(1, arg1, sizeof(arg1));
+			int target = FindTerroristTarget(client, arg1, false, false);
+
+			if (target <= 0)
+				return Plugin_Handled;
+
+			float TrueChokeTimer = ChokeTimer + 10.0;
+			g_fNextGiveLR = GetGameTime() + 20.0;
+			char  clientname[64];
+			char  targetname[64];
+			CS_RespawnPlayer(target);
+			PerfectTeleport(target, client);
+			ForcePlayerSuicide(client);
+			GetClientName(client, clientname, sizeof(clientname));
+			GetClientName(target, targetname, sizeof(targetname));
+			UC_PrintToChatAll("%s %s gave to %s the lastrequest", PREFIX, clientname, targetname);
+
+			// This will get stolen by ForcePlayerSuicide.
+			ChokeTimer = TrueChokeTimer;
+		}
+	}
 	return Plugin_Handled;
 }
 
@@ -6215,4 +6276,89 @@ stock int LR_GetItemFromString(const char[] sDigit)
 	}
 
 	return 0;
+}
+
+
+stock int GetTeamAliveCount(int Team)
+{
+	int count = 0;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		else if (GetClientTeam(i) != Team)
+			continue;
+
+		else if (!IsPlayerAlive(i))
+			continue;
+
+		count++;
+	}
+
+	return count;
+}
+
+
+/**
+ * Wraps ProcessTargetString() and handles producing error messages for
+ * bad targets.
+ *
+ * @param client	Client who issued command
+ * @param target	Client's target argument
+ * @param nobots	Optional. Set to true if bots should NOT be targetted
+ * @param immunity	Optional. Set to false to ignore target immunity.
+ * @return			Index of target client, or -1 on error.
+ */
+stock int FindTerroristTarget(int client, const char[] target, bool nobots = false, bool immunity = true)
+{
+	char target_name[MAX_TARGET_LENGTH];
+	int  target_list[1], target_count;
+	bool tn_is_ml;
+
+	int flags;
+	if (nobots)
+	{
+		flags |= COMMAND_FILTER_NO_BOTS;
+	}
+	if (!immunity)
+	{
+		flags |= COMMAND_FILTER_NO_IMMUNITY;
+	}
+
+	if ((target_count = ProcessTargetString(
+			 target,
+			 client,
+			 target_list,
+			 1,
+			 flags,
+			 target_name,
+			 sizeof(target_name),
+			 tn_is_ml))
+	    > 0)
+	{
+		int TrueCount = 0, TrueTarget = -1;
+		for (int i = 0; i < target_count; i++)
+		{
+			int trgt = target_list[i];
+			if (GetClientTeam(trgt) == CS_TEAM_T)
+			{
+				TrueCount++;
+				TrueTarget = trgt;
+			}
+		}
+
+		if (TrueCount > 1)
+		{
+			ReplyToTargetError(client, COMMAND_TARGET_AMBIGUOUS);
+			return -1;
+		}
+		return TrueTarget;
+	}
+	else
+	{
+		ReplyToTargetError(client, target_count);
+		return -1;
+	}
 }
