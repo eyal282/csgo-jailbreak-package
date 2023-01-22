@@ -2321,7 +2321,7 @@ stock void EndLR(int EndTimers = true)
 
 	noBeacon = false;
 
-	if (EndTimers)
+	if (EndTimers && LRStarted)
 		FinishTimers(g_hTimer_Ignore);
 
 	g_hTimer_Ignore = INVALID_HANDLE;
