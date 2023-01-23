@@ -308,7 +308,17 @@ public Action Timer_TakeBleedDamage(Handle hTimer, DataPack DP)
 	int victim = GetClientOfUserId(DP.ReadCell());
 	int attacker = GetClientOfUserId(DP.ReadCell());
 	int serial = DP.ReadCell();
-	
+
+
+	Call_StartForward(hcv_ShouldCrossbow);
+
+	Call_PushCell(attacker);
+
+	bool bCrossbow;
+	Call_Finish(bCrossbow);
+
+	bHasCrossbow[attacker] = bCrossbow;
+
 	if (victim == 0 || attacker == 0)
 		return Plugin_Stop;
 	
