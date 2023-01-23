@@ -5,6 +5,7 @@
 #include <sdktools>
 #include <smlib>
 #include <sourcemod>
+#include <emitsoundany>
 
 #define MAX_MARKERS 5
 
@@ -36,6 +37,11 @@ Handle hcv_MenuPrefix = INVALID_HANDLE;
 bool IsVIP[MAXPLAYERS + 1];
 bool g_bSpeaking[MAXPLAYERS+1];
 
+float g_fStartBreakOpen[MAXPLAYERS+1];
+float g_fNextBreakOpen[MAXPLAYERS+1];
+float g_fNextDamagePlayer[MAXPLAYERS+1];
+float g_fNextDamageBreakable[MAXPLAYERS+1];
+
 int BeamIndex, HaloIdx;    // HaloIndex is stolen by an include.
 
 Handle hcv_TeammatesAreEnemies = INVALID_HANDLE;
@@ -43,7 +49,13 @@ Handle hcv_CKHealthPerT        = INVALID_HANDLE;
 Handle hcv_VoicePriorityMode = INVALID_HANDLE;
 ConVar hcv_MuteTTime;
 ConVar hcv_MinTMute;
-ConVar hcv_SetTimeCooldown;
+ConVar hcv_MedicCooldown;
+ConVar hcv_Laser;
+ConVar hcv_LaserDistance;
+ConVar hcv_LaserCrack;
+ConVar hcv_TimeToCrack;
+ConVar hcv_LaserDamageToPlayers;
+ConVar hcv_LaserDamageToVents;
 
 Handle hTimer_Beacon          = INVALID_HANDLE;
 bool   nospam[MAXPLAYERS + 1] = { false, ... };
@@ -59,6 +71,31 @@ bool CKEnabled = false;
 bool bCanZoom[MAXPLAYERS + 1] = { true, ... }, bHasSilencer[MAXPLAYERS + 1] = { true, ... }, bWrongWeapon[MAXPLAYERS + 1] = { true, ... };
 
 ArrayList aMarkers = null;
+
+enum enDoorState
+{
+	STATE_INVALID = -1,
+	STATE_CLOSED = 0,
+	STATE_OPENING = 1,
+	STATE_OPENED = 2,
+	STATE_CLOSING = 3
+}
+enum enPropDoorState
+{
+	PROP_STATE_CLOSED = 0,
+	PROP_STATE_OPENING = 1,
+	PROP_STATE_OPENED = 2,
+	PROP_STATE_CLOSING = 3
+}
+
+
+enum enFuncDoorState
+{
+	FUNC_STATE_OPENED = 0,
+	FUNC_STATE_CLOSED = 1,
+	FUNC_STATE_OPENING = 2,
+	FUNC_STATE_CLOSING = 3
+}
 
 int g_iLaserColors[8][4] = 
 {
@@ -103,7 +140,14 @@ public void OnPluginStart()
 	hcv_CKHealthPerT = UC_CreateConVar("jbpack_ck_health_per_t", "20", "Amount of health a CT gains per T. Formula: 100 + ((cvar * tcount) / ctcount)");
 	hcv_VoicePriorityMode    = UC_CreateConVar("jbpack_voice_priority", "2", "0 - No Voice Priority.\n1 - Voice Priority of CT over T.\n2 - Voice Priority of CT over T, AND Voice Priority of Chosen CT over CT");
 	hcv_MuteTTime    = UC_CreateConVar("jbpack_t_mute_time", "30.0", "Set the mute timer on round start, or set to -1 to prevent T from talking entirely");
-	hcv_MinTMute       = UC_CreateConVar("jbpack_min_t_mute", "2", "Minimum amount of T before round start mute occurs.");
+	hcv_MedicCooldown = UC_CreateConVar("jbpack_medic_cooldown", "60", "Cooldown for sm_medic");
+	hcv_MinTMute       = UC_CreateConVar("jbpack_min_t_mute", "2", "Minimum amount of T before round start mute occurs");
+	hcv_Laser = UC_CreateConVar("jbpack_ct_laser", "1", "Enable CT laser in E");
+	hcv_LaserDistance = UC_CreateConVar("jbpack_ct_laser_distance", "350.0", "Distance at which laser special effects activate");
+	hcv_LaserCrack = UC_CreateConVar("jbpack_ct_laser_crack_doors", "1", "CT Laser can crack open doors");
+	hcv_TimeToCrack = UC_CreateConVar("jbpack_ct_laser_crack_time", "5.0", "Time for CT Laser to crack open doors");
+	hcv_LaserDamageToPlayers = UC_CreateConVar("jbpack_ct_laser_damage_to_players", "-25.0", "Damage dealt to players each second. Negative damage heals");
+	hcv_LaserDamageToVents = UC_CreateConVar("jbpack_ct_laser_damage_to_vents", "250.0", "Damage dealt to vents each second");
 
 	AutoExecConfig_ExecuteFile();
 
@@ -403,12 +447,21 @@ public void SmartOpen_OnCellsOpened(bool cmd)
 
 public void OnMapStart()
 {
-	for(int i=0;i < sizeof(g_bSpeaking);i++)
+	for(int i=0;i <= MAXPLAYERS;i++)
 	{
 		g_bSpeaking[i] = false;
+		g_fStartBreakOpen[i] = -1.0;
+		g_fNextBreakOpen[i] = -1.0;
+		g_fNextDamagePlayer[i] = -1.0;
+		g_fNextDamageBreakable[i] = -1.0;
 	}
+
 	BeamIndex   = PrecacheModel("materials/sprites/laserbeam.vmt", true);
 	HaloIdx     = PrecacheModel("materials/sprites/glow01.vmt", true);
+
+	PrecacheSoundAny("buttons/button11.wav");
+	PrecacheSoundAny("items/medshot4.wav");
+	PrecacheSoundAny("hostage/hpain/hpain6.wav");
 
 	CKEnabled = false;
 
@@ -452,18 +505,134 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 {
 	if (buttons & IN_USE)
 	{
-
-		if(GetClientTeam(client) == CS_TEAM_CT && !LR_isActive())
+		if(GetClientTeam(client) == CS_TEAM_CT && !LR_isActive() && GetConVarBool(hcv_Laser))
 		{
+			int target = JB_GetClientAimTarget(client);
 
-			float m_fOrigin[3], m_fImpact[3];
+			if(target != -1)
+			{
+				if(GetAimDistanceFromTarget(client, target) <= GetConVarFloat(hcv_LaserDistance))
+				{
+					char Classname[64];
+					GetEdictClassname(target, Classname, sizeof(Classname));
 
-			GetClientEyePosition(client, m_fOrigin);
-			GetClientSightEnd(client, m_fImpact);
-			TE_SetupBeamPoints(m_fOrigin, m_fImpact, BeamIndex, 0, 0, 0, 0.1, 0.12, 0.0, 1, 0.0, g_iLaserColors[GetRandomInt(0, 6)], 0);
-			TE_SendToAll();
-			TE_SetupGlowSprite(m_fImpact, HaloIdx, 0.1, 0.25, g_iLaserColors[1][3]);
-			TE_SendToAll();
+					if(StrEqual(Classname, "func_door") || StrEqual(Classname, "prop_door_rotating"))
+					{
+						float fVelocity[3];
+
+						GetEntPropVector(client, Prop_Data, "m_vecVelocity", fVelocity);
+
+						if(GetVectorLength(fVelocity) == 0.0 && GetConVarBool(hcv_LaserCrack))
+						{
+							if(GetDoorState(target) == STATE_CLOSED)
+							{
+								if(g_fNextBreakOpen[client] == -1.0)
+								{
+									FireLaserBeam(client);
+
+									g_fNextBreakOpen[client] = GetGameTime() + GetConVarFloat(hcv_TimeToCrack);
+									g_fStartBreakOpen[client] = GetGameTime();
+								}
+								else if(g_fNextBreakOpen[client] <= GetGameTime())
+								{
+									PrintCenterText(client, "Cracking open door...\nProgress: 100%%");
+									g_fNextBreakOpen[client] = -1.0;
+
+									int bLocked = GetEntProp(target, Prop_Data, "m_bLocked");
+
+									AcceptEntityInput(target, "Unlock");
+									AcceptEntityInput(target, "Open");
+
+									if(bLocked)
+										AcceptEntityInput(target, "Lock");
+								}
+								else
+								{
+									PrintCenterText(client, "Cracking open door...\nProgress: %i%%", RoundToFloor(100.0 - ((((g_fNextBreakOpen[client] - GetGameTime()) / GetConVarFloat(hcv_TimeToCrack)) * 100.0))));
+
+									FireLaserBeam(client);
+								}
+							}
+							else
+							{
+								FireLaserBeam(client);
+
+								g_fNextBreakOpen[client] = -1.0;
+							}
+						}
+						else
+						{
+							FireLaserBeam(client);
+
+							g_fNextBreakOpen[client] = -1.0;
+						}
+
+					}
+					else
+					{
+						if(!StrEqual(Classname, "func_button"))
+						{
+							if(g_fNextDamageBreakable[client] <= GetGameTime() && StrEqual(Classname, "func_breakable") && GetConVarFloat(hcv_LaserDamageToVents) >= 0.0)
+							{
+								g_fNextDamageBreakable[client] = GetGameTime() + 1.0;
+								SDKHooks_TakeDamage(target, client, client, GetConVarFloat(hcv_LaserDamageToVents), DMG_BULLET, _, _, _, false);
+							}
+
+							// IsPlayer instead of IsClientInGame because we're checking if the object is in range of 
+							else if(g_fNextDamagePlayer[client] <= GetGameTime() && IsPlayer(target) && GetClientTeam(target) == CS_TEAM_T && GetConVarFloat(hcv_LaserDamageToPlayers) != 0.0)
+							{
+								g_fNextDamagePlayer[client] = GetGameTime() + 1.0;
+								
+								if(GetConVarFloat(hcv_LaserDamageToPlayers) > 0.0)
+								{
+									SDKHooks_TakeDamage(target, client, client, GetConVarFloat(hcv_LaserDamageToPlayers), DMG_BURN, _, _, _, false);
+
+									float fOrigin[3];
+									GetEntPropVector(target, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+									EmitSoundByDistanceAny(512.0, "hostage/hpain/hpain6.wav", -2, 0, 75, 0, 1.0, 100, -1, fOrigin, NULL_VECTOR, true, 0.0);
+								}
+
+								else
+								{
+									if(GetEntityHealth(target) >= GetEntityMaxHealth(target))
+									{
+										ClientCommand(client, "play buttons/button11.wav");
+									}
+									else
+									{
+										// Double minus is plus. This thing heals.
+										SetEntityHealth(target, GetEntityHealth(target) - GetConVarInt(hcv_LaserDamageToPlayers));
+
+										if(GetEntityHealth(target) > GetEntityMaxHealth(target))
+											SetEntityHealth(target, GetEntityMaxHealth(target));
+
+										float fOrigin[3];
+										GetEntPropVector(target, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+										EmitSoundByDistanceAny(512.0, "items/medshot4.wav", -2, 0, 75, 0, 1.0, 100, -1, fOrigin, NULL_VECTOR, true, 0.0);
+									}
+								}
+							}
+
+							FireLaserBeam(client);
+						}
+
+						g_fNextBreakOpen[client] = -1.0;
+					}
+				}
+				else
+				{
+					FireLaserBeam(client);
+
+					g_fNextBreakOpen[client] = -1.0;
+					
+				}
+			}
+			else
+			{
+				FireLaserBeam(client);
+			}
 		}
 	}
 
@@ -1152,14 +1321,12 @@ int GetClientAimTargetPos(int client, float g_fPos[3])
 	GetClientEyePosition(client, vOrigin);
 	GetClientEyeAngles(client, vAngles);
 
-	Handle trace = TR_TraceRayFilterEx(vOrigin, vAngles, MASK_SHOT, RayType_Infinite, TraceFilterAllEntities, client);
+	TR_TraceRayFilter(vOrigin, vAngles, MASK_SHOT, RayType_Infinite, TraceFilterAllEntities, client);
 
-	TR_GetEndPosition(g_fPos, trace);
+	TR_GetEndPosition(g_fPos);
 	g_fPos[2] += 5.0;
 
-	int entity = TR_GetEntityIndex(trace);
-
-	CloseHandle(trace);
+	int entity = TR_GetEntityIndex();
 
 	return entity;
 }
@@ -1181,6 +1348,64 @@ public bool TraceFilterAllEntities(int entity, int contentsMask, int client)
 	return true;
 }
 
+
+int JB_GetClientAimTarget(int client)
+{
+	float vAngles[3];
+	float vOrigin[3];
+
+	GetClientEyePosition(client, vOrigin);
+	GetClientEyeAngles(client, vAngles);
+
+	TR_TraceRayFilter(vOrigin, vAngles, MASK_PLAYERSOLID, RayType_Infinite, TraceFilterDontHitSelf, client);
+	
+	if(!TR_DidHit())
+		return -1;
+
+	int entity = TR_GetEntityIndex();
+
+	if(entity == -1 || entity == 0)
+		return -1;
+
+	while(GetEntPropEnt(entity, Prop_Send, "moveparent") != -1)
+	{
+		entity = GetEntPropEnt(entity, Prop_Send, "moveparent");
+	}
+
+	return entity;
+}
+
+public bool TraceFilterDontHitSelf(int entity, int contentsMask, int client)
+{
+	if (entity == client)
+		return false;
+
+	return true;
+}
+// Shamelessly stolen from Shanapu MyJB.
+float GetAimDistanceFromTarget(int client, int target)
+{
+	float vAngles[3];
+	float vOrigin[3];
+	float g_fPos[3];
+
+	GetClientEyePosition(client, vOrigin);
+	GetClientEyeAngles(client, vAngles);
+
+	TR_TraceRayFilter(vOrigin, vAngles, MASK_ALL, RayType_Infinite, TraceFilterHitTarget, target);
+
+	TR_GetEndPosition(g_fPos);
+
+	return GetVectorDistance(vOrigin, g_fPos, false);
+}
+public bool TraceFilterHitTarget(int entity, int contentsMask, int target)
+{
+	if (entity == target)
+		return true;
+
+	return false;
+}
+
 // Start of Skyler
 public Action cmd_medic(int client, int args)
 {
@@ -1199,14 +1424,14 @@ public Action cmd_medic(int client, int args)
 		*/
 		if (nospam[client])
 		{
-			UC_PrintToChat(client, "%s you cant call a medic because you still have \x02%d \x05cooldown!", PREFIX, hcv_SetTimeCooldown.IntValue);
+			UC_PrintToChat(client, "%s you cant call a medic because you still have \x02%d \x05cooldown!", PREFIX, hcv_MedicCooldown.IntValue);
 			return Plugin_Handled;
 		}
 		if (!nospam[client])
 		{
 			nospam[client] = true;
 			UC_PrintToChatAll("%s \x05%s\x01 wants a \x07medic!", PREFIX, name);
-			CreateTimer(hcv_SetTimeCooldown.FloatValue, medicHandler, GetClientUserId(client));
+			CreateTimer(hcv_MedicCooldown.FloatValue, medicHandler, GetClientUserId(client));
 			return Plugin_Handled;
 		}
 	}
@@ -1399,4 +1624,87 @@ public bool TraceRayDontHitPlayers(int entity, int mask, int data)
 		return false;
 
 	return true;
+}
+
+stock enDoorState GetDoorState(int entity)
+{
+	
+	if(HasEntProp(entity, Prop_Data, "m_eDoorState"))
+	{
+		return view_as<enDoorState>(GetEntProp(entity, Prop_Data, "m_eDoorState"));
+	}
+
+	else if(HasEntProp(entity, Prop_Data, "m_toggle_state"))
+	{
+		switch(GetEntProp(entity, Prop_Data, "m_toggle_state"))
+		{
+			case FUNC_STATE_CLOSED: 	{ return STATE_CLOSED; }
+			case FUNC_STATE_OPENED: 	{ return STATE_OPENED; }
+			case FUNC_STATE_CLOSING:	{ return STATE_CLOSING; }
+			case FUNC_STATE_OPENING:	{ return STATE_OPENING; }
+		}
+	}
+		
+	return STATE_INVALID;
+}
+
+stock void FireLaserBeam(int client)
+{
+	float m_fOrigin[3], m_fImpact[3];
+
+	GetClientEyePosition(client, m_fOrigin);
+	GetClientSightEnd(client, m_fImpact);
+	TE_SetupBeamPoints(m_fOrigin, m_fImpact, BeamIndex, 0, 0, 0, 0.1, 0.12, 0.0, 1, 0.0, g_iLaserColors[GetRandomInt(0, 6)], 0);
+	TE_SendToAll();
+	TE_SetupGlowSprite(m_fImpact, HaloIdx, 0.1, 0.25, g_iLaserColors[1][3]);
+	TE_SendToAll();
+}
+
+stock bool IsPlayer(int client)
+{
+	if (client <= 0)
+		return false;
+
+	else if (client > MaxClients)
+		return false;
+
+	return true;
+}
+
+stock int GetEntityHealth(int entity)
+{
+	return GetEntProp(entity, Prop_Send, "m_iHealth");
+}
+
+stock int GetEntityMaxHealth(int entity)
+{
+	return GetEntProp(entity, Prop_Data, "m_iMaxHealth");
+}
+
+
+
+stock void EmitSoundByDistanceAny(float distance, const char[] sample, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL,
+int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3], const float dir[3] = NULL_VECTOR, 
+bool updatePos = true, float soundtime = 0.0)
+{
+	if(IsNullVector(origin))
+	{
+		ThrowError("Origin must not be null!");
+	}
+	
+	int clients[MAXPLAYERS+1], count;
+	
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		float iOrigin[3];
+		GetEntPropVector(i, Prop_Data, "m_vecOrigin", iOrigin);
+		
+		if(GetVectorDistance(origin, iOrigin, false) < distance)
+			clients[count++] = i;
+	}
+	
+	EmitSoundAny(clients, count, sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 }
