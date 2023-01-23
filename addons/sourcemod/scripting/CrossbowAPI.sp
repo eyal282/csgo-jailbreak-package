@@ -65,7 +65,7 @@ public void OnMapStart()
 	PrecacheModel("models/weapons/eminem/advanced_crossbow/w_advanced_crossbow_dropped.mdl", true);
 	PrecacheModel("models/weapons/eminem/advanced_crossbow/w_crossbow_bolt_dropped.mdl", true);
 	
-	PrecacheSoundAny(HitSound, true);
+	PrecacheSoundAny(HitSound);
 	PrecacheSound("weapons/eminem/advanced_crossbow/crossbow-1.wav", true);
 	
 }
@@ -278,8 +278,9 @@ public void OnStartTouch(int bullet, int toucher)
 public void OnPlayerHitByCrossbow(int victim, int attacker, int bullet)
 {
 	float fOrigin[3];
+	GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
-	EmitSoundByDistanceAny(3000.0, HitSound, victim, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, 1.0, 90, -1, fOrigin, NULL_VECTOR, true, 0.0);
+	EmitSoundByDistanceAny(3000.0, HitSound, -2, 0, 75, 0, 1.0, 100, -1, fOrigin, NULL_VECTOR, true, 0.0);
 	
 	DataPack DP, DP2;
 	
