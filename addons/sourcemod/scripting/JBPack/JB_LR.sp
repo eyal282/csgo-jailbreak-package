@@ -4234,15 +4234,11 @@ public Action FailReaction(Handle hTimer)
 	int target = Guard;    // Killer
 	if (GetRandomInt(0, 1) == 1) target = Prisoner;
 
-	// if(!StrEquali(DuelName, "Auto | Spray"))
-				// Global ignore timer is only ever invalidated on StopLR();
-
 	g_hTimer_Ignore = hTimer;
 
 	FinishHim(target == Guard ? Prisoner : Guard, target);
 
-	// Global ignore timer is only ever invalidated on StopLR();
-	if(g_hTimer_Ignore == INVALID_HANDLE)
+	if(!LRStarted)
 	{
 		TIMER_FAILREACTION = INVALID_HANDLE;
 		return Plugin_Stop;
@@ -5264,8 +5260,7 @@ public Action BleedTimer(Handle hTimer)
 			g_hTimer_Ignore = hTimer;
 			SDKHooks_TakeDamage(Prisoner, Guard, Guard, 700.0, DMG_POISON);
 
-			// Global ignore timer is only ever invalidated on StopLR();
-			if(g_hTimer_Ignore == INVALID_HANDLE)
+			if(!LRStarted)
 			{
 				TIMER_COUNTDOWN = INVALID_HANDLE;
 				return Plugin_Stop;
@@ -5277,9 +5272,8 @@ public Action BleedTimer(Handle hTimer)
 		else if (BleedTarget == Guard)
 		{
 			SDKHooks_TakeDamage(Guard, Prisoner, Prisoner, 700.0, DMG_POISON);
-
-			// Global ignore timer is only ever invalidated on StopLR();
-			if(g_hTimer_Ignore == INVALID_HANDLE)
+			
+			if(!LRStarted)
 			{
 				TIMER_COUNTDOWN = INVALID_HANDLE;
 				return Plugin_Stop;

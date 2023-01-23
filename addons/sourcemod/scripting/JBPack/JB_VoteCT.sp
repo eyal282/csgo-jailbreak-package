@@ -50,7 +50,7 @@ char GameTitle[Game_MAX][] = {
 	"Random Player\nWould you like to become CT?",
 	"Math Contest\nA very easy question from the multiplication table e.g. 9x3",
 	"Election Day\nWould you like to become CT?"
-	};
+};
 
 float ExpireGraceTime = 0.0;
 
@@ -133,6 +133,9 @@ Handle hTimer_FailGame     = INVALID_HANDLE;
 Handle hTimer_PreviewRound = INVALID_HANDLE;
 
 Handle hcv_VoteCTMin = INVALID_HANDLE;
+
+Handle hcv_CTRatio = INVALID_HANDLE;
+Handle hcv_CTRatioRebel = INVALID_HANDLE;
 
 Handle hcv_MaxRounds        = INVALID_HANDLE;
 Handle hcv_ForbidUnassigned = INVALID_HANDLE;
@@ -236,6 +239,9 @@ public void OnPluginStart()
 	AutoExecConfig_SetFile("JB_VoteCT", "sourcemod/JBPack");
 
 	hcv_VoteCTMin        = UC_CreateConVar("votect_min", "2", "Minimum amount of players to start a vote CT");
+	hcv_CTRatio        = UC_CreateConVar("votect_ratio", "6", "Ratio of CT to T");
+	hcv_CTRatioRebel        = UC_CreateConVar("votect_ratio", "4", "Ratio of CT to T in maps containing ''_rebel''");
+
 	hcv_MaxRounds        = UC_CreateConVar("votect_max_rounds", "5", "Maximum amount of rounds CT get before swapping");
 	hcv_ForbidUnassigned = UC_CreateConVar("votect_forbid_unassigned", "1", "Forbid unassigned players");
 	hcv_PreviewRound = 		UC_CreateConVar("votect_preview_round", "0", "If set to 1, T will get a preview round during the first vote CT if 4+ players. Disallowing a preiew round will also disallow Crazy Knife");
@@ -1961,22 +1967,31 @@ stock int Abs(int value)
 }
 
 // This stock will return the amount of players the chosen one can invite into his team totally calculated.
+
+// Ratio of 6 T to 1 CT.
+// 6 T <==> 1 CT
+// 6 T <==> 2 CT
+// 11 T <==> 2 CT.
+// 12 T <==> 2 CT.
+// 13 T <==> 2 CT.
+// 13 T <==> 3 CT.
+// 18 T <==> 3 CT.
+// 19 T <==> 3 CT.
+// 19 T <==> 4 CT.
+
 stock int GetAvailableInviteCT()
 {
-	int totalAllowed = 0;
-	switch (GetTeamPlayerCount(CS_TEAM_T))
-	{
-		case 1, 2, 3, 4, 5, 6: totalAllowed = 1;
-		case 7, 8, 9: totalAllowed = 2;
-		case 10, 11, 12: totalAllowed = 3;
-		case 13, 14, 15: totalAllowed = 4;
-		case 16, 17, 18: totalAllowed = 5;
-		case 19, 20, 21: totalAllowed = 6;
-		case 22, 23, 24: totalAllowed = 7;
-		case 25, 26, 27: totalAllowed = 8;
-		case 28, 29, 30: totalAllowed = 9;
-		case 31, 32, 33: totalAllowed = 10;
-	}
+	int ratio = GetConVarInt(hcv_CTRatio);
+
+	char MapName[64];
+	GetCurrentMap(MapName, sizeof(MapName));
+
+	if(StrContains(MapName, "_rebel", false) != -1 || StrContains(MapName, "rebel_", false) != -1)
+		ratio = GetConVarInt(hcv_CTRatioRebel);
+
+	int playerCount = GetTeamPlayerCount(CS_TEAM_T) + GetTeamPlayerCount(CS_TEAM_CT);
+	int totalAllowed = RoundToCeil((playerCount-1) / float(ratio));
+
 	totalAllowed -= GetTeamPlayerCount(CS_TEAM_CT);
 
 	if (totalAllowed < 0)

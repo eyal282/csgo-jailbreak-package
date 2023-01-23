@@ -505,13 +505,15 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 {
 	if (buttons & IN_USE)
 	{
-		if(GetClientTeam(client) == CS_TEAM_CT && !LR_isActive() && GetConVarBool(hcv_Laser))
+		if(GetClientTeam(client) == CS_TEAM_CT && IsPlayerAlive(client) && !LR_isActive() && GetConVarBool(hcv_Laser))
 		{
-			int target = JB_GetClientAimTarget(client);
+			// true Target is the actual target in your aim, ignoring parenting. This is for GetAimDistanceFromTarget
+			int trueTarget;
+			int target = JB_GetClientAimTarget(client, trueTarget);
 
 			if(target != -1)
 			{
-				if(GetAimDistanceFromTarget(client, target) <= GetConVarFloat(hcv_LaserDistance))
+				if(GetAimDistanceFromTarget(client, trueTarget) <= GetConVarFloat(hcv_LaserDistance))
 				{
 					char Classname[64];
 					GetEdictClassname(target, Classname, sizeof(Classname));
@@ -636,21 +638,24 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 		}
 	}
 
-	for (int i = 0; i < MAX_BUTTONS; i++)
+	if(IsPlayerAlive(client))
 	{
-		int button = (1 << i);
+		for (int i = 0; i < MAX_BUTTONS; i++)
+		{
+			int button = (1 << i);
 
-		if ((buttons & button))
-		{
-			if (!(g_LastButtons[client] & button))
+			if ((buttons & button))
 			{
-				g_fPressTime[client][i] = GetGameTime();
-				OnButtonPress(client, button);
+				if (!(g_LastButtons[client] & button))
+				{
+					g_fPressTime[client][i] = GetGameTime();
+					OnButtonPress(client, button);
+				}
 			}
-		}
-		else if ((g_LastButtons[client] & button))
-		{
-			OnButtonRelease(client, button, GetGameTime() - g_fPressTime[client][i]);
+			else if ((g_LastButtons[client] & button))
+			{
+				OnButtonRelease(client, button, GetGameTime() - g_fPressTime[client][i]);
+			}
 		}
 	}
 
@@ -1349,7 +1354,7 @@ public bool TraceFilterAllEntities(int entity, int contentsMask, int client)
 }
 
 
-int JB_GetClientAimTarget(int client)
+int JB_GetClientAimTarget(int client, int &trueTarget)
 {
 	float vAngles[3];
 	float vOrigin[3];
@@ -1366,6 +1371,8 @@ int JB_GetClientAimTarget(int client)
 
 	if(entity == -1 || entity == 0)
 		return -1;
+
+	trueTarget = entity;
 
 	while(GetEntPropEnt(entity, Prop_Send, "moveparent") != -1)
 	{
