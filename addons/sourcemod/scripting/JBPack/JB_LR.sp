@@ -342,6 +342,9 @@ public void OnPluginStart()
 	// Check for IsClientInGame for both before taking actions.
 	fw_LREnded = CreateGlobalForward("LastRequest_OnLREnded", ET_Ignore, Param_Cell, Param_Cell);
 
+	// Whether or not player can start LR.
+	// THIS FORWARD DOES NOT DECIDE IF LR STARTED. CHECK IF THERE IS ONLY 1 T LEFT OR CHECK IF LR IS ACTIVE!!!
+	
 	// client -> Client index to start the LR.
 	// String:Message[256] -> Message to send the client if he can't start an LR.
 	// Handle:hTimer_Ignore -> A timer handle which you're required to insert in LR_FinishTimers()'s first argument if you use it.
@@ -2438,6 +2441,7 @@ stock void EndLR(int EndTimers = true)
 		if (LRStarted)
 		{
 			SetEntityHealth(i, 100);
+			SetEntityMaxHealth(i, 100);
 
 			StripPlayerWeapons(i);
 			GivePlayerItem(i, "weapon_knife");
