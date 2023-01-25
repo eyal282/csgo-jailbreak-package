@@ -2566,9 +2566,17 @@ public Action Command_LR(int client, int args)
 
 		if (TCount == 1)
 		{
-			UC_PrintToChatAll("%N has shown the last T the LR menu!", client);
+			int target = GetRandomAlivePlayer(CS_TEAM_T);
+			if(LastRequest(target, false))
+			{
+				UC_PrintToChatAll("%s \x03%N\x01 has shown the last T the LR menu!", PREFIX, client);
 
-			Command_LR(LastT, 0);
+				Command_LR(LastT, 0);
+			}
+			else
+			{
+				UC_PrintToChatAll("%s Error: LR cannot be started right now!", PREFIX, client);
+			}
 		}
 	}
 	if (LastRequest(client))
@@ -5307,7 +5315,7 @@ stock track_weapon(index)
     return Weapon;
 }
 */
-stock bool LastRequest(int client)
+stock bool LastRequest(int client, bool message=true)
 {
 	int Guards, Prisoners;
 
@@ -5327,19 +5335,34 @@ stock bool LastRequest(int client)
 	}
 
 	if (GetClientTeam(client) != CS_TEAM_T)
-		UC_PrintToChat(client, "%s Only prisoners may use this \x07command!", PREFIX);
+	{
+		if(message)
+			UC_PrintToChat(client, "%s Only prisoners may use this \x07command!", PREFIX);
+	}
 
 	else if (!IsPlayerAlive(client))
-		UC_PrintToChat(client, "%s You must be alive to use this \x07command!", PREFIX);
+	{
+		if(message)
+			UC_PrintToChat(client, "%s You must be alive to use this \x07command!", PREFIX);
+	}
 
 	else if (LRStarted)
-		UC_PrintToChat(client, "%s \x05LR \x01has already \x07started!", PREFIX);
+	{
+		if(message)
+			UC_PrintToChat(client, "%s \x05LR \x01has already \x07started!", PREFIX);
+	}
 
 	else if (Prisoners != 1)
-		UC_PrintToChat(client, "%s You are not the last \x07prisoner!", PREFIX);
+	{
+		if(message)
+			UC_PrintToChat(client, "%s You are not the last \x07prisoner!", PREFIX);
+	}
 
 	else if (Guards <= 0)
-		UC_PrintToChat(client, "%s There are no guards to play \x07with!", PREFIX);
+	{
+		if(message)
+			UC_PrintToChat(client, "%s There are no guards to play \x07with!", PREFIX);
+	}
 
 	else
 	{
@@ -5354,7 +5377,9 @@ stock bool LastRequest(int client)
 
 		if (Value > Plugin_Continue)
 		{
-			UC_PrintToChat(client, "%s %s", PREFIX, Message);
+			if(message)
+				UC_PrintToChat(client, "%s %s", PREFIX, Message);
+
 			return false;
 		}
 
