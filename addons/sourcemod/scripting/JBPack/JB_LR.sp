@@ -5181,7 +5181,8 @@ public int PanelHandler_InfoMessage(Handle hPanel, MenuAction action, int client
 				FakeClientCommand(client, "use %s", Classname);
 			}
 
-			ShowInfoMessage(client);
+			if(LRStarted)
+				ShowInfoMessage(client);
 		}
 		if (item == 9)
 		{
