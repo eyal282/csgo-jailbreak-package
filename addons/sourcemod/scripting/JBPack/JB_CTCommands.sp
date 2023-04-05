@@ -16,6 +16,7 @@
 
 native int Eyal282_VoteCT_GetChosenUserId();
 native bool Eyal282_VoteCT_IsChosen(int client);
+native bool Eyal282_VoteCT_IsTreatedWarden(int client);
 native bool Eyal282_VoteCT_IsPreviewRound();
 native bool JailBreakDays_IsDayActive();
 native bool LR_isActive();
@@ -124,8 +125,8 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_ck", Command_CK, "Turns on CK for the rest of the vote CT");
 	//RegConsoleCmd("sm_sort", Command_Sort, "Randomly sorts every T.");
 
-	RegConsoleCmd("sm_medic", cmd_medic, "");
-	RegConsoleCmd("sm_deagle", cmd_deagle, "");
+	RegConsoleCmd("sm_medic", Command_Medic, "");
+	RegConsoleCmd("sm_deagle", Command_Deagle, "");
 
 	RegAdminCmd("sm_silentstopck", Command_SilentStopCK, ADMFLAG_ROOT, "Turns off CK silently");
 
@@ -459,9 +460,12 @@ public void OnMapStart()
 	BeamIndex   = PrecacheModel("materials/sprites/laserbeam.vmt", true);
 	HaloIdx     = PrecacheModel("materials/sprites/glow01.vmt", true);
 
-	PrecacheSoundAny("buttons/button11.wav");
-	PrecacheSoundAny("items/medshot4.wav");
-	PrecacheSoundAny("hostage/hpain/hpain6.wav");
+	PrecacheSoundAny("buttons/button11.wav", true);
+	PrecacheSoundAny("items/medshot4.wav", true);
+	PrecacheSoundAny("hostage/hpain/hpain6.wav", true);
+	PrecacheSoundAny("*buttons/button11.wav", true);
+	PrecacheSoundAny("*items/medshot4.wav", true);
+	PrecacheSoundAny("*hostage/hpain/hpain6.wav", true);
 
 	CKEnabled = false;
 
@@ -505,7 +509,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 {
 	if (buttons & IN_USE)
 	{
-		if(GetClientTeam(client) == CS_TEAM_CT && IsPlayerAlive(client) && !LR_isActive() && GetConVarBool(hcv_Laser))
+		if(Eyal282_VoteCT_IsTreatedWarden(client) && IsPlayerAlive(client) && !LR_isActive() && GetConVarBool(hcv_Laser))
 		{
 			// true Target is the actual target in your aim, ignoring parenting. This is for GetAimDistanceFromTarget
 			int trueTarget;
@@ -676,7 +680,7 @@ public void OnButtonRelease(int client, int button, float holdTime)
 	else if (bWrongWeapon[client] || bCanZoom[client] || bHasSilencer[client])
 		return;
 
-	else if (GetClientTeam(client) != CS_TEAM_CT)
+	else if (!Eyal282_VoteCT_IsTreatedWarden(client))
 		return;
 
 	else if (LR_isActive())
@@ -1038,10 +1042,20 @@ public Action Command_Box(int client, int args)
 	if (JailBreakDays_IsDayActive())
 		return Plugin_Handled;
 
-	if ((GetClientTeam(client) != CS_TEAM_CT || !IsPlayerAlive(client)) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+	else if (GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
-		UC_ReplyToCommand(client, "You don't have access to this command");
+		UC_PrintToChat(client, "%s \x05You \x01must be in the guards team to use this \x07command!", PREFIX);
+		return Plugin_Handled;
+	}
+	else if (!IsPlayerAlive(client) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+	{
+		UC_PrintToChat(client, "%s \x5You \x01must be alive to use this \x07command!", PREFIX);
+		return Plugin_Handled;
+	}
 
+	else if(!Eyal282_VoteCT_IsTreatedWarden(client))
+	{
+		UC_PrintToChat(client, "%s \x5You \x01must be warden to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
 
@@ -1414,12 +1428,8 @@ public bool TraceFilterHitTarget(int entity, int contentsMask, int target)
 }
 
 // Start of Skyler
-public Action cmd_medic(int client, int args)
+public Action Command_Medic(int client, int args)
 {
-	// int hp;
-	char name[512];
-	// hp = GetClientHealth(client);
-	GetClientName(client, name, sizeof(name));
 	if (IsPlayerAlive(client) && GetClientTeam(client) == CS_TEAM_T)
 	{
 		/*
@@ -1437,7 +1447,7 @@ public Action cmd_medic(int client, int args)
 		if (!nospam[client])
 		{
 			nospam[client] = true;
-			UC_PrintToChatAll("%s \x05%s\x01 wants a \x07medic!", PREFIX, name);
+			UC_PrintToChatAll("%s \x05%N\x01 wants a \x07medic!", PREFIX, client);
 			CreateTimer(hcv_MedicCooldown.FloatValue, medicHandler, GetClientUserId(client));
 			return Plugin_Handled;
 		}
@@ -1461,27 +1471,43 @@ public Action medicHandler(Handle timer, any UserId)
 	return Plugin_Continue;
 }
 
-public Action cmd_deagle(int client, int args)
+public Action Command_Deagle(int client, int args)
 {
-	if (IsClientInGame(client) && GetClientTeam(client) == CS_TEAM_T && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+	if(client == 0 || JailBreakDays_IsDayActive())
+		return Plugin_Handled;
+
+	if (GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
-		UC_PrintToChat(client, "%s \x05You \x01are not in the guards team you cant active this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s \x05You \x01must be in the guards team to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
-	if (IsClientInGame(client) && GetClientTeam(client) == CS_TEAM_CT && !IsPlayerAlive(client) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+	else if (!IsPlayerAlive(client) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
 	{
-		UC_PrintToChat(client, "%s \x5You \x01are need to be alive to active this \x07command!", PREFIX);
+		UC_PrintToChat(client, "%s \x5You \x01must be alive to use this \x07command!", PREFIX);
 		return Plugin_Handled;
 	}
-	if (IsClientInGame(client) && GetClientTeam(client) == CS_TEAM_CT || IsClientInGame(client) && GetClientTeam(client) == CS_TEAM_T && CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+
+	else if(!Eyal282_VoteCT_IsTreatedWarden(client))
 	{
-		UC_PrintToChatAll("%s \x01All \x07terrorist \x01alive got a empty \x05deagle! \x01Have Fun", PREFIX);
-		for (int i = 1; i <= MaxClients; i++)
-			if (IsClientInGame(i) && GetClientTeam(i) == CS_TEAM_T && IsPlayerAlive(i))
-			{
-				Client_GiveWeaponAndAmmo(i, "weapon_deagle", _, 0, _, 0);
-				GivePlayerItem(i, "weapon_knife");
-			}
+		UC_PrintToChat(client, "%s \x5You \x01must be warden to use this \x07command!", PREFIX);
+		return Plugin_Handled;
+	}
+
+	UC_PrintToChatAll("%s \x01All \x07terrorist \x01alive got a empty \x05deagle! \x01Have Fun", PREFIX);
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+			
+		else if(!IsPlayerAlive(i))
+			continue;
+			
+		else if(GetClientTeam(i) != CS_TEAM_T)
+			continue;
+
+		Client_GiveWeaponAndAmmo(i, "weapon_deagle", _, 0, _, 0);
+		GivePlayerItem(i, "weapon_knife");
 	}
 	return Plugin_Continue;
 }

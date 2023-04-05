@@ -54,6 +54,9 @@ char GameTitle[Game_MAX][] = {
 
 float ExpireGraceTime = 0.0;
 
+ArrayList g_aCTQueue;
+ArrayList g_aWardenQueue;
+
 Handle hVoteCTMenu;
 bool   VoteCTDisabled = false, VoteCTRunning;
 enGame ChosenGame;
@@ -133,6 +136,7 @@ Handle hTimer_FailGame     = INVALID_HANDLE;
 Handle hTimer_PreviewRound = INVALID_HANDLE;
 
 Handle hcv_VoteCTMin = INVALID_HANDLE;
+Handle hcv_WardenSystem = INVALID_HANDLE;
 
 Handle hcv_CTRatio = INVALID_HANDLE;
 Handle hcv_CTRatioRebel = INVALID_HANDLE;
@@ -175,6 +179,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("Eyal282_VoteCT_StopVoteCT", Native_StopVoteCT);
 	CreateNative("Eyal282_VoteCT_IsChosen", Native_IsChosen);
 	CreateNative("Eyal282_VoteCT_GetChosenUserId", Native_GetChosenUserId);
+	CreateNative("Eyal282_VoteCT_IsTreatedWarden", Native_IsTreatedWarden);
 	CreateNative("Eyal282_VoteCT_IsPreviewRound", Native_IsPreviewRound);
 
 	CreateNative("Eyal282_VoteCT_SetChosen", Native_SetChosen);
@@ -200,6 +205,24 @@ public int Native_GetChosenUserId(Handle plugin, int numParams)
 	return ChosenUserId;
 }
 
+// Is Treated Warden asks if the client is the warden, but if Vote CT is enabled, all CT are treated as warden ( minus !ctlist and !kickct )
+public int Native_IsTreatedWarden(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	if(GetClientTeam(client) != CS_TEAM_CT)
+		return false;
+
+	if(GetConVarBool(hcv_WardenSystem))
+	{
+		if(GetClientOfUserId(ChosenUserId) == client)
+			return true;
+
+		return false;
+	}
+
+	return true;
+}
 public int Native_IsPreviewRound(Handle plugin, int numParams)
 {
 	return IsPreviewRound;
@@ -218,6 +241,9 @@ public int Native_SetChosen(Handle plugin, int numParams)
 
 public void OnPluginStart()
 {
+	g_aCTQueue = CreateArray(1);
+	g_aWardenQueue = CreateArray(1);
+
 	LoadTranslations("common.phrases"); // Fixing errors in target
 	
 	RegAdminCmd("sm_disablevotect", Command_DisableVoteCT, ADMFLAG_GENERIC);
@@ -226,7 +252,9 @@ public void OnPluginStart()
 	RegAdminCmd("sm_setchosen", Command_SetChosen, ADMFLAG_GENERIC);
 	RegConsoleCmd("sm_givechosen", Command_GiveChosen);
 	RegConsoleCmd("sm_givect", Command_GiveChosen);
+	RegConsoleCmd("sm_givect", Command_GiveChosen);
 
+	RegConsoleCmd("sm_w", Command_Warden);
 	RegConsoleCmd("sm_chosen", Command_Chosen);
 	RegConsoleCmd("sm_nivhar", Command_Chosen);
 	RegConsoleCmd("sm_kickct", Command_KickCT);
@@ -238,7 +266,8 @@ public void OnPluginStart()
 
 	AutoExecConfig_SetFile("JB_VoteCT", "sourcemod/JBPack");
 
-	hcv_VoteCTMin        = UC_CreateConVar("votect_min", "2", "Minimum amount of players to start a vote CT");
+	hcv_VoteCTMin        = UC_CreateConVar("votect_min", "2", "Minimum amount of players to start a vote CT. Ignored if Warden system is enabled.");
+	hcv_WardenSystem        = UC_CreateConVar("votect_warden_enabled", "0", "Enable Warden System over Vote CT");
 	hcv_CTRatio        = UC_CreateConVar("votect_ratio", "6", "Ratio of CT to T");
 	hcv_CTRatioRebel        = UC_CreateConVar("votect_ratio", "4", "Ratio of CT to T in maps containing ''_rebel''");
 
@@ -266,9 +295,11 @@ public void OnPluginStart()
 
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("round_prestart", Event_RoundStartBeforePlayerSpawn, EventHookMode_PostNoCopy);
 	HookEvent("round_freeze_end", Event_RoundFreezeEnd, EventHookMode_PostNoCopy);
 	HookEvent("player_team", Event_PlayerTeam, EventHookMode_Post);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
+	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 
 	hcv_JoinGraceTime   = FindConVar("mp_join_grace_time");
 	hcv_ForcePickTime   = FindConVar("mp_force_pick_time");
@@ -390,34 +421,98 @@ public Action Timer_CheckVoteCT(Handle hTimer)
 {
 	int Chosen = GetClientOfUserId(ChosenUserId);
 
-	if ((Chosen == 0 || GetClientTeam(Chosen) == CS_TEAM_T) && !VoteCTDisabled && !VoteCTRunning)
+	switch(GetConVarBool(hcv_WardenSystem))
 	{
-		if (GetValidPlayerCount() >= GetConVarInt(hcv_VoteCTMin))
+		case true:
 		{
-			Action CallReturn;
-			Call_StartForward(fw_VoteCTStartAuto);
+			
+			int count = GetTeamPlayerCount(CS_TEAM_CT);
 
-			Call_Finish(CallReturn);
-
-			if (CallReturn < Plugin_Handled)
+			if(count > 0)
 			{
-				for (int i = 1; i <= MaxClients; i++)
+				if(GetTeamAliveCount(CS_TEAM_T) <= 1)
+					return Plugin_Continue;
+
+				else if(GetGameTime() >= ExpireGraceTime)
+					return Plugin_Continue;
+			}		
+
+			while(GetAvailableInviteCT() > 0)
+			{
+				int client = GetNextClientInCTQueue();
+
+				if(client == 0)
 				{
-					if (!IsClientInGame(i))
-						continue;
-
-					else if (IsPlayerAlive(i))
-						continue;
-
-					CS_RespawnPlayer(i);
+					// Not continue, return.
+					return Plugin_Continue;
 				}
-				StartVoteCT();
+
+				else if(!TryRemoveClientFromCTQueue(client))
+				{
+					// Not continue, return on bugs.
+					return Plugin_Continue;
+				}
+
+				CS_SwitchTeam(client, CS_TEAM_CT);
+				CS_RespawnPlayer(client);
+
+				if(count == 0)
+				{
+					ServerCommand("mp_restartgame 1");
+					// To block another restart within the loop.
+					count = MAX_INT;
+				}
 			}
-		}
-		else
+
+			if(count != MAX_INT && Chosen == 0)
+			{
+				int client = GetNextClientInWardenQueue();
+
+				if(client == 0)
+				{
+					// Not continue, return.
+					return Plugin_Continue;
+				}
+
+				else if(!TryRemoveClientFromWardenQueue(client))
+				{
+					// Not continue, return on bugs.
+					return Plugin_Continue;
+				}
+
+				ChosenUserId = GetClientUserId(client);
+				AddClientToWardenQueue(client);
+
+				UC_PrintToChatAll("%s \x03%N\x01 is now the Warden of this prison.", PREFIX, client);
+			}
+		}	
+		case false:
 		{
-			// Feels unnecessary, better instead to use PrintCenterText to indicate a player is muted.
-			//PrintCenterTextAll("Vote CT will start when T has %i players", GetConVarInt(hcv_VoteCTMin));
+			if ((Chosen == 0 || GetClientTeam(Chosen) == CS_TEAM_T) && !VoteCTDisabled && !VoteCTRunning)
+			{
+				if (GetValidPlayerCount() >= GetConVarInt(hcv_VoteCTMin))
+				{
+					Action CallReturn;
+					Call_StartForward(fw_VoteCTStartAuto);
+
+					Call_Finish(CallReturn);
+
+					if (CallReturn < Plugin_Handled)
+					{
+						for (int i = 1; i <= MaxClients; i++)
+						{
+							if (!IsClientInGame(i))
+								continue;
+
+							else if (IsPlayerAlive(i))
+								continue;
+
+							CS_RespawnPlayer(i);
+						}
+						StartVoteCT();
+					}
+				}
+			}
 		}
 	}
 
@@ -573,18 +668,72 @@ public Action Listener_Say(int client, const char[] command, int args)
 
 public Action Listener_JoinTeam(int client, const char[] command, int args)
 {
-	char Arg[32];
-	GetCmdArg(1, Arg, sizeof(Arg));
-
-	int Team = StringToInt(Arg);
-	if (Team != CS_TEAM_SPECTATOR && Team != CS_TEAM_T)
+	switch(GetConVarBool(hcv_WardenSystem))
 	{
-		ClientCommand(client, "play buttons/button11");
+		case true:
+		{
+			char Arg[32];
+			GetCmdArg(1, Arg, sizeof(Arg));
 
-		UC_PrintToChat(client, "%s \x04You \x01can not join this team. ", PREFIX);
-		return Plugin_Stop;
+			int Team = StringToInt(Arg);
+
+			// Auto select
+			if(Team == CS_TEAM_NONE)
+			{
+				if(TryRemoveClientFromCTQueue(client))
+				{
+					UC_PrintToChat(client, "%s You have left the CT queue", PREFIX);
+					UC_CloseTeamMenu(client);
+					return Plugin_Stop;
+				}
+			}
+
+			else if(Team != CS_TEAM_SPECTATOR && Team != CS_TEAM_T)
+			{
+				if(IsClientInCTQueue(client))
+				{
+					UC_PrintToChat(client, "%s You are #%i in CT queue", PREFIX, GetClientPosInCTQueue(client));
+					UC_CloseTeamMenu(client);
+					return Plugin_Stop;
+				}
+				else if(GetClientTeam(client) == CS_TEAM_CT)
+				{
+					return Plugin_Handled;
+				}
+
+				if(AddClientToCTQueue(client))
+					UC_PrintToChat(client, "%s You are #%i in CT queue", PREFIX, GetClientPosInCTQueue(client));
+
+				UC_CloseTeamMenu(client);
+				return Plugin_Stop;
+			}
+			else if(Team == CS_TEAM_T)
+			{
+				TryRemoveClientFromCTQueue(client);
+			}
+
+			return Plugin_Continue;
+		}
+		case false:
+		{
+			char Arg[32];
+			GetCmdArg(1, Arg, sizeof(Arg));
+
+			int Team = StringToInt(Arg);
+			if (Team != CS_TEAM_SPECTATOR && Team != CS_TEAM_T)
+			{
+				ClientCommand(client, "play buttons/button11");
+
+				UC_PrintToChat(client, "%s \x04You \x01can not join this team. ", PREFIX);
+				UC_CloseTeamMenu(client);
+				return Plugin_Stop;
+			}
+
+			return Plugin_Continue;
+		}
 	}
-
+	
+	// Not possible to reach here.
 	return Plugin_Continue;
 }
 
@@ -652,6 +801,20 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 
 	NextRoundPreviewRound = false;
 	NextRoundSpecialDay   = false;
+
+	return Plugin_Continue;
+}
+
+public Action Event_RoundStartBeforePlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
+{	
+	ExpireGraceTime = MAX_FLOAT;
+
+	if(GetConVarBool(hcv_WardenSystem))
+	{
+		ChosenUserId = 0;
+	}
+
+	TriggerTimer(CreateTimer(0.0, Timer_CheckVoteCT, _, TIMER_FLAG_NO_MAPCHANGE));
 
 	return Plugin_Continue;
 }
@@ -727,6 +890,23 @@ public Action Event_PlayerTeam(Handle hEvent, const char[] Name, bool dontBroadc
 	return Plugin_Continue;
 }
 
+
+public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroadcast)
+{
+	int UserId  = GetEventInt(hEvent, "userid");
+
+	if (GetConVarBool(hcv_WardenSystem) && UserId == ChosenUserId && UserId != 0)
+		ChosenUserId = 0;
+
+	if (ChosenUserId == 0)
+	{
+		TriggerTimer(CreateTimer(0.0, Timer_CheckVoteCT, _, TIMER_FLAG_NO_MAPCHANGE));
+	}
+
+	return Plugin_Continue;
+}
+
+
 public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	int UserId = GetEventInt(hEvent, "userid");
@@ -738,7 +918,7 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 		if (GetClientTeam(client) != CS_TEAM_CT)
 			return Plugin_Continue;
 
-		else if (GetAvailableInviteCT() > 0)
+		else if (GetAvailableInviteCT() > 0 && GetConVarBool(hcv_WardenSystem))
 			Command_TList(client, 0);
 	}
 
@@ -747,6 +927,9 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 
 public Action Command_KickCT(int client, int args)
 {
+	if(GetConVarBool(hcv_WardenSystem))
+		return Plugin_Handled;
+
 	int Chosen = GetClientOfUserId(ChosenUserId);
 
 	if (client != Chosen)
@@ -829,6 +1012,9 @@ public int KickCT_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 
 public Action Command_TList(int client, int args)
 {
+	if(GetConVarBool(hcv_WardenSystem))
+		return Plugin_Handled;
+		
 	int Chosen = GetClientOfUserId(ChosenUserId);
 
 	if (client != Chosen)
@@ -1031,6 +1217,9 @@ public Action Command_DisableVoteCT(int client, int args)
 
 public Action Command_VoteCT(int client, int args)
 {
+	if(GetConVarBool(hcv_WardenSystem))
+		return Plugin_Handled;
+
 	if (!IsNewVoteAllowed())
 	{
 		EndVoteCT();
@@ -1064,6 +1253,9 @@ public Action Command_StopVoteCT(int client, int args)
 
 public Action Command_SetChosen(int client, int args)
 {
+	if(GetConVarBool(hcv_WardenSystem))
+		return Plugin_Handled;
+
 	if (args == 0)
 	{
 		UC_ReplyToCommand(client, "Usage: sm_setchosen <target>");
@@ -1087,7 +1279,10 @@ public Action Command_SetChosen(int client, int args)
 
 public Action Command_GiveChosen(int client, int args)
 {
-	if (args == 0)
+	if(GetConVarBool(hcv_WardenSystem))
+		return Plugin_Handled;
+
+	else if (args == 0)
 	{
 		UC_ReplyToCommand(client, "Usage: sm_givect <target>");
 		return Plugin_Handled;
@@ -1123,6 +1318,49 @@ public Action Command_GiveChosen(int client, int args)
 	SetChosenCT(target, false, true);
 
 	UC_PrintToChatAll("%s \x05%N \x01gave the chosen CT to \x07%N! ", PREFIX, client, target);
+	return Plugin_Handled;
+}
+
+public Action Command_Warden(int client, int args)
+{
+	if(!GetConVarBool(hcv_WardenSystem))
+		return Plugin_Handled;
+
+	else if(client == 0)
+		return Plugin_Handled;
+
+	else if(GetClientTeam(client) != CS_TEAM_CT)
+	{
+		int Chosen = GetClientOfUserId(ChosenUserId);
+
+		if(Chosen == 0)
+			UC_PrintToChat(client, "%s There is no current warden.", PREFIX);
+
+		else
+			UC_PrintToChat(client, "%s The current warden is\x03 %N", PREFIX, Chosen);
+	}
+	else
+	{
+		int Chosen = GetClientOfUserId(ChosenUserId);
+
+		if(client == Chosen)
+		{
+			UC_PrintToChatAll("%s \x03%N\x01 resigned as the warden.", PREFIX, client);
+		}
+		else
+		{
+			if(AddClientToWardenQueue(client))
+			{
+				UC_PrintToChat(client, "%s You are #%i in Warden queue.", PREFIX, GetClientPosInWardenQueue(client));
+			}
+			else
+			{
+				UC_PrintToChat(client, "%s You left the Warden queue.", PREFIX);
+			}
+		}
+
+	}
+
 	return Plugin_Handled;
 }
 void StartVoteCT()
@@ -1943,6 +2181,25 @@ stock void SetChosenCT(int client, bool dontKickCT = false, bool swapped = false
 		ChosenUserId = 0;
 }
 
+
+stock int GetTeamAliveCount(int Team)
+{
+	int count = 0;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if (GetClientTeam(i) == Team)
+			count++;
+	}
+	return count;
+}
+
 stock int GetTeamPlayerCount(int Team)
 {
 	int count = 0;
@@ -1980,7 +2237,20 @@ stock int Abs(int value)
 // 19 T <==> 4 CT.
 
 stock int GetAvailableInviteCT()
-{
+{ 
+	if(GetTeamPlayerCount(CS_TEAM_T) == 1 && GetTeamPlayerCount(CS_TEAM_CT) == 0)
+	{
+		if(GetConVarBool(hcv_WardenSystem))
+			return 1;
+
+		else
+		{
+			if(GetConVarInt(hcv_VoteCTMin) > 1)
+				return 0;
+
+			return 1;
+		}
+	}
 	int ratio = GetConVarInt(hcv_CTRatio);
 
 	char MapName[64];
@@ -1999,6 +2269,170 @@ stock int GetAvailableInviteCT()
 
 	return totalAllowed;
 }
+
+stock bool AddClientToCTQueue(int client)
+{
+	CleanupCTQueue();
+
+	if(IsClientInCTQueue(client))
+		return false;
+
+	else if(GetClientTeam(client) == CS_TEAM_CT)
+		return false;
+
+	g_aCTQueue.Push(GetClientUserId(client));
+
+	return true;
+}
+
+stock void CleanupCTQueue()
+{
+	for(int i=0;i < g_aCTQueue.Length;i++)
+	{
+		int client = GetClientOfUserId(g_aCTQueue.Get(i));
+
+		if(client == 0)
+		{
+			g_aCTQueue.Erase(i);
+			i--;
+			continue;
+		}
+		else if(IsPlayerBannedFromGuardsTeam(client))
+		{
+			g_aCTQueue.Erase(i);
+			i--;
+			continue;
+		}
+		else if(GetClientTeam(client) == CS_TEAM_CT)
+		{
+			g_aCTQueue.Erase(i);
+			i--;
+			continue;
+		}
+	}
+}
+
+stock bool TryRemoveClientFromCTQueue(int client)
+{
+	int pos = g_aCTQueue.FindValue(GetClientUserId(client));
+
+	if(pos == -1)
+		return false;
+
+	g_aCTQueue.Erase(pos);
+	return true;
+}
+
+stock bool IsClientInCTQueue(int client)
+{
+	return g_aCTQueue.FindValue(GetClientUserId(client)) >= 0;
+}
+
+
+stock int GetClientPosInCTQueue(int client)
+{
+	return g_aCTQueue.FindValue(GetClientUserId(client)) + 1;
+}
+
+stock int GetNextClientInCTQueue()
+{
+	CleanupCTQueue();
+
+	if(g_aCTQueue.Length == 0)
+		return 0;
+
+	int client = GetClientOfUserId(g_aCTQueue.Get(0));
+
+	return client;
+}
+
+stock void ClearCTQueue()
+{
+	g_aCTQueue.Clear();
+}
+
+
+stock bool AddClientToWardenQueue(int client)
+{
+	CleanupWardenQueue();
+
+	if(IsClientInWardenQueue(client))
+		return false;
+
+	else if(GetClientTeam(client) == CS_TEAM_CT)
+		return false;
+
+	g_aWardenQueue.Push(GetClientUserId(client));
+
+	return true;
+}
+
+stock void CleanupWardenQueue()
+{
+	for(int i=0;i < g_aWardenQueue.Length;i++)
+	{
+		int client = GetClientOfUserId(g_aWardenQueue.Get(i));
+
+		if(client == 0)
+		{
+			g_aWardenQueue.Erase(i);
+			i--;
+			continue;
+		}
+		else if(IsPlayerBannedFromGuardsTeam(client))
+		{
+			g_aWardenQueue.Erase(i);
+			i--;
+			continue;
+		}
+		else if(GetClientTeam(client) == CS_TEAM_CT)
+		{
+			g_aWardenQueue.Erase(i);
+			i--;
+			continue;
+		}
+	}
+}
+
+stock bool TryRemoveClientFromWardenQueue(int client)
+{
+	int pos = g_aWardenQueue.FindValue(GetClientUserId(client));
+
+	if(pos == -1)
+		return false;
+
+	g_aWardenQueue.Erase(pos);
+	return true;
+}
+
+stock bool IsClientInWardenQueue(int client)
+{
+	return g_aWardenQueue.FindValue(GetClientUserId(client)) >= 0;
+}
+
+
+stock int GetClientPosInWardenQueue(int client)
+{
+	return g_aWardenQueue.FindValue(GetClientUserId(client)) + 1;
+}
+
+stock int GetNextClientInWardenQueue()
+{
+	CleanupWardenQueue();
+
+	if(g_aWardenQueue.Length == 0)
+		return 0;
+
+	int client = GetClientOfUserId(g_aWardenQueue.Get(0));
+
+	return client;
+}
+
+stock void ClearWardenQueue()
+{
+	g_aWardenQueue.Clear();
+}
+
 
 stock int PositiveOrZero(int value)
 {
@@ -2079,4 +2513,17 @@ stock int[] CalculateVotes()
 	}
 
 	return arr;
+}
+
+stock void UC_CloseTeamMenu(int client)
+{
+	if(IsFakeClient(client))
+		return;
+		
+	Event fakeevent = CreateEvent("player_team");
+	
+	fakeevent.SetInt("userid", GetClientUserId(client));
+	fakeevent.FireToClient(client);
+	
+	CancelCreatedEvent(fakeevent);
 }
