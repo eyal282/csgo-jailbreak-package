@@ -269,7 +269,7 @@ public void OnPluginStart()
 	hcv_VoteCTMin        = UC_CreateConVar("votect_min", "2", "Minimum amount of players to start a vote CT. Ignored if Warden system is enabled.");
 	hcv_WardenSystem        = UC_CreateConVar("votect_warden_enabled", "0", "Enable Warden System over Vote CT");
 	hcv_CTRatio        = UC_CreateConVar("votect_ratio", "6", "Ratio of CT to T");
-	hcv_CTRatioRebel        = UC_CreateConVar("votect_ratio", "4", "Ratio of CT to T in maps containing ''_rebel''");
+	hcv_CTRatioRebel        = UC_CreateConVar("votect_ratio_rebel", "4", "Ratio of CT to T in maps containing ''_rebel''");
 
 	hcv_MaxRounds        = UC_CreateConVar("votect_max_rounds", "5", "Maximum amount of rounds CT get before swapping");
 	hcv_ForbidUnassigned = UC_CreateConVar("votect_forbid_unassigned", "1", "Forbid unassigned players");
