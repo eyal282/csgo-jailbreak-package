@@ -798,10 +798,21 @@ stock bool OpenCells()
 			if (!Found)
 				return false;
 				
-			QueueOpenDoorsForOutput(ent, "OnPressed");
-			QueueOpenDoorsForOutput(ent, "OnIn");
-			QueueOpenDoorsForOutput(ent, "OnUseLocked");
-			QueueOpenDoorsForOutput(ent, "OnDamaged");
+				
+			if(blockOpen)
+			{
+				OpenDoorsForOutput(ent, "OnPressed");
+				OpenDoorsForOutput(ent, "OnIn");
+				OpenDoorsForOutput(ent, "OnUseLocked");
+				OpenDoorsForOutput(ent, "OnDamaged");
+			}
+			else
+			{
+				QueueOpenDoorsForOutput(ent, "OnPressed");
+				QueueOpenDoorsForOutput(ent, "OnIn");
+				QueueOpenDoorsForOutput(ent, "OnUseLocked");
+				QueueOpenDoorsForOutput(ent, "OnDamaged");
+			}
 
 			AcceptEntityInput(ent, "Lock");
 
