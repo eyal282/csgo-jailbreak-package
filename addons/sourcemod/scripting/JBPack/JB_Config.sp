@@ -23,7 +23,7 @@ enum struct enCvarList
 
 // Cvar, Value
 enCvarList cvarList[] = {
-	{"sm_vote_delay",          "0"         },
+	{ "sm_vote_delay",          "0"         },
 	{ "uc_party_mode",         "0"         },
 	{ "mp_autokick",           "0"         },
 	{ "mp_freezetime",         "0"         },
@@ -33,6 +33,7 @@ enCvarList cvarList[] = {
 	{ "mp_solid_teammates",    "1"         },
 	{ "mp_warmuptime",         "0"         },
 	{ "mp_do_warmup_period",   "0" },
+	{ "mp_autoteambalance",    "0" },
 
 	{ "sv_full_alltalk",       "1"         },
 	{ "sv_alltalk",            "1"         },

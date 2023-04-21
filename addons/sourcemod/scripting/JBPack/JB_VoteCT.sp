@@ -918,7 +918,7 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 		if (GetClientTeam(client) != CS_TEAM_CT)
 			return Plugin_Continue;
 
-		else if (GetAvailableInviteCT() > 0 && GetConVarBool(hcv_WardenSystem))
+		else if (GetAvailableInviteCT() > 0 && !GetConVarBool(hcv_WardenSystem))
 			Command_TList(client, 0);
 	}
 
@@ -1166,6 +1166,16 @@ public int AcceptInvite_MenuHandler(Handle hMenu, MenuAction action, int client,
 
 		else
 			ForcePlayerSuicide(client);
+
+		if(GetAvailableInviteCT() > 0)
+		{
+			int chosen = GetClientOfUserId(ChosenUserId);
+
+			if(chosen != 0)
+			{
+				Command_TList(chosen, 0);
+			}
+		}
 	}
 
 	return 0;

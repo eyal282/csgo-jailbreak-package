@@ -385,7 +385,7 @@ public Action Timer_CheckHNRInfected(Handle hTimer)
 	{
 		g_Infected = 0;
 		g_fNextHNRDeath = GetGameTime() + 20.0;
-		PrintCenterTextAll("Nobody is infected\nThe first player to be hit will become infected.");
+		PrintCenterTextAll("<font color='#FFFFFF'>Nobody is infected\nThe first player to be hit will become infected.</font>");
 		return Plugin_Continue;
 	}
 

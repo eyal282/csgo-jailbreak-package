@@ -511,11 +511,15 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 	{
 		if(Eyal282_VoteCT_IsTreatedWarden(client) && IsPlayerAlive(client) && !LR_isActive() && GetConVarBool(hcv_Laser))
 		{
+			float fVelocity[3];
+
+			GetEntPropVector(client, Prop_Data, "m_vecVelocity", fVelocity);
+
 			// true Target is the actual target in your aim, ignoring parenting. This is for GetAimDistanceFromTarget
 			int trueTarget;
 			int target = JB_GetClientAimTarget(client, trueTarget);
 
-			if(target != -1)
+			if(target != -1 && GetVectorLength(fVelocity) == 0.0)
 			{
 				if(GetAimDistanceFromTarget(client, trueTarget) <= GetConVarFloat(hcv_LaserDistance))
 				{
@@ -524,11 +528,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 
 					if(StrEqual(Classname, "func_door") || StrEqual(Classname, "prop_door_rotating"))
 					{
-						float fVelocity[3];
-
-						GetEntPropVector(client, Prop_Data, "m_vecVelocity", fVelocity);
-
-						if(GetVectorLength(fVelocity) == 0.0 && GetConVarBool(hcv_LaserCrack))
+						if(GetConVarBool(hcv_LaserCrack))
 						{
 							if(GetDoorState(target) == STATE_CLOSED)
 							{
