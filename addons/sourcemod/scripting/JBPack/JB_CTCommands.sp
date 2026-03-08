@@ -638,6 +638,8 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 			else
 			{
 				FireLaserBeam(client);
+
+				g_fNextBreakOpen[client] = -1.0;
 			}
 		}
 	}

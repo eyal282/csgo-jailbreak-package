@@ -194,7 +194,7 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 	AddMenuItem(hMenu, "", "Don't show again");
 	AddMenuItem(hMenu, "", "Never show again");
 
-	Format(TempFormat, sizeof(TempFormat), "%s Choose your guns:\n \nLast Rifle: %s\nLast Pistol: %s \n ", MENU_PREFIX, RifleList[GetClientLastRifle(client)], PistolList[GetClientLastPistol(client)]);
+	Format(TempFormat, sizeof(TempFormat), "%s Choose your guns:\n \nLast Rifle: %s\nLast Pistol: %s \n ", MENU_PREFIX, RifleList[GetClientLastRifle(client)].enWeaponName, PistolList[GetClientLastPistol(client)].enWeaponName);
 
 	SetMenuTitle(hMenu, TempFormat);
 
