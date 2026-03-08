@@ -145,7 +145,7 @@ public Action Command_Guns(int client, int args)
 	if (SaveLastGuns[client])
 	{
 		SaveLastGuns[client] = false;
-		PrintToChat(client, "%s \x05Last guns save\x01 is now disabled.", PREFIX);
+		UC_PrintToChat(client, "%s \x05Last guns save\x01 is now disabled.", PREFIX);
 	}
 
 	SetClientDontShow(client, false);
@@ -179,7 +179,7 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroad
 
 	else if (SaveLastGuns[client])
 	{
-		PrintToChat(client, "%s \x01Type\x05 !guns\x01 to disable\x05 auto gun save\x01.", PREFIX);
+		UC_PrintToChat(client, "%s \x01Type\x05 !guns\x01 to disable\x05 auto gun save\x01.", PREFIX);
 		RequestFrame(GivePistol, GetClientUserId(client));
 		RequestFrame(GiveRifle, GetClientUserId(client));
 		return Plugin_Continue;
@@ -214,7 +214,7 @@ public int Choice_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 
 		else if(GetGameTime() > spawnTimestamp[client] + GetConVarInt(hcv_MenuLifeSeconds))
 		{
-			PrintToChat(client, "%s \x01You can only pick guns in the first\x04 %i\x01 seconds of the round.", PREFIX, GetConVarInt(hcv_MenuLifeSeconds));
+			UC_PrintToChat(client, "%s \x01You can only pick guns in the first\x04 %i\x01 seconds of the round.", PREFIX, GetConVarInt(hcv_MenuLifeSeconds));
 			return 0;
 		}
 		switch (item + 1)
@@ -236,16 +236,16 @@ public int Choice_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 				DontShow[client]     = true;
 				SaveLastGuns[client] = false;
 
-				PrintToChat(client, "%s \x01Type\x05 !guns\x01 to see the weapon menu again.", PREFIX);
-				PrintToChat(client, "%s \x01The weapon menu will not appear again until you reconnect.", PREFIX);
+				UC_PrintToChat(client, "%s \x01Type\x05 !guns\x01 to see the weapon menu again.", PREFIX);
+				UC_PrintToChat(client, "%s \x01The weapon menu will not appear again until you reconnect.", PREFIX);
 			}
 			case 5:
 			{
 				SetClientDontShow(client, true);
 				SaveLastGuns[client] = false;
 
-				PrintToChat(client, "%s \x01Type\x05 !guns\x01 to see the weapon menu again.", PREFIX);
-				PrintToChat(client, "%s \x01The weapon menu will never appear again even after you logout.", PREFIX);
+				UC_PrintToChat(client, "%s \x01Type\x05 !guns\x01 to see the weapon menu again.", PREFIX);
+				UC_PrintToChat(client, "%s \x01The weapon menu will never appear again even after you logout.", PREFIX);
 			}
 		}
 	}

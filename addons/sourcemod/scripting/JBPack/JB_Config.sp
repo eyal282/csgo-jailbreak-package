@@ -35,6 +35,8 @@ enCvarList cvarList[] = {
 	{ "mp_do_warmup_period",   "0" },
 	{ "mp_autoteambalance",    "0" },
 
+	{ "bot_join_team",         "T" },
+
 	{ "sv_full_alltalk",       "1"         },
 	{ "sv_alltalk",            "1"         },
 

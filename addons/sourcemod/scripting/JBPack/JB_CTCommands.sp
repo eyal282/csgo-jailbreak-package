@@ -641,6 +641,10 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 			}
 		}
 	}
+	else
+	{
+		g_fNextBreakOpen[client] = -1.0;
+	}
 
 	if(IsPlayerAlive(client))
 	{

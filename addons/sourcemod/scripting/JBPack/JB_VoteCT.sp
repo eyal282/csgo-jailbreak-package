@@ -298,6 +298,7 @@ public void OnPluginStart()
 	HookEvent("round_prestart", Event_RoundStartBeforePlayerSpawn, EventHookMode_PostNoCopy);
 	HookEvent("round_freeze_end", Event_RoundFreezeEnd, EventHookMode_PostNoCopy);
 	HookEvent("player_team", Event_PlayerTeam, EventHookMode_Post);
+	HookEvent("player_team", Event_PlayerTeamPre, EventHookMode_Pre);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 
@@ -428,13 +429,57 @@ public Action Timer_CheckVoteCT(Handle hTimer)
 			
 			int count = GetTeamPlayerCount(CS_TEAM_CT);
 
+			// Round Start
+
+			if(ExpireGraceTime == MAX_FLOAT && RoundsLeft <= 0 && GetConVarInt(hcv_MaxRounds) > 0)
+			{
+				ArrayList aNextCTs = CreateArray(1);
+
+				for(int i=0;i < GetAvailableInviteCT(true);i++)
+				{
+					int client = GetNextClientInCTQueue();
+
+					if(client == 0)
+					{
+						// Not continue, return.
+						return Plugin_Continue;
+					}
+
+					aNextCTs.Push(client);
+				}
+
+				for(int i=1;i <= MaxClients;i++)
+				{
+					if(!IsClientInGame(i))
+						continue;
+
+					if(aNextCTs.FindValue(i) != -1 && GetClientTeam(i) != CS_TEAM_CT)
+					{
+						
+						CS_SwitchTeam(i, CS_TEAM_CT);
+
+						TryRemoveClientFromCTQueue(i);
+						AddClientToCTQueue(i);
+					}
+
+					if(aNextCTs.FindValue(i) == -1 && GetClientTeam(i) == CS_TEAM_CT)
+					{
+						CS_SwitchTeam(i, CS_TEAM_T);
+						TryRemoveClientFromCTQueue(i);
+						AddClientToCTQueue(i);
+					}
+				}
+
+				delete aNextCTs;
+				return Plugin_Continue;
+			}
 			if(count > 0)
 			{
 				if(GetTeamAliveCount(CS_TEAM_T) <= 1)
 					return Plugin_Continue;
 
-				else if(GetGameTime() >= ExpireGraceTime)
-					return Plugin_Continue;
+				//else if(GetGameTime() >= ExpireGraceTime)
+				//	return Plugin_Continue;
 			}		
 
 			while(GetAvailableInviteCT() > 0)
@@ -517,6 +562,11 @@ public Action Timer_CheckVoteCT(Handle hTimer)
 	}
 
 	return Plugin_Continue;
+}
+
+public Action hook_alwaysBlock(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init)
+{
+	return Plugin_Handled;
 }
 
 public void OnClientConnected(int client)
@@ -751,15 +801,27 @@ public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcas
 
 	Call_Finish();
 
+
 	if (RoundsLeft <= 0)
 	{
-		StartVoteCT();
+		if(!GetConVarBool(hcv_WardenSystem) || GetConVarInt(hcv_MaxRounds) > 0)
+		{
+			if(!GetConVarBool(hcv_WardenSystem))
+			{
+		
+				StartVoteCT();
 
-		UC_PrintToChatAll("%s \x01CT's time is over, \x05starting \x01a new \x07Vote-CT. ", PREFIX);
+				UC_PrintToChatAll("%s \x01CT's time is over, \x05starting \x01a new \x07Vote-CT. ", PREFIX);
+			}
+			else
+			{
+				UC_PrintToChatAll("%s \x01CT's time is over, \x05new CT will be cycled in the\x07 queue. ", PREFIX);
+			}
 
-		RoundsLeft = GetConVarInt(hcv_MaxRounds);
+			RoundsLeft = GetConVarInt(hcv_MaxRounds);
 
-		return Plugin_Continue;
+			return Plugin_Continue;
+		}
 	}
 
 	else if (RoundsLeft == 1)
@@ -768,7 +830,17 @@ public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcas
 	}
 
 	IsPreviewRound = false;
-	UC_PrintToChatAll("%s \x05Vote-CT \x01will start in \x07%i \x01round%s. ", PREFIX, RoundsLeft, RoundsLeft == 1 ? "" : "s");
+	if(!GetConVarBool(hcv_WardenSystem) || GetConVarInt(hcv_MaxRounds) > 0)
+	{
+		if(!GetConVarBool(hcv_WardenSystem))
+		{
+			UC_PrintToChatAll("%s \x05Vote-CT \x01will start in \x07%i \x01round%s. ", PREFIX, RoundsLeft, RoundsLeft == 1 ? "" : "s");
+		}
+		else
+		{
+			UC_PrintToChatAll("%s \x05CT Cycle \x01rotates in \x07%i \x01round%s. ", PREFIX, RoundsLeft, RoundsLeft == 1 ? "" : "s");
+		}
+	}
 
 	return Plugin_Continue;
 }
@@ -864,6 +936,12 @@ public Action Event_RoundFreezeEnd(Handle hEvent, const char[] Name, bool dontBr
 	return Plugin_Continue;
 }
 
+public Action Event_PlayerTeamPre(Handle hEvent, const char[] Name, bool dontBroadcast)
+{
+	SetEventBroadcast(hEvent, true);
+
+	return Plugin_Continue;
+}
 public Action Event_PlayerTeam(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	int UserId  = GetEventInt(hEvent, "userid");
@@ -1355,16 +1433,20 @@ public Action Command_Warden(int client, int args)
 
 		if(client == Chosen)
 		{
+			ChosenUserId = 0;
+			TryRemoveClientFromWardenQueue(client);
 			UC_PrintToChatAll("%s \x03%N\x01 resigned as the warden.", PREFIX, client);
 		}
 		else
 		{
+
 			if(AddClientToWardenQueue(client))
 			{
 				UC_PrintToChat(client, "%s You are #%i in Warden queue.", PREFIX, GetClientPosInWardenQueue(client));
 			}
 			else
 			{
+				TryRemoveClientFromWardenQueue(client);
 				UC_PrintToChat(client, "%s You left the Warden queue.", PREFIX);
 			}
 		}
@@ -2246,7 +2328,9 @@ stock int Abs(int value)
 // 19 T <==> 3 CT.
 // 19 T <==> 4 CT.
 
-stock int GetAvailableInviteCT()
+// total ignores current CT count.
+
+stock int GetAvailableInviteCT(bool total = false)
 { 
 	if(GetTeamPlayerCount(CS_TEAM_T) == 1 && GetTeamPlayerCount(CS_TEAM_CT) == 0)
 	{
@@ -2272,7 +2356,8 @@ stock int GetAvailableInviteCT()
 	int playerCount = GetTeamPlayerCount(CS_TEAM_T) + GetTeamPlayerCount(CS_TEAM_CT);
 	int totalAllowed = RoundToCeil((playerCount-1) / float(ratio));
 
-	totalAllowed -= GetTeamPlayerCount(CS_TEAM_CT);
+	if(!total)
+		totalAllowed -= GetTeamPlayerCount(CS_TEAM_CT);
 
 	if (totalAllowed < 0)
 		totalAllowed = 0;
@@ -2369,7 +2454,7 @@ stock bool AddClientToWardenQueue(int client)
 	if(IsClientInWardenQueue(client))
 		return false;
 
-	else if(GetClientTeam(client) == CS_TEAM_CT)
+	else if(GetClientTeam(client) != CS_TEAM_CT)
 		return false;
 
 	g_aWardenQueue.Push(GetClientUserId(client));
@@ -2395,7 +2480,7 @@ stock void CleanupWardenQueue()
 			i--;
 			continue;
 		}
-		else if(GetClientTeam(client) == CS_TEAM_CT)
+		else if(GetClientTeam(client) == CS_TEAM_T)
 		{
 			g_aWardenQueue.Erase(i);
 			i--;
