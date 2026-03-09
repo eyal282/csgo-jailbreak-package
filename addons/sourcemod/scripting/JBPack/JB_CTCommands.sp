@@ -7,8 +7,6 @@
 #include <sourcemod>
 #include <emitsoundany>
 
-#define MAX_MARKERS 5
-
 #define PLUGIN_VERSION "1.0"
 
 #pragma semicolon 1
@@ -29,6 +27,21 @@ public Plugin myinfo =
 	version     = PLUGIN_VERSION,
 	url         = ""
 };
+
+
+char g_sTeamNames[][] =
+{ "None", "Red", "Green", "Blue", "Yellow" };
+
+int g_iTeamColors[][] =
+{
+	{255, 255, 255, 255}, // None
+	{255, 0, 0, 255}, // Red
+	{20, 255, 0, 255}, // Green
+	{20, 0, 255, 255}, // Blue
+	{255, 255, 0, 255} // Yellow
+};
+
+int g_iTeam[MAXPLAYERS+1];
 
 char   PREFIX[256];
 char   MENU_PREFIX[64];
@@ -64,7 +77,7 @@ bool   nospam[MAXPLAYERS + 1] = { false, ... };
 float g_fMuteEnd;
 
 Handle hcv_DeadTalk = INVALID_HANDLE;
-
+Handle hcv_MaxMarkers = INVALID_HANDLE;
 Handle hTimer_ExpireMute = INVALID_HANDLE;
 
 bool CKEnabled = false;
@@ -149,6 +162,7 @@ public void OnPluginStart()
 	hcv_TimeToCrack = UC_CreateConVar("jbpack_ct_laser_crack_time", "5.0", "Time for CT Laser to crack open doors");
 	hcv_LaserDamageToPlayers = UC_CreateConVar("jbpack_ct_laser_damage_to_players", "-25.0", "Damage dealt to players each second. Negative damage heals");
 	hcv_LaserDamageToVents = UC_CreateConVar("jbpack_ct_laser_damage_to_vents", "250.0", "Damage dealt to vents each second");
+	hcv_MaxMarkers          = UC_CreateConVar("jbpack_max_markers", "5", "Maximum amount of markers a CT can make");
 
 	AutoExecConfig_ExecuteFile();
 
@@ -761,6 +775,12 @@ public Action Hook_TraceAttack(int victim, int& attacker, int& inflictor, float&
 		return Plugin_Stop;
 	}
 
+	if(g_iTeam[attacker] != 0 && g_iTeam[attacker] == g_iTeam[victim])
+	{
+		damage = 0.0;
+		return Plugin_Stop;
+	}
+
 	sClassname[0] = EOS;
 
 	int weapon = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
@@ -882,6 +902,8 @@ public Action Event_RoundStart(Event hEvent, const char[] Name, bool dontBroadca
 public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	g_iTeam[client] = 0;
 
 	IsVIP[client] = false;
 	SetEntityRenderMode(client, RENDER_NORMAL);
@@ -1088,6 +1110,12 @@ public Action Command_Box(int client, int args)
 	AddMenuItem(hMenu, "", "OFF");
 	AddMenuItem(hMenu, "", "Backstabs");
 	AddMenuItem(hMenu, "", "Gunfights");
+	AddMenuItem(hMenu, "", "Teams");
+	
+	if(GetConVarBool(FindConVar("votect_warden_elevated")))
+	{
+		AddMenuItem(hMenu, "", "Heal all T");
+	}
 
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 
@@ -1104,7 +1132,7 @@ public int Box_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 		if (JailBreakDays_IsDayActive())
 			return 0;
 
-		else if (GetClientTeam(client) != CS_TEAM_CT && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+		else if(!CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC) && !Eyal282_VoteCT_IsTreatedWarden(client))
 			return 0;
 
 		switch (item)
@@ -1130,7 +1158,98 @@ public int Box_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				SetConVarInt(hcv_TeammatesAreEnemies, 3);
 				UC_PrintToChatAll(" %s \x05%N \x01set \x02box\x01 status to\x03 Gunfights! ", PREFIX, client);
 			}
+
+			case 4:
+			{
+				ShowTeamsMenu(client);
+			}
+
+			case 5:
+			{
+				for(int i=1;i <= MaxClients; i++)
+				{
+					if(!IsClientInGame(i))
+						continue;
+
+					else if(GetClientTeam(i) != CS_TEAM_T)
+						continue;
+
+					else if(!IsPlayerAlive(i))
+						continue;
+
+					SetEntityHealth(i, GetEntityMaxHealth(i));
+				}
+
+				UC_PrintToChatAll(" %s \x05%N \x01healed all \x02terrorists\x01! ", PREFIX, client);
+			}
 		}
+
+		Command_Box(client, 0);
+	}
+
+	return 0;
+}
+
+public void ShowTeamsMenu(int client)
+{
+	Handle hMenu = CreateMenu(Teams_MenuHandler);
+
+	for(int i=1;i <= MaxClients; i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(GetClientTeam(i) != CS_TEAM_T)
+			continue;
+
+		char TempFormat[128], sUserId[11];
+		IntToString(GetClientUserId(i), sUserId, sizeof(sUserId));
+
+		FormatEx(TempFormat, sizeof(TempFormat), "%N [%s]", i, g_sTeamNames[g_iTeam[i]]);
+		AddMenuItem(hMenu, sUserId, TempFormat);
+	}
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+}
+
+
+public int Teams_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if (action == MenuAction_End)
+		CloseHandle(hMenu);
+
+	else if (action == MenuAction_Select)
+	{
+		char sUserId[11];
+		GetMenuItem(hMenu, item, sUserId, sizeof(sUserId));
+
+		int target = GetClientOfUserId(StringToInt(sUserId));
+
+		if(target == 0)
+			return 0;
+
+		else if(GetClientTeam(target) != CS_TEAM_T)
+			return 0;
+
+		else if(!IsPlayerAlive(target))
+			return 0;
+
+		g_iTeam[target] = (g_iTeam[target] + 1) % 5;
+
+		SetEntityRenderColor(target, g_iTeamColors[g_iTeam[target]][0], g_iTeamColors[g_iTeam[target]][1], g_iTeamColors[g_iTeam[target]][2], 255);
+
+		if(g_iTeam[target] == 0)
+		{
+			UC_PrintToChatAll(" %s \x05%N \x03unset \x02%N's \x01team! ", PREFIX, client, target);
+		}
+		else
+		{
+			UC_PrintToChatAll(" %s \x05%N \x01set \x02%N's \x01team to the\x03 %s team! ", PREFIX, client, target, g_sTeamNames[g_iTeam[target]]);		}
+
+		ShowTeamsMenu(client);
 	}
 
 	return 0;
@@ -1339,8 +1458,8 @@ stock void CreateMarker(int client)
 	else
 		PushArrayArray(aMarkers, entry);
 
-	if (GetArraySize(aMarkers) >= MAX_MARKERS)
-		ResizeArray(aMarkers, MAX_MARKERS);
+	if (GetArraySize(aMarkers) >= GetConVarInt(hcv_MaxMarkers))
+		ResizeArray(aMarkers, GetConVarInt(hcv_MaxMarkers));
 }
 
 // Shamelessly stolen from Shanapu MyJB.

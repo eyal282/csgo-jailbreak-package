@@ -25,6 +25,8 @@ public void OnPluginStart()
 	
 	hcv_AutoBhop = UC_CreateConVar("jb_autobunnyhopping", "1", "Is auto bunnyhop enabled by default?");
 
+	HookConVarChange(hcv_AutoBhop, cvChange_AutoBhop);
+
 	AutoExecConfig_ExecuteFile();
 
 	AutoExecConfig_CleanFile();
@@ -40,6 +42,10 @@ public void OnMapStart()
 	SetConVarBool(hcv_OriginalAutoBhop, GetConVarBool(hcv_AutoBhop));
 }
 
+public void cvChange_AutoBhop(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	SetConVarBool(hcv_OriginalAutoBhop, GetConVarBool(hcv_AutoBhop));
+}
 public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));

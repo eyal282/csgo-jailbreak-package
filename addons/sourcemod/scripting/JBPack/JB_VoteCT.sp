@@ -567,6 +567,14 @@ public Action Timer_CheckVoteCT(Handle hTimer)
 					return Plugin_Continue;
 				}
 
+				else if(!IsPlayerAlive(client))
+				{
+					AddClientToWardenQueue(client);
+
+					CreateTimer(0.1, Timer_CheckVoteCT, _, TIMER_FLAG_NO_MAPCHANGE); // Try again with a delay to avoid infinite loop on dead players.
+					return Plugin_Continue;
+				}
+
 				ChosenUserId = GetClientUserId(client);
 				AddClientToWardenQueue(client);
 
@@ -775,9 +783,10 @@ public Action Listener_JoinTeam(int client, const char[] command, int args)
 				if(TryRemoveClientFromCTQueue(client))
 				{
 					UC_PrintToChat(client, "%s You have left the CT queue", PREFIX);
-					UC_CloseTeamMenu(client);
-					return Plugin_Stop;
 				}
+
+				UC_CloseTeamMenu(client);
+				return Plugin_Stop;
 			}
 
 			else if(Team != CS_TEAM_SPECTATOR && Team != CS_TEAM_T)
@@ -895,6 +904,7 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 
 	FindConVar("sv_falldamage_scale").SetFloat(1.0);
 	FindConVar("sm_noblock").RestoreDefault();
+	FindConVar("jb_autobunnyhopping").RestoreDefault();
 
 	if (NextRoundSpecialDay)
 	{
@@ -1513,6 +1523,8 @@ void ShowWardenMenu(int client)
 	
 	AddMenuItem(hMenu, "", "Resign as Warden");
 
+	AddMenuItem(hMenu, "", "Friendly Fire menu");
+
 	if(GetConVarBool(hcv_WardenElevated))
 	{
 		if(GetConVarInt(FindConVar("jbpack_t_mute_time")) < 0)
@@ -1533,10 +1545,16 @@ void ShowWardenMenu(int client)
 		else
 			AddMenuItem(hMenu, "", "Disable Noblock");
 
+		if(!GetConVarBool(FindConVar("jb_autobunnyhopping")))
+			AddMenuItem(hMenu, "", "Enable Bhop");
+
+		else
+			AddMenuItem(hMenu, "", "Disable Bhop");
+
 		AddMenuItem(hMenu, "", "Start Special Day Vote");
 	}
 
-	SetMenuPagination(hMenu, MENU_NO_PAGINATION);
+	//SetMenuPagination(hMenu, MENU_NO_PAGINATION);
 	SetMenuExitButton(hMenu, true);
 
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
@@ -1578,6 +1596,11 @@ public int Warden_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 			}
 			case 3:
 			{
+				FakeClientCommand(client, "sm_box");
+				return 0;
+			}
+			case 4:
+			{
 				if(GetConVarInt(FindConVar("jbpack_t_mute_time")) < 0)
 				{
 					FindConVar("jbpack_t_mute_time").RestoreDefault();
@@ -1589,7 +1612,7 @@ public int Warden_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 					UC_PrintToChatAll("%s The \x02terrorist \x01have been\x03 muted\x01 by\x02 Warden\x05 %N", PREFIX, client);	
 				}
 			}
-			case 4:
+			case 5:
 			{
 				ConVar convar;
 				convar = FindConVar("sv_falldamage_scale");
@@ -1605,7 +1628,7 @@ public int Warden_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 					UC_PrintToChatAll("%s Fall damage has been\x03 disabled\x01 by\x02 Warden\x05 %N", PREFIX, client);	
 				}
 			}
-			case 5:
+			case 6:
 			{
 				ConVar convar;
 				convar = FindConVar("sm_noblock");
@@ -1621,7 +1644,23 @@ public int Warden_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 					UC_PrintToChatAll("%s Noblock has been\x03 disabled\x01 by\x02 Warden\x05 %N", PREFIX, client);	
 				}
 			}
-			case 6:
+			case 7:
+			{
+				ConVar convar;
+				convar = FindConVar("jb_autobunnyhopping");
+
+				if(!convar.BoolValue)
+				{
+					UC_SilentCvar("jb_autobunnyhopping", "1");
+					UC_PrintToChatAll("%s Bhop has been\x03 enabled\x01 by\x02 Warden\x05 %N", PREFIX, client);
+				}
+				else
+				{
+					UC_SilentCvar("jb_autobunnyhopping", "0");
+					UC_PrintToChatAll("%s Bhop has been\x03 disabled\x01 by\x02 Warden\x05 %N", PREFIX, client);	
+				}
+			}
+			case 8:
 			{
 				FakeClientCommand(client, "sm_startvoteday");
 
