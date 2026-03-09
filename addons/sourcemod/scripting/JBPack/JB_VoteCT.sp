@@ -137,6 +137,7 @@ Handle hTimer_PreviewRound = INVALID_HANDLE;
 
 Handle hcv_VoteCTMin = INVALID_HANDLE;
 Handle hcv_WardenSystem = INVALID_HANDLE;
+Handle hcv_WardenElevated = INVALID_HANDLE;
 
 Handle hcv_CTRatio = INVALID_HANDLE;
 Handle hcv_CTRatioRebel = INVALID_HANDLE;
@@ -180,6 +181,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("Eyal282_VoteCT_IsChosen", Native_IsChosen);
 	CreateNative("Eyal282_VoteCT_GetChosenUserId", Native_GetChosenUserId);
 	CreateNative("Eyal282_VoteCT_IsTreatedWarden", Native_IsTreatedWarden);
+	CreateNative("Eyal282_VoteCT_CTQueue_SendClientToFront", Native_SendClientToFront);
 	CreateNative("Eyal282_VoteCT_IsPreviewRound", Native_IsPreviewRound);
 
 	CreateNative("Eyal282_VoteCT_SetChosen", Native_SetChosen);
@@ -222,6 +224,29 @@ public int Native_IsTreatedWarden(Handle plugin, int numParams)
 	}
 
 	return true;
+}
+
+// Is Treated Warden asks if the client is the warden, but if Vote CT is enabled, all CT are treated as warden ( minus !ctlist and !kickct )
+public int Native_SendClientToFront(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	if(GetConVarBool(hcv_WardenSystem))
+	{
+		TryRemoveClientFromCTQueue(client);
+
+		if (g_aCTQueue.Length >= 1)
+		{
+			g_aCTQueue.ShiftUp(0);
+			g_aCTQueue.Set(0, GetClientUserId(client));
+		}
+		else
+			g_aCTQueue.Push(GetClientUserId(client));
+
+		return true;
+	}
+
+	return false;
 }
 public int Native_IsPreviewRound(Handle plugin, int numParams)
 {
@@ -268,6 +293,7 @@ public void OnPluginStart()
 
 	hcv_VoteCTMin        = UC_CreateConVar("votect_min", "2", "Minimum amount of players to start a vote CT. Ignored if Warden system is enabled.");
 	hcv_WardenSystem        = UC_CreateConVar("votect_warden_enabled", "0", "Enable Warden System over Vote CT");
+	hcv_WardenElevated        = UC_CreateConVar("votect_warden_elevated", "0", "Can Warden use borderline admin commands? no fall damage, mute T, start special day, etc...");
 	hcv_CTRatio        = UC_CreateConVar("votect_ratio", "6", "Ratio of CT to T");
 	hcv_CTRatioRebel        = UC_CreateConVar("votect_ratio_rebel", "4", "Ratio of CT to T in maps containing ''_rebel''");
 
@@ -433,6 +459,14 @@ public Action Timer_CheckVoteCT(Handle hTimer)
 
 			if(ExpireGraceTime == MAX_FLOAT && RoundsLeft <= 0 && GetConVarInt(hcv_MaxRounds) > 0)
 			{
+				Action CallReturn;
+				Call_StartForward(fw_VoteCTStartAuto);
+
+				Call_Finish(CallReturn);
+
+				if (CallReturn >= Plugin_Handled)
+					return Plugin_Continue;
+
 				ArrayList aNextCTs = CreateArray(1);
 
 				for(int i=0;i < GetAvailableInviteCT(true);i++)
@@ -485,6 +519,14 @@ public Action Timer_CheckVoteCT(Handle hTimer)
 			while(GetAvailableInviteCT() > 0)
 			{
 				int client = GetNextClientInCTQueue();
+				
+				Action CallReturn;
+				Call_StartForward(fw_VoteCTStartAuto);
+
+				Call_Finish(CallReturn);
+
+				if (CallReturn >= Plugin_Handled)
+					return Plugin_Continue;
 
 				if(client == 0)
 				{
@@ -762,6 +804,7 @@ public Action Listener_JoinTeam(int client, const char[] command, int args)
 				TryRemoveClientFromCTQueue(client);
 			}
 
+			UC_CloseTeamMenu(client);
 			return Plugin_Continue;
 		}
 		case false:
@@ -849,6 +892,9 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 {
 	IsPreviewRound  = false;
 	ExpireGraceTime = MAX_FLOAT;
+
+	FindConVar("sv_falldamage_scale").SetFloat(1.0);
+	FindConVar("sm_noblock").RestoreDefault();
 
 	if (NextRoundSpecialDay)
 	{
@@ -1433,9 +1479,7 @@ public Action Command_Warden(int client, int args)
 
 		if(client == Chosen)
 		{
-			ChosenUserId = 0;
-			TryRemoveClientFromWardenQueue(client);
-			UC_PrintToChatAll("%s \x03%N\x01 resigned as the warden.", PREFIX, client);
+			ShowWardenMenu(client);
 		}
 		else
 		{
@@ -1449,12 +1493,151 @@ public Action Command_Warden(int client, int args)
 				TryRemoveClientFromWardenQueue(client);
 				UC_PrintToChat(client, "%s You left the Warden queue.", PREFIX);
 			}
+
+			TriggerTimer(CreateTimer(0.0, Timer_CheckVoteCT, _, TIMER_FLAG_NO_MAPCHANGE));
 		}
 
 	}
 
 	return Plugin_Handled;
 }
+
+void ShowWardenMenu(int client)
+{
+	Handle hMenu = CreateMenu(Warden_MenuHandler);
+
+	SetMenuTitle(hMenu, "Warden Menu");
+
+	AddMenuItem(hMenu, "", "Open cells");
+	AddMenuItem(hMenu, "", "Close cells");
+	
+	AddMenuItem(hMenu, "", "Resign as Warden");
+
+	if(GetConVarBool(hcv_WardenElevated))
+	{
+		if(GetConVarInt(FindConVar("jbpack_t_mute_time")) < 0)
+			AddMenuItem(hMenu, "", "Unmute T");
+
+		else
+			AddMenuItem(hMenu, "", "Mute T");
+
+		if(GetConVarFloat(FindConVar("sv_falldamage_scale")) == 0.0)
+			AddMenuItem(hMenu, "", "Enable Fall Damage");
+
+		else
+			AddMenuItem(hMenu, "", "Disable Fall Damage");
+
+		if(!GetConVarBool(FindConVar("sm_noblock")))
+			AddMenuItem(hMenu, "", "Enable Noblock");
+
+		else
+			AddMenuItem(hMenu, "", "Disable Noblock");
+
+		AddMenuItem(hMenu, "", "Start Special Day Vote");
+	}
+
+	SetMenuPagination(hMenu, MENU_NO_PAGINATION);
+	SetMenuExitButton(hMenu, true);
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	
+}
+
+public int Warden_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if (action == MenuAction_End)
+		CloseHandle(hMenu);
+
+	else if (action == MenuAction_Select)
+	{
+		if(!GetConVarBool(hcv_WardenSystem))
+			return 0;
+
+		else if(GetClientOfUserId(ChosenUserId) != client)
+			return 0;
+
+		switch(item)
+		{
+			case 0:
+			{
+				FakeClientCommand(client, "sm_open");
+			}
+			case 1:
+			{
+				FakeClientCommand(client, "sm_close");
+			}
+			case 2:
+			{
+
+				ChosenUserId = 0;
+				TryRemoveClientFromWardenQueue(client);
+				UC_PrintToChatAll("%s \x03%N\x01 resigned as the warden.", PREFIX, client);
+
+				// Return immediately and don't ShowWardenMenu.
+				return 0;
+			}
+			case 3:
+			{
+				if(GetConVarInt(FindConVar("jbpack_t_mute_time")) < 0)
+				{
+					FindConVar("jbpack_t_mute_time").RestoreDefault();
+					UC_PrintToChatAll("%s The \x02terrorist \x01have been\x03 unmuted\x01 by\x02 Warden\x05 %N", PREFIX, client);
+				}
+				else
+				{
+					FindConVar("jbpack_t_mute_time").SetFloat(-1.0);
+					UC_PrintToChatAll("%s The \x02terrorist \x01have been\x03 muted\x01 by\x02 Warden\x05 %N", PREFIX, client);	
+				}
+			}
+			case 4:
+			{
+				ConVar convar;
+				convar = FindConVar("sv_falldamage_scale");
+
+				if(convar.FloatValue == 0.0)
+				{
+					UC_SilentCvar("sv_falldamage_scale", "1.0");
+					UC_PrintToChatAll("%s Fall damage has been\x03 enabled\x01 by\x02 Warden\x05 %N", PREFIX, client);
+				}
+				else
+				{
+					UC_SilentCvar("sv_falldamage_scale", "0.0");
+					UC_PrintToChatAll("%s Fall damage has been\x03 disabled\x01 by\x02 Warden\x05 %N", PREFIX, client);	
+				}
+			}
+			case 5:
+			{
+				ConVar convar;
+				convar = FindConVar("sm_noblock");
+
+				if(!convar.BoolValue)
+				{
+					UC_SilentCvar("sm_noblock", "1");
+					UC_PrintToChatAll("%s Noblock has been\x03 enabled\x01 by\x02 Warden\x05 %N", PREFIX, client);
+				}
+				else
+				{
+					UC_SilentCvar("sm_noblock", "0");
+					UC_PrintToChatAll("%s Noblock has been\x03 disabled\x01 by\x02 Warden\x05 %N", PREFIX, client);	
+				}
+			}
+			case 6:
+			{
+				FakeClientCommand(client, "sm_startvoteday");
+
+				UC_PrintToChatAll("%s \x02Warden\x05 %N\x01 started a\x03 Special Day Vote!", PREFIX, client);	
+
+				return 0;
+			}
+		}
+
+		ShowWardenMenu(client);
+		
+	}
+
+	return 0;
+}
+
 void StartVoteCT()
 {
 	if (!IsNewVoteAllowed() || NextRoundSpecialDay)
@@ -2621,4 +2804,20 @@ stock void UC_CloseTeamMenu(int client)
 	fakeevent.FireToClient(client);
 	
 	CancelCreatedEvent(fakeevent);
+}
+
+stock void UC_SilentCvar(const char[] cvar, const char[] value)
+{
+	ConVar hCvar = FindConVar(cvar);
+
+	if (hCvar != INVALID_HANDLE)
+	{
+		int flags = hCvar.Flags;
+	
+		hCvar.Flags = (flags & ~FCVAR_NOTIFY);
+		
+		hCvar.SetString(value, true);
+		
+		hCvar.Flags = flags;
+	}
 }

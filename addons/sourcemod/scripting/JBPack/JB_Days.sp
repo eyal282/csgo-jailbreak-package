@@ -83,6 +83,11 @@ native int   Gangs_GiveClientCredits(int client, int amount);
 native int   Gangs_AreClientsSameGang(int client, int otherClient);
 native int   Gangs_TryDestroyGlow(int client);
 native float Gangs_GetFFDamageDecrease(int client);
+
+native int Eyal282_VoteCT_CTQueue_SendClientToFront(int client);
+native int Eyal282_VoteCT_GetChosenUserId();
+native bool Eyal282_VoteCT_IsTreatedWarden(int client);
+
 native void LR_CheckAnnounce();
 native bool LR_isActive();
 
@@ -271,7 +276,7 @@ void EndVoteDay()
 
 public void OnPluginStart()
 {
-	RegAdminCmd("sm_startvoteday", Command_StartVoteDay, ADMFLAG_GENERIC);
+	RegConsoleCmd("sm_startvoteday", Command_StartVoteDay);
 	RegServerCmd("sm_startfsday", Command_StartFSDay);
 	RegServerCmd("sm_startzeusday", Command_StartZeusDay);
 	RegServerCmd("sm_startdodgeballday", Command_StartDodgeballDay);
@@ -565,8 +570,13 @@ public Action CS_OnCSWeaponDrop(int client, int weapon)
 	return Plugin_Continue;
 }
 
+// Gets called approximately every 3 seconds if warden system is enabled.
+
 public Action Eyal282_VoteCT_OnVoteCTStartAutoPre()
 {
+	if (RoundToFloor((VoteDayStart + 15) - GetGameTime()) > 0)
+		return Plugin_Handled;
+
 	if (DayActive >= LR_DAY)
 	{
 		if (hTimer_StartDay == INVALID_HANDLE && !IsVoteInProgress())
@@ -712,6 +722,11 @@ public Action SDKEvent_PostThinkPost(int client)
 
 public Action Command_StartVoteDay(int client, int args)
 {
+	if(!CheckCommandAccess(client, "sm_cca_generic", ADMFLAG_GENERIC) && !GetConVarBool(FindConVar("votect_warden_enabled")) && !GetConVarBool(FindConVar("votect_warden_elevated")) && !Eyal282_VoteCT_IsTreatedWarden(client))
+	{
+		UC_PrintToChat(client, "%s You don't have access to this command!", PREFIX);
+		return Plugin_Handled;
+	}
 	ServerCommand("sm_silentstopck");
 
 	StopDay(false);
@@ -1663,20 +1678,59 @@ public int PanelHandler_InfoMessage(Handle hPanel, MenuAction action, int client
 
 stock void StartVoteDay()
 {
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientInGame(i))
-			continue;
-
-		else if(!IsValidTeam(i))
-			continue;
-			
-		ChangeClientTeam(i, CS_TEAM_T);
-
-		CS_RespawnPlayer(i);
-	}
-
+	// To the front to avoid immediate CT queue advancement
 	VoteDayStart = GetGameTime();
+
+	if(GetConVarBool(FindConVar("votect_warden_enabled")))
+	{
+		int warden = GetClientOfUserId(Eyal282_VoteCT_GetChosenUserId());
+
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			if (!IsClientInGame(i))
+				continue;
+
+			else if(!IsValidTeam(i))
+				continue;
+
+			// i != warden is not necessary because we send the warden to the front of the queue again, but without it it would print to the warden twice.
+			if(GetClientTeam(i) == CS_TEAM_CT && i != warden)
+			{
+				Eyal282_VoteCT_CTQueue_SendClientToFront(i);
+
+				UC_PrintToChat(i, "%s After Special Day you'll be sent to the front of the CT Queue", PREFIX);
+			}
+
+			ChangeClientTeam(i, CS_TEAM_T);
+
+			CS_RespawnPlayer(i);
+		}
+
+		
+
+		if(warden != 0)
+		{
+			Eyal282_VoteCT_CTQueue_SendClientToFront(warden);
+
+			UC_PrintToChat(warden, "%s After Special Day you'll be sent to the front of the CT Queue", PREFIX);
+		}
+	}
+	else
+	{
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			if (!IsClientInGame(i))
+				continue;
+
+			else if(!IsValidTeam(i))
+				continue;
+
+
+			ChangeClientTeam(i, CS_TEAM_T);
+
+			CS_RespawnPlayer(i);
+		}
+	}
 
 	ServerCommand("sm_hardopen");
 

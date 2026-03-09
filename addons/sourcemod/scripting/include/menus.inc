@@ -148,8 +148,15 @@ enum MenuSource
  * @param action            The action of the menu.
  * @param param1            First action parameter (usually the client).
  * @param param2            Second action parameter (usually the item).
+ *
+ * Use void-typed prototype if you don't plan to handle MenuAction_DrawItem
+ * and MenuAction_DisplayItem actions.
  */
-typedef MenuHandler = function int (Menu menu, MenuAction action, int param1, int param2);
+typeset MenuHandler
+{
+	function int (Menu menu, MenuAction action, int param1, int param2);
+	function void (Menu menu, MenuAction action, int param1, int param2);
+};
 
 // Panels are used for drawing raw menus without any extra helper functions.
 // Handles must be closed via delete or CloseHandle().
@@ -307,9 +314,23 @@ methodmap Menu < Handle
 	// @param style         By-reference variable to store drawing flags.
 	// @param dispBuf       Display buffer.
 	// @param dispBufLen    Maximum length of the display buffer.
+	// @param client		Client index. Must be specified if menu is per-client random shuffled, -1 to ignore.
 	// @return              True on success, false if position is invalid.
 	public native bool GetItem(int position, char[] infoBuf, int infoBufLen,
-							   int &style=0, char[] dispBuf="", int dispBufLen=0);
+							   int &style=0, char[] dispBuf="", int dispBufLen=0, int client=0);
+
+	// Generates a per-client random mapping for the current vote options.
+	//
+	// @param start         Menu item index to start randomizing from.
+	// @param stop          Menu item index to stop randomizing at. -1 = infinite
+	public native void ShufflePerClient(int start=0, int stop=-1);
+
+	// Fills the client vote option mapping with user supplied values.
+	//
+	// @param client		Client index.
+	// @param array			Integer array with mapping.
+	// @param length		Length of array.
+	public native void SetClientMapping(int client, int[] array, int length);
 
 	// Sets the menu's default title/instruction message.
 	//
@@ -504,7 +525,7 @@ native bool AddMenuItem(Handle menu,
  * @error               Invalid Handle or menu position.
  */
 native bool InsertMenuItem(Handle menu,
-						position,
+						int position,
 						const char[] info,
 						const char[] display,
 						int style=ITEMDRAW_DEFAULT);
@@ -537,6 +558,7 @@ native void RemoveAllMenuItems(Handle menu);
  * @param style         By-reference variable to store drawing flags.
  * @param dispBuf       Display buffer.
  * @param dispBufLen    Maximum length of the display buffer.
+ * @param client		Client index. Must be specified if menu is per-client random shuffled, -1 to ignore.
  * @return              True on success, false if position is invalid.
  * @error               Invalid Handle.
  */
@@ -546,7 +568,27 @@ native bool GetMenuItem(Handle menu,
 						int infoBufLen,
 						int &style=0,
 						char[] dispBuf="",
-						int dispBufLen=0);
+						int dispBufLen=0,
+						int client=0);
+
+/**
+ * Generates a per-client random mapping for the current vote options.
+ *
+ * @param menu          Menu Handle.
+ * @param start         Menu item index to start randomizing from.
+ * @param stop          Menu item index to stop randomizing at. -1 = infinite
+ */
+native void MenuShufflePerClient(Handle menu, int start=0, int stop=-1);
+
+/*
+ * Fills the client vote option mapping with user supplied values.
+ *
+ * @param menu          Menu Handle.
+ * @param client		Client index.
+ * @param array			Integer array with mapping.
+ * @param length		Length of array.
+ */
+native void MenuSetClientMapping(Handle menu, int client, int[] array, int length);
 
 /**
  * Returns the first item on the page of a currently selected menu.

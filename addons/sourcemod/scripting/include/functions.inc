@@ -353,7 +353,7 @@ native void Call_PushArray(const any[] value, int size);
  * @param value         Array to push.
  * @param size          Size of array.
  * @param cpflags       Whether or not changes should be copied back to the input array.
- *                      See SP_PARAM_* constants for details.
+ *                      See SM_PARAM_* constants for details.
  * @error               Called before a call has been started.
  */
 native void Call_PushArrayEx(any[] value, int size, int cpflags);
@@ -448,6 +448,16 @@ typeset NativeCall
 	 * @return               Value for the native call to return.
 	 */
 	function any (Handle plugin, int numParams);
+
+	/**
+	 * Defines a native function.
+	 *
+	 * It is not necessary to validate the parameter count
+	 *
+	 * @param plugin         Handle of the calling plugin.
+	 * @param numParams      Number of parameters passed to the native.
+	 */
+	function void (Handle plugin, int numParams);
 }
 
 /**
@@ -466,6 +476,8 @@ native void CreateNative(const char[] name, NativeCall func);
  * @param error         Error code to use.
  * @param fmt           Error message format.
  * @param ...           Format arguments.
+ * @noreturn
+ * @error               Always!
  */
 native int ThrowNativeError(int error, const char[] fmt, any ...);
 

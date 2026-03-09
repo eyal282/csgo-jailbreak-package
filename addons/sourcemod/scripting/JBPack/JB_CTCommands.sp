@@ -245,8 +245,17 @@ public Action OnMuteIndicate(int client, bool realtime, ArrayList messages)
 			g_message msg;
 
 			if(GetClientTeam(client) == CS_TEAM_CT)
-				FormatEx(msg.message, sizeof(g_message::message), "You are muted while Chosen CT is talking.");
+			{
+				char title[16];
 
+				if(GetConVarBool(FindConVar("votect_warden_enabled")))
+					FormatEx(title, sizeof(title), "Warden");
+				else
+					FormatEx(title, sizeof(title), "Chosen CT");
+
+				FormatEx(msg.message, sizeof(g_message::message), "You are muted while the %s is talking.", title);
+
+			}
 			else
 				FormatEx(msg.message, sizeof(g_message::message), "You are muted while CT is talking.");
 			

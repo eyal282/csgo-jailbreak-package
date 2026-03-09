@@ -146,10 +146,10 @@ public void Func_OnClientSayCommand_Post(int client, const char[] sArgs)
 	if(g_BanTime[client] == 0 && sArgs[0] == EOS)
 		FakeClientCommand(client, "%s #%i", g_menuAction[client], g_BanTarget[client]);
 
-	else if(g_BanTime[client][0] != EOS && sArgs[0] == EOS)
+	else if(g_BanTime[client] != 0 && sArgs[0] == EOS)
 		FakeClientCommand(client, "%s #%i %i", g_menuAction[client], g_BanTarget[client], g_BanTime[client]);
 
-	else if(g_BanTime[client][0] != EOS && sArgs[0] != EOS)
+	else if(g_BanTime[client] == 0 && sArgs[0] != EOS)
 		FakeClientCommand(client, "%s #%i %i %s", g_menuAction[client], g_BanTarget[client], g_BanTime[client], sArgs);
 
 	g_BanTime[client] = 0;

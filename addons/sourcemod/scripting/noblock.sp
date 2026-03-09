@@ -3,6 +3,7 @@
 #pragma newdecls required
 #pragma semicolon 1
 
+
 public Plugin myinfo =
 {
 	name        = "No Block",
@@ -12,8 +13,9 @@ public Plugin myinfo =
 	url         = "http://www.steamfriends.com/"
 };
 
+
 bool   g_isHooked;
-Handle sm_noblock;
+ConVar sm_noblock;
 
 public void OnPluginStart()
 {
@@ -26,7 +28,7 @@ public void OnPluginStart()
 
 public void OnConVarChange(Handle convar, const char[] oldValue, const char[] newValue)
 {
-	int value = !!StringToInt(newValue);
+	int value = StringToInt(newValue);
 
 	if (value == 0)
 	{
@@ -36,12 +38,34 @@ public void OnConVarChange(Handle convar, const char[] oldValue, const char[] ne
 
 			UnhookEvent("player_spawn", OnSpawn, EventHookMode_Post);
 		}
+
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(!IsPlayerAlive(i))
+				continue;
+
+			SetEntProp(i, Prop_Send, "m_CollisionGroup", 5);
+		}
 	}
 	else
 	{
 		g_isHooked = true;
 
 		HookEvent("player_spawn", OnSpawn, EventHookMode_Post);
+
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(!IsPlayerAlive(i))
+				continue;
+
+			SetEntProp(i, Prop_Send, "m_CollisionGroup", 2);
+		}
 	}
 }
 
