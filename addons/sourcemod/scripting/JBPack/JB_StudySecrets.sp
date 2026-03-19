@@ -109,6 +109,9 @@ public Action Timer_DisplaySecrets(Handle hTimer)
 		else if(!IsPlayerAlive(i))
 			continue;
 
+		else if(IsFakeClient(i))
+			continue;
+
 		int entity = -1;
 
 		float iOrigin[3];

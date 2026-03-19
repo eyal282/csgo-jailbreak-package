@@ -131,6 +131,8 @@ int ChosenUserId;
 int  RoundsLeft = 0;
 bool NextRoundPreviewRound;
 
+bool g_bBhopDefault;
+
 Handle hTimer_StartGame    = INVALID_HANDLE;
 Handle hTimer_FailGame     = INVALID_HANDLE;
 Handle hTimer_PreviewRound = INVALID_HANDLE;
@@ -354,6 +356,11 @@ public void OnAllPluginsLoaded()
 	GetConVarString(hcv_Prefix, PREFIX, sizeof(PREFIX));
 	HookConVarChange(hcv_Prefix, cvChange_Prefix);
 
+}
+
+public void OnConfigsExecuted()
+{
+	g_bBhopDefault = FindConVar("jb_autobunnyhopping").BoolValue;
 }
 
 // client -> Client index to start the LR.
@@ -806,6 +813,8 @@ public Action Listener_JoinTeam(int client, const char[] command, int args)
 					UC_PrintToChat(client, "%s You are #%i in CT queue", PREFIX, GetClientPosInCTQueue(client));
 
 				UC_CloseTeamMenu(client);
+
+				TriggerTimer(CreateTimer(0.0, Timer_CheckVoteCT, _, TIMER_FLAG_NO_MAPCHANGE));
 				return Plugin_Stop;
 			}
 			else if(Team == CS_TEAM_T)
@@ -904,7 +913,7 @@ public Action Event_RoundStart(Handle hEvent, const char[] Name, bool dontBroadc
 
 	FindConVar("sv_falldamage_scale").SetFloat(1.0);
 	FindConVar("sm_noblock").RestoreDefault();
-	FindConVar("jb_autobunnyhopping").RestoreDefault();
+	FindConVar("jb_autobunnyhopping").SetBool(g_bBhopDefault);
 
 	if (NextRoundSpecialDay)
 	{
@@ -1505,8 +1514,15 @@ public Action Command_Warden(int client, int args)
 			}
 
 			TriggerTimer(CreateTimer(0.0, Timer_CheckVoteCT, _, TIMER_FLAG_NO_MAPCHANGE));
-		}
 
+			Chosen = GetClientOfUserId(ChosenUserId);
+			
+			// client became Warden during this command, make it easier for them and open warden menu.
+			if(Chosen == client)
+			{
+				ShowWardenMenu(client);
+			}
+		}
 	}
 
 	return Plugin_Handled;
@@ -1518,12 +1534,20 @@ void ShowWardenMenu(int client)
 
 	SetMenuTitle(hMenu, "Warden Menu");
 
-	AddMenuItem(hMenu, "", "Open cells");
-	AddMenuItem(hMenu, "", "Close cells");
+	if(!SmartOpen_AreCellsOpen())
+	{
+		AddMenuItem(hMenu, "", "Open cells");
+	}
+	else
+	{
+		AddMenuItem(hMenu, "", "Close cells");
+	}
 	
 	AddMenuItem(hMenu, "", "Resign as Warden");
 
 	AddMenuItem(hMenu, "", "Friendly Fire menu");
+
+	AddMenuItem(hMenu, "", "Roll a dice");
 
 	if(GetConVarBool(hcv_WardenElevated))
 	{
@@ -1578,13 +1602,13 @@ public int Warden_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 		{
 			case 0:
 			{
-				FakeClientCommand(client, "sm_open");
+				if(!SmartOpen_AreCellsOpen())
+					FakeClientCommand(client, "sm_open");
+
+				else
+					FakeClientCommand(client, "sm_close");
 			}
 			case 1:
-			{
-				FakeClientCommand(client, "sm_close");
-			}
-			case 2:
 			{
 
 				ChosenUserId = 0;
@@ -1594,10 +1618,14 @@ public int Warden_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 				// Return immediately and don't ShowWardenMenu.
 				return 0;
 			}
-			case 3:
+			case 2:
 			{
 				FakeClientCommand(client, "sm_box");
 				return 0;
+			}
+			case 3:
+			{
+				FakeClientCommand(client, "sm_dice");
 			}
 			case 4:
 			{

@@ -113,7 +113,6 @@ Handle hcv_Prefix     = INVALID_HANDLE;
 Handle hcv_MenuPrefix = INVALID_HANDLE;
 
 Handle cpInfoMsg = INVALID_HANDLE;
-Handle cpLRWins  = INVALID_HANDLE;
 
 Handle fw_LRStarted  = INVALID_HANDLE;
 Handle fw_LREnded    = INVALID_HANDLE;
@@ -335,7 +334,6 @@ public void OnPluginStart()
 	hcv_NoSpread    = FindConVar("weapon_accuracy_nospread");
 
 	cpInfoMsg = RegClientCookie("LastRequest_InfoMessage", "Should you see the info message?", CookieAccess_Public);
-	cpLRWins  = RegClientCookie("LastRequest_Wins", "Amount of wins in Last Request Duels.", CookieAccess_Private);
 
 	// public LastRequest_OnLRStarted(Prisoner, Guard)
 	fw_LRStarted = CreateGlobalForward("LastRequest_OnLRStarted", ET_Ignore, Param_Cell, Param_Cell);
@@ -1331,32 +1329,9 @@ public Action Command_StopBall(int client, int args)
 
 public Action Command_LRWins(int client, int args)
 {
-	int clientprefWins = GetClientLRWins(client);
-
-	Handle DP = INVALID_HANDLE;
-
-	if (clientprefWins > 0)
-	{
-		DP = CreateDataPack();
-
-		WritePackCell(DP, GetClientUserId(client));
-		WritePackCell(DP, clientprefWins);
-
-		char SteamID[35];
-		GetClientAuthId(client, AuthId_Steam2, SteamID, sizeof(SteamID));
-
-		WritePackString(DP, SteamID);
-
-		char sQuery[256];
-
-		Format(sQuery, sizeof(sQuery), "UPDATE LastRequest_players SET wins = wins + %i WHERE SteamID = \"%s\"", clientprefWins, SteamID);
-
-		dbLRWins.Query(SQL_ChangeDatabases, sQuery, DP);
-	}
-
 	if (args == 0)
 	{
-		DP = CreateDataPack();
+		DataPack DP = CreateDataPack();
 
 		WritePackCell(DP, GetClientUserId(client));
 		WritePackCell(DP, CM_ShowWins);
@@ -1372,7 +1347,7 @@ public Action Command_LRWins(int client, int args)
 
 		if (target != -1)
 		{
-			DP = CreateDataPack();
+			DataPack DP = CreateDataPack();
 
 			WritePackCell(DP, GetClientUserId(target));
 			WritePackCell(DP, CM_ShowTargetWins);
@@ -1395,37 +1370,6 @@ public Action Command_LRTop(int client, int args)
 	SQL_GetTopPlayers(0, DP);
 
 	return Plugin_Handled;
-}
-
-public void SQL_ChangeDatabases(Database db, DBResultSet hResults, const char[] Error, Handle DP)
-{
-	/* If something fucked up. */
-	if (hResults == null)
-		ThrowError(Error);
-
-	else
-	{
-		ResetPack(DP);
-
-		int client         = GetClientOfUserId(ReadPackCell(DP));
-		int clientprefWins = ReadPackCell(DP);
-
-		char SteamID[35];
-		ReadPackString(DP, SteamID, sizeof(SteamID));
-
-		CloseHandle(DP);
-		if (client != 0)
-			SetClientLRWins(client, 0);
-
-		else
-		{
-			char sQuery[256];
-
-			Format(sQuery, sizeof(sQuery), "UPDATE LastRequest_players SET wins = wins + %i WHERE SteamID = \"%s\"", clientprefWins, SteamID);
-
-			dbLRWins.Query(SQL_Error, sQuery);
-		}
-	}
 }
 /* // sm
 public Action:Command_LRManage(client, args)
@@ -4091,9 +4035,6 @@ public void ContinueStartDuel()
 	{
 		float Time = 20.0;
 
-		if (StrContains(DuelName, "Type Stages") != -1)
-			Time += 40.0;
-
 		if (StrContains(DuelName, "Math") != -1)
 			Time += 20.0;
 
@@ -5719,39 +5660,6 @@ stock bool SetClientInfoMessage(int client, bool value)
 	SetClientCookie(client, cpInfoMsg, strInfoMessage);
 
 	return value;
-}
-
-stock int GetClientLRWins(int client)
-{
-	char strLRWins[50];
-	GetClientCookie(client, cpLRWins, strLRWins, sizeof(strLRWins));
-
-	if (strLRWins[0] == EOS)
-	{
-		SetClientCookie(client, cpLRWins, "0");
-		return 0;
-	}
-
-	return StringToInt(strLRWins);
-}
-
-stock void AddClientLRWin(int client)
-{
-	char strLRWins[50];
-
-	int TotalWins = GetClientLRWins(client) + 1;
-
-	IntToString(TotalWins, strLRWins, sizeof(strLRWins));
-	SetClientCookie(client, cpLRWins, strLRWins);
-}
-
-stock void SetClientLRWins(int client, int value)
-{
-	char strLRWins[50];
-
-	IntToString(value, strLRWins, sizeof(strLRWins));
-
-	SetClientCookie(client, cpLRWins, strLRWins);
 }
 
 // SM lib all the set sizes.

@@ -18,12 +18,12 @@ enum enDay
 	FS_DAY,
 	ZEUS_DAY,
 	DODGEBALL_DAY,
-	SCOUT_DAY,
 	KNIFE_DAY,
 	WAR_DAY,
 	SDEAGLE_DAY,
 	HNR_DAY,
 	CROSSBOW_DAY,
+	KZ_DAY,
 
 	MAX_DAYS
 };
@@ -34,12 +34,12 @@ char DayName[][] = {
 	"FreeStyle Day",
 	"Zeus Day",
 	"DodgeBall Day",
-	"Scout Day",
 	"Knife Day",
 	"War Day",
 	"Super Deagle Day",
 	"Hit'N'Run Day",
-	"Crossbow Day"
+	"Crossbow Day",
+	"KZ Day"
 };
 
 char DayCommand[][] = {
@@ -48,13 +48,12 @@ char DayCommand[][] = {
 	"sm_startfsday",
 	"sm_startzeusday",
 	"sm_startdodgeballday",
-	"sm_startscoutday",
 	"sm_startknifeday",
 	"sm_startwarday",
 	"sm_startsdeagleday",
 	"sm_starthnrday",
 	"sm_startcrossbowday",
-
+	"sm_startkzday",
 };
 
 enum struct enWeapon {
@@ -65,6 +64,7 @@ enum struct enWeapon {
 enWeapon WarDayWeapons[] = {
 	{"weapon_ak47",    "AK-47"  },
 	{ "weapon_awp",    "AWP"    },
+	{ "weapon_ssg08",  "Scout" },
 	{ "weapon_m4a1",   "M4A4"   },
 	{ "weapon_sg556",  "SG-553" },
 	{ "weapon_aug",    "AUG"    },
@@ -179,6 +179,7 @@ public Action Timer_DrawVoteDayMenu(Handle hTimer)
 		else if (!IsClientInVotePool(i))
 			continue;
 
+
 		RedrawClientVoteMenu(i);
 	}
 
@@ -208,6 +209,13 @@ void BuildUpVoteDayMenu()
 			if(!LibraryExists("CrossbowAPI"))
 				continue;
 		}
+
+		if(StrContains(DayName[i], "KZ") != -1)
+		{
+			// Skip KZ day if the KZ Generator plugin is not found.
+			if(!LibraryExists("JB_KZGenerator"))
+				continue;
+		}
 		FormatEx(TempFormat, sizeof(TempFormat), "%s {VOTE_COUNT}", DayName[i]);
 
 		FormatEx(replace, sizeof(replace), "[%i]", VoteList[i]);
@@ -216,7 +224,8 @@ void BuildUpVoteDayMenu()
 		AddMenuItem(hVoteDayMenu, "", TempFormat);
 	}
 
-	SetMenuPagination(hVoteDayMenu, MENU_NO_PAGINATION);
+	if(GetMenuItemCount(hVoteDayMenu) <= 9)
+		SetMenuPagination(hVoteDayMenu, MENU_NO_PAGINATION);
 }
 
 public int VoteDay_VoteHandler(Handle hMenu, MenuAction action, int param1, int param2)
@@ -280,12 +289,12 @@ public void OnPluginStart()
 	RegServerCmd("sm_startfsday", Command_StartFSDay);
 	RegServerCmd("sm_startzeusday", Command_StartZeusDay);
 	RegServerCmd("sm_startdodgeballday", Command_StartDodgeballDay);
-	RegServerCmd("sm_startscoutday", Command_StartScoutDay);
 	RegServerCmd("sm_startknifeday", Command_StartKnifeDay);
 	RegServerCmd("sm_startwarday", Command_StartWarDay);
 	RegServerCmd("sm_startsdeagleday", Command_StartSDeagleDay);
 	RegServerCmd("sm_starthnrday", Command_StartHNRDay);
 	RegServerCmd("sm_startcrossbowday", Command_StartCrossbowDay);
+	RegServerCmd("sm_startkzday", Command_StartKZDay);
 
 	HookEvent("weapon_fire", Event_WeaponTryFire, EventHookMode_Post);
 	HookEvent("weapon_fire_on_empty", Event_WeaponTryFire, EventHookMode_Post);
@@ -343,26 +352,18 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 {
 	switch (DayActive)
 	{
-		case SCOUT_DAY:
-		{
-			int wep = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-
-			if (wep == -1)
-				return Plugin_Continue;
-
-			char Classname[64];
-			GetEdictClassname(wep, Classname, sizeof(Classname));
-
-			if (StrEqual(Classname, "weapon_ssg08"))
-			{
-				// buttons &= ~IN_ATTACK2;
-
-				SetEntPropFloat(wep, Prop_Send, "m_flNextSecondaryAttack", GetGameTime() + 1.0);
-			}
-		}
-
 		case DODGEBALL_DAY:
 		{
+			buttons &= ~IN_ATTACK2;
+		}
+		case KZ_DAY:
+		{
+			if(DayCountDown > 0)
+			{
+				buttons &= ~IN_JUMP;
+			}
+
+			buttons &= ~IN_ATTACK;
 			buttons &= ~IN_ATTACK2;
 		}
 	}
@@ -428,7 +429,7 @@ public Action Timer_CheckHNRInfected(Handle hTimer)
 public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_WeaponCanUse, SDKEvent_WeaponCanUse);
-	SDKHook(client, SDKHook_PostThinkPost, SDKEvent_PostThinkPost);
+	//SDKHook(client, SDKHook_PostThinkPost, SDKEvent_PostThinkPost);
 	SDKHook(client, SDKHook_OnTakeDamage, SDKEvent_OnTakeDamage);
 	SDKHook(client, SDKHook_TraceAttack, SDKEvent_TraceAttack);
 
@@ -564,8 +565,11 @@ public Action SDKEvent_TraceAttack(int victim, int& attacker, int& inflictor, fl
 
 public Action CS_OnCSWeaponDrop(int client, int weapon)
 {
-	if (DayActive == SCOUT_DAY)
-		return Plugin_Handled;
+	if(DayActive > LR_DAY)
+	{
+		if (DayActive != FS_DAY)
+			return Plugin_Handled;
+	}
 
 	return Plugin_Continue;
 }
@@ -625,22 +629,8 @@ public Action SDKEvent_WeaponCanUse(int client, int weapon)
 			AcceptEntityInput(weapon, "Kill");
 			return Plugin_Handled;
 		}
-		case SCOUT_DAY:
-		{
-			char Classname[64];
-			GetEdictClassname(weapon, Classname, sizeof(Classname));
 
-			if (StrEqual(Classname, "weapon_ssg08"))
-				return Plugin_Continue;
-
-			else if (GetAliveTeamCount(CS_TEAM_T) == 2 && strncmp(Classname, "weapon_knife", 12) == 0)
-				return Plugin_Continue;
-
-			AcceptEntityInput(weapon, "Kill");
-			return Plugin_Handled;
-		}
-
-		case KNIFE_DAY:
+		case KNIFE_DAY, KZ_DAY:
 		{
 			char Classname[64];
 			GetEdictClassname(weapon, Classname, sizeof(Classname));
@@ -707,18 +697,6 @@ public Action SDKEvent_WeaponCanUse(int client, int weapon)
 	return Plugin_Continue;
 }
 
-public Action SDKEvent_PostThinkPost(int client)
-{
-	if (DayActive == SCOUT_DAY)
-	{
-		int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-
-		if (weapon != -1)
-			SetEntPropFloat(weapon, Prop_Send, "m_fAccuracyPenalty", 0.0);
-	}
-
-	return Plugin_Continue;
-}
 
 public Action Command_StartVoteDay(int client, int args)
 {
@@ -782,22 +760,6 @@ public Action Command_StartDodgeballDay(int args)
 	ServerCommand("sm_egr");
 
 	StartDodgeballDay();
-
-	UC_PrintToChatAll("%s \x07%s\x05 has started! ", PREFIX, DayName[DayActive]);
-
-	return Plugin_Handled;
-}
-
-public Action Command_StartScoutDay(int args)
-{
-	ServerCommand("sm_silentstopck");
-
-	EndVoteDay();
-	StopDay(false);
-	Eyal282_VoteCT_StopVoteCT();
-	ServerCommand("sm_egr");
-
-	StartScoutDay();
 
 	UC_PrintToChatAll("%s \x07%s\x05 has started! ", PREFIX, DayName[DayActive]);
 
@@ -994,6 +956,24 @@ public Action Command_StartCrossbowDay(int args)
 
 	return Plugin_Handled;
 }
+
+public Action Command_StartKZDay(int args)
+{
+	ServerCommand("sm_silentstopck");
+
+	EndVoteDay();
+	StopDay(false);
+	Eyal282_VoteCT_StopVoteCT();
+	ServerCommand("sm_egr");
+
+
+	if(!StartKZDay())
+		return Plugin_Handled;
+
+	UC_PrintToChatAll("%s \x07%s\x05 has started! ", PREFIX, DayName[DayActive]);
+
+	return Plugin_Handled;
+}
 public void StartFSDay()
 {
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
@@ -1056,35 +1036,6 @@ public void StartDodgeballDay()
 	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
 
 	DayActive = DODGEBALL_DAY;
-
-	DayCountDown    = 10 + 1;
-	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
-
-	IgnorePlayerDeaths = true;
-
-	DestroyAllWeapons();
-
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientInGame(i))
-			continue;
-
-		else if (!IsValidTeam(i))
-			continue;
-
-		ChangeClientTeam(i, CS_TEAM_T);
-
-		CS_RespawnPlayer(i);
-	}
-
-	IgnorePlayerDeaths = false;
-}
-
-public void StartScoutDay()
-{
-	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
-
-	DayActive = SCOUT_DAY;
 
 	DayCountDown    = 10 + 1;
 	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
@@ -1227,6 +1178,42 @@ public void StartCrossbowDay()
 
 	DayCountDown    = 10 + 1;
 	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+}
+
+public bool StartKZDay()
+{
+	if(!LibraryExists("JB_KZGenerator"))
+		return false;
+
+	SetConVarBool(hcv_IgnoreRoundWinConditions, true);
+
+	DayActive = KZ_DAY;
+
+	IgnorePlayerDeaths = true;
+
+	DestroyAllWeapons();
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		else if (!IsValidTeam(i))
+			continue;
+
+		ChangeClientTeam(i, CS_TEAM_T);
+
+		CS_RespawnPlayer(i);
+	}
+
+	IgnorePlayerDeaths = false;
+
+	ServerCommand("sm_forcekz");
+
+	DayCountDown    = 10 + 1;
+	hTimer_StartDay = CreateTimer(1.0, Timer_StartDay, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+
+	return true;
 }
 
 void SelectWeaponWarDay()
@@ -1545,7 +1532,7 @@ public Action Timer_StartDay(Handle hTimer)
 
 public Action Timer_InfoMessage(Handle hTimer)
 {
-	if (DayActive <= LR_DAY)
+	if (DayActive <= LR_DAY || DayActive == KZ_DAY)
 		return Plugin_Stop;
 
 	for (int i = 1; i <= MaxClients; i++)
@@ -1756,7 +1743,21 @@ stock void StopDay(bool Restart = true)
 	ResetConVar(hcv_TaserRechargeTime);
 
 	if (Restart)
+	{
 		ServerCommand("mp_restartgame 1");
+
+		if(GetConVarBool(FindConVar("votect_warden_enabled")))
+		{
+			for(int i=1; i<=MaxClients; i++)
+			{
+				if(!IsClientInGame(i))
+					continue;
+
+				if(GetClientTeam(i) == CS_TEAM_CT)
+					CS_SwitchTeam(i, CS_TEAM_T);
+			}
+		}
+	}
 
 	if (hTimer_StartDay != INVALID_HANDLE)
 	{
@@ -1875,23 +1876,6 @@ void ProcessPlayerDeath(int victim)
 		UC_PrintToChatAll("%s The gang \x07%s \x01won the \x05day! \x01it will now fight eachother.", PREFIX, GangName);
 
 		GlowRemoved = true;
-	}
-
-	if (LivingT == 2 && DayActive == SCOUT_DAY)
-	{
-		for (int i = 1; i <= MaxClients; i++)
-		{
-			if (!IsClientInGame(i))
-				continue;
-
-			GivePlayerItem(i, "weapon_knife");
-		}
-
-		UC_PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
-		UC_PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
-		UC_PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
-		UC_PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
-		UC_PrintToChatAll("%s FIGHT FIGHT FIGHT", PREFIX);
 	}
 
 	if (LivingT != 1)
@@ -2031,7 +2015,7 @@ public Action Timer_PlayerSpawn(Handle hTimer, int UserId)
 
 	switch (DayActive)
 	{
-		case FS_DAY, KNIFE_DAY:
+		case FS_DAY, KNIFE_DAY, KZ_DAY:
 		{
 			UC_StripPlayerWeapons(client);
 
@@ -2051,29 +2035,6 @@ public Action Timer_PlayerSpawn(Handle hTimer, int UserId)
 			GivePlayerItem(client, "weapon_decoy");
 
 			SetEntProp(client, Prop_Data, "m_CollisionGroup", 5);
-		}
-
-		case SCOUT_DAY:
-		{
-			int LivingT = 0;
-
-			for (int i = 1; i <= MaxClients; i++)
-			{
-				if (!IsClientInGame(i))
-					continue;
-
-				else if (!IsValidTeam(i))
-					continue;
-
-				LivingT++;
-			}
-
-			UC_StripPlayerWeapons(client);
-
-			GivePlayerItem(client, "weapon_ssg08");
-
-			if (LivingT == 2)
-				GivePlayerItem(client, "weapon_knife");
 		}
 
 		case WAR_DAY:
@@ -2361,6 +2322,18 @@ stock int[] CalculateVotes()
 			continue;
 
 		arr[votedItem[i]]++;
+	}
+
+
+	// Prevent tie wins
+	if(!LibraryExists("CrossbowAPI"))
+	{
+		arr[CROSSBOW_DAY] = -999;
+	}
+
+	if(!LibraryExists("JB_KZGenerator"))
+	{
+		arr[KZ_DAY] = -999;
 	}
 
 	return arr;

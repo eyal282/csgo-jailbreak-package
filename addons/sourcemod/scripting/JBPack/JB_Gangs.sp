@@ -66,6 +66,8 @@ Database dbGangs;
 
 Handle hcv_HonorPerKill = INVALID_HANDLE;
 
+Handle hTimer_Regen[MAXPLAYERS + 1];
+
 #define MIN_PLAYERS_FOR_GC 3
 
 #define GANG_COSTCREATE 10000
@@ -74,9 +76,9 @@ Handle hcv_HonorPerKill = INVALID_HANDLE;
 #define GANG_HEALTHMAX      5
 #define GANG_HEALTHINCREASE 2
 
-#define GANG_COOLDOWNCOST     2000
-#define GANG_COOLDOWNMAX      10
-#define GANG_COOLDOWNINCREASE 2.0
+#define GANG_REGENCOST     4000
+#define GANG_REGENMAX      10
+#define GANG_REGENINCREASE 2.0
 
 #define GANG_NADECOST     5000
 #define GANG_NADEMAX      10
@@ -114,7 +116,7 @@ int  ClientGangId[MAXPLAYERS + 1];
 char ClientGang[MAXPLAYERS + 1][32], ClientMotd[MAXPLAYERS + 1][100], ClientPrefix[MAXPLAYERS + 1][32];
 int  ClientPrefixMethod[MAXPLAYERS + 1];
 
-int ClientHealthPerkT[MAXPLAYERS + 1], ClientCooldownPerk[MAXPLAYERS + 1], ClientNadePerkT[MAXPLAYERS + 1], ClientHealthPerkCT[MAXPLAYERS + 1], ClientGetHonorPerk[MAXPLAYERS + 1], ClientGangSizePerk[MAXPLAYERS + 1], ClientFriendlyFirePerk[MAXPLAYERS + 1];
+int ClientHealthPerkT[MAXPLAYERS + 1], ClientRegenPerk[MAXPLAYERS + 1], ClientNadePerkT[MAXPLAYERS + 1], ClientHealthPerkCT[MAXPLAYERS + 1], ClientGetHonorPerk[MAXPLAYERS + 1], ClientGangSizePerk[MAXPLAYERS + 1], ClientFriendlyFirePerk[MAXPLAYERS + 1];
 
 // ClientAccessManage basically means if the client can either invite, kick, upgrade, promote or MOTD.
 int ClientAccessManage[MAXPLAYERS + 1], ClientAccessInvite[MAXPLAYERS + 1], ClientAccessKick[MAXPLAYERS + 1], ClientAccessPromote[MAXPLAYERS + 1], ClientAccessUpgrade[MAXPLAYERS + 1], ClientAccessMOTD[MAXPLAYERS + 1];
@@ -133,6 +135,7 @@ int ClientActionEdit[MAXPLAYERS + 1];
 bool CachedSpawn[MAXPLAYERS + 1], CanGetHonor[MAXPLAYERS + 1];
 
 ConVar hcv_WeeklyTax;
+ConVar hcv_PingPositions;
 
 Handle Trie_Donated;
 Handle Trie_DonatedWeek;
@@ -148,7 +151,7 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-	Format(NET_WORTH_ORDER_BY_FORMULA, sizeof(NET_WORTH_ORDER_BY_FORMULA), "%i + GangHonor + GangHealthPerkT*0.5*%i*(GangHealthPerkT+1) + GangHealthPerkCT*0.5*%i*(GangHealthPerkCT+1) + GangCooldownPerk*0.5*%i*(GangCooldownPerk+1) + GangNadePerkT*0.5*%i*(GangNadePerkT+1) + GangGetHonorPerk*0.5*%i*(GangGetHonorPerk+1) + GangSizePerk*0.5*%i*(GangSizePerk+1) + GangFFPerk*0.5*%i*(GangFFPerk+1)", GANG_COSTCREATE, GANG_HEALTHCOST, GANG_HEALTHCOST, GANG_COOLDOWNCOST, GANG_NADECOST, GANG_GETCREDITSCOST, GANG_SIZECOST, GANG_FRIENDLYFIRECOST);
+	Format(NET_WORTH_ORDER_BY_FORMULA, sizeof(NET_WORTH_ORDER_BY_FORMULA), "%i + GangHonor + GangHealthPerkT*0.5*%i*(GangHealthPerkT+1) + GangHealthPerkCT*0.5*%i*(GangHealthPerkCT+1) + GangRegenPerk*0.5*%i*(GangRegenPerk+1) + GangNadePerkT*0.5*%i*(GangNadePerkT+1) + GangGetHonorPerk*0.5*%i*(GangGetHonorPerk+1) + GangSizePerk*0.5*%i*(GangSizePerk+1) + GangFFPerk*0.5*%i*(GangFFPerk+1)", GANG_COSTCREATE, GANG_HEALTHCOST, GANG_HEALTHCOST, GANG_REGENCOST, GANG_NADECOST, GANG_GETCREDITSCOST, GANG_SIZECOST, GANG_FRIENDLYFIRECOST);
 
 	dbFullConnected = false;
 
@@ -181,12 +184,13 @@ public void OnPluginStart()
 	HookEvent("player_changename", Event_ChangeName, EventHookMode_Pre);
 	HookEvent("player_ping", Event_PlayerPingPre, EventHookMode_Pre);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
+	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 
 	AutoExecConfig_SetFile("JB_Gangs", "sourcemod/JBPack");
 
 	hcv_HonorPerKill = UC_CreateConVar("gang_system_honor_per_kill", "100", "Amount of honor you get per kill as T", FCVAR_PROTECTED);
-
+	hcv_PingPositions = UC_CreateConVar("gang_system_ping_positions", "1", "Whether gang members can ping a position for the rest of them to see", FCVAR_PROTECTED);
 	hcv_WeeklyTax = UC_CreateConVar("gang_system_weekly_price", "10000", "Amount of honor a gang pays per week. If a gang reaches negative honor, it is temporarily shut down, and not disbanded", FCVAR_PROTECTED);
 
 	AutoExecConfig_ExecuteFile();
@@ -237,7 +241,7 @@ public Action Event_PlayerPingPre(Handle hEvent, const char[] Name, bool dontBro
 		return Plugin_Continue;
 
 	// If player doesn't have a gang, OR if player is in debt.
-	if (!AreClientsSameGang(owner, owner))
+	if (!AreClientsSameGang(owner, owner) || !GetConVarBool(hcv_PingPositions))
 	{
 		AcceptEntityInput(entity, "Kill");
 
@@ -302,6 +306,8 @@ public void OnMapStart()
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		ClientNextMOTD[i] = 0.0;
+	
+		hTimer_Regen[i] = INVALID_HANDLE;
 	}
 }
 
@@ -372,8 +378,17 @@ public void Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadca
 	if (client == 0)
 		return;
 
+	int userid = GetEventInt(hEvent, "userid");
 	CachedSpawn[client] = false;
-	RequestFrame(Event_PlayerSpawnPlusFrame, GetEventInt(hEvent, "userid"));
+	RequestFrame(Event_PlayerSpawnPlusFrame, userid);
+
+	if(hTimer_Regen[client] != INVALID_HANDLE)
+	{
+		CloseHandle(hTimer_Regen[client]);
+		hTimer_Regen[client] = INVALID_HANDLE;
+	}
+
+	hTimer_Regen[client] = CreateTimer(30.0, Timer_Regen, userid, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 
 public void Event_PlayerSpawnPlusFrame(int UserId)
@@ -437,6 +452,42 @@ public void Event_PlayerSpawnPlusFrame(int UserId)
 	}
 }
 
+public Action Timer_Regen(Handle hTimer, int UserId)
+{
+	int client = GetClientOfUserId(UserId);
+
+	if (client == 0)
+		return Plugin_Continue;
+
+	else if (!IsPlayerAlive(client))
+		return Plugin_Continue;
+
+	else if(!AreClientsSameGang(client, client))
+		return Plugin_Continue;
+
+	else if (ClientRegenPerk[client] <= 0)
+		return Plugin_Continue;
+
+	else if(JailBreakDays_IsDayActive())
+		return Plugin_Continue;
+
+	else if(GetAliveTeamCount(CS_TEAM_T) <= 1)
+		return Plugin_Continue;
+
+	else if(GetEntityHealth(client) >= GetEntityMaxHealth(client))
+		return Plugin_Continue;
+
+	float healPercent = (float(ClientRegenPerk[client]) * GANG_REGENINCREASE);
+
+	int maxHealth = GetEntityMaxHealth(client);
+
+	SetEntityHealth(client, GetEntityHealth(client) + RoundFloat(maxHealth * (healPercent / 100.0)));
+
+	if(GetEntityHealth(client) > maxHealth)
+		SetEntityHealth(client, maxHealth);
+		
+	return Plugin_Continue;
+}
 public Action Event_ChangeName(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
@@ -724,6 +775,24 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 	return Plugin_Continue;
 }
 
+public Action Event_PlayerHurt(Handle hEvent, const char[] Name, bool dontBroadcast)
+{
+	int victim   = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if(victim == 0)
+		return Plugin_Continue;
+
+	if(hTimer_Regen[victim] != INVALID_HANDLE)
+	{
+		CloseHandle(hTimer_Regen[victim]);
+		hTimer_Regen[victim] = INVALID_HANDLE;
+	}
+
+	hTimer_Regen[victim] = CreateTimer(10.0, Timer_Regen, GetClientUserId(victim), TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+
+	return Plugin_Continue;
+}
+
 public Action Event_RoundEnd(Handle hEvent, const char[] Name, bool dontBroadcast)
 {
 	for (int i = 1; i <= MaxClients; i++)
@@ -795,11 +864,13 @@ public void ConnectDatabase()
 		dbGangs = hndl;
 
 		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Members (GangId INT(11) NOT NULL, AuthId VARCHAR(32) NOT NULL UNIQUE, GangRank INT(20) NOT NULL, LastName VARCHAR(32) NOT NULL, GangInviter VARCHAR(32) NOT NULL, GangJoinDate INT(20) NOT NULL, LastConnect INT(20) NOT NULL)", 0, DBPrio_High);
-		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Gangs (`GangId` INTEGER, GangName VARCHAR(32) UNIQUE, GangPrefix VARCHAR(32) NOT NULL, GangPrefixMethod INT(6) NOT NULL, GangMOTD VARCHAR(512) NOT NULL, GangHonor INT(20) NOT NULL, GangNextWeekly INT(20) NOT NULL, GangHealthPerkT INT(20) NOT NULL, GangHealthPerkCT INT(20) NOT NULL, GangNadePerkT INT(20) NOT NULL, GangCooldownPerk INT(20) NOT NULL, GangGetHonorPerk INT(20) NOT NULL, GangFFPerk INT(11) NOT NULL, GangSizePerk INT(20) NOT NULL, GangMinRankInvite INT(11) NOT NULL, GangMinRankKick INT(11) NOT NULL, GangMinRankPromote INT(11) NOT NULL, GangMinRankUpgrade INT(11), GangMinRankMOTD INT(11) NOT NULL, PRIMARY KEY (`GangId` AUTOINCREMENT))", 1, DBPrio_High);
+		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Gangs (`GangId` INTEGER, GangName VARCHAR(32) UNIQUE, GangPrefix VARCHAR(32) NOT NULL, GangPrefixMethod INT(6) NOT NULL, GangMOTD VARCHAR(512) NOT NULL, GangHonor INT(20) NOT NULL, GangNextWeekly INT(20) NOT NULL, GangHealthPerkT INT(20) NOT NULL, GangHealthPerkCT INT(20) NOT NULL, GangNadePerkT INT(20) NOT NULL, GangRegenPerk INT(20) NOT NULL, GangGetHonorPerk INT(20) NOT NULL, GangFFPerk INT(11) NOT NULL, GangSizePerk INT(20) NOT NULL, GangMinRankInvite INT(11) NOT NULL, GangMinRankKick INT(11) NOT NULL, GangMinRankPromote INT(11) NOT NULL, GangMinRankUpgrade INT(11), GangMinRankMOTD INT(11) NOT NULL, PRIMARY KEY (`GangId` AUTOINCREMENT))", 1, DBPrio_High);
 		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Honor (AuthId VARCHAR(32) NOT NULL UNIQUE, Honor INT(11) NOT NULL)", 2, DBPrio_High);
 		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_upgradelogs (GangId INT(11) NOT NULL, GangName VARCHAR(32) NOT NULL, AuthId VARCHAR(32) NOT NULL, Perk VARCHAR(32) NOT NULL, BValue INT NOT NULL, AValue INT NOT NULL, timestamp INT NOT NULL)", 3, DBPrio_High);
 		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_modlogs (GangId INT(11) NOT NULL, AuthId VARCHAR(32) NOT NULL, ModAction INT(6) NOT NULL, ModActionNumber INT(11), ModActionWord VARCHAR(100), ModTarget VARCHAR(128) NOT NULL, timestamp INT NOT NULL)", -1, DBPrio_High);
 		dbGangs.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GangSystem_Donations (GangId INT(11) NOT NULL, AuthId VARCHAR(32) NOT NULL, AmountDonated INT(11), timestamp INT(32))", -2, DBPrio_High);
+
+		dbGangs.Query(SQLCB_ErrorIgnore, "ALTER TABLE GangSystem_Gangs ADD COLUMN GangRegenPerk INT(11) NOT NULL DEFAULT 0", -3, DBPrio_High);
 
 		dbFullConnected = true;
 
@@ -835,6 +906,8 @@ public void OnClientPutInServer(int client)
 	ClientWhiteGlow[client]    = 0;
 	ClientColorfulGlow[client] = 0;
 	ClientSpyGang[client]      = false;
+
+
 }
 
 public void OnClientConnected(int client)
@@ -848,7 +921,7 @@ void ResetVariables(int client, bool login = true)
 {
 	ClientHonor[client]        = 0;
 	ClientHealthPerkT[client]  = 0;
-	ClientCooldownPerk[client] = 0;
+	ClientRegenPerk[client] = 0;
 	ClientNadePerkT[client]    = 0;
 	ClientHealthPerkCT[client] = 0;
 
@@ -1052,7 +1125,7 @@ public void SQLCB_LoadGangByClient(Handle owner, DBResultSet hndl, char[] error,
 					ClientHealthPerkT[client]      = SQL_FetchIntByName(hndl, "GangHealthPerkT");
 					ClientHealthPerkCT[client]     = SQL_FetchIntByName(hndl, "GangHealthPerkCT");
 					ClientNadePerkT[client]        = SQL_FetchIntByName(hndl, "GangNadePerkT");
-					ClientCooldownPerk[client]     = SQL_FetchIntByName(hndl, "GangCooldownPerk");
+					ClientRegenPerk[client]     = SQL_FetchIntByName(hndl, "GangRegenPerk");
 					ClientGetHonorPerk[client]     = SQL_FetchIntByName(hndl, "GangGetHonorPerk");
 					ClientFriendlyFirePerk[client] = SQL_FetchIntByName(hndl, "GangFFPerk");
 
@@ -1975,6 +2048,10 @@ public Action Command_BreachGang(int client, int args)
 	if (IsClientGang(client))
 	{
 		UC_PrintToChat(client, "%s \x05You \x01must not be in a gang to move yourself into another \x07gang.", PREFIX);
+
+		if(CheckGangAccess(client, RANK_LEADER))
+			UC_PrintToChat(client, "%s \x05Use \x07!breachgangrank %i\x01 to be able to leave as the Leader.", PREFIX, RANK_MEMBER);
+
 		return Plugin_Handled;
 	}
 
@@ -2286,6 +2363,8 @@ public void SQLCB_ShowGangInfo_LoadMembers(Handle owner, DBResultSet hndl, char[
 
 	Handle hMenu = CreateMenu(TopGangs_GangInfo_MenuHandler);
 
+	bool bFound = false;
+
 	char TempFormat[200], iAuthId[35], Name[64];
 	while (SQL_FetchRow(hndl))
 	{
@@ -2305,12 +2384,24 @@ public void SQLCB_ShowGangInfo_LoadMembers(Handle owner, DBResultSet hndl, char[
 		FormatEx(TempFormat, sizeof(TempFormat), "%s [%s] - %s [Donated: %s]", Name, strRank, FindClientByAuthId(iAuthId) != 0 ? "ONLINE" : "OFFLINE", sHonor);
 
 		AddMenuItem(hMenu, iAuthId, TempFormat, ITEMDRAW_DISABLED);
+
+		bFound = true;
 	}
 
 	SetMenuTitle(hMenu, "%s Member List of %s:\nGang Id: %i\nGang Honor: %i\n", MENU_PREFIX, GangName, GangId, GangHonor);
 
 	SetMenuExitBackButton(hMenu, true);
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+
+	if(!bFound)
+	{
+		UC_PrintToChat(client, "%s This gang has no members. An admin has removed its members.", PREFIX);
+
+		if(CheckCommandAccess(client, "sm_breachgang", ADMFLAG_ROOT))
+			UC_PrintToChat(client, "%s This gang's ID is\x03 %i\x01.", PREFIX, GangId);
+
+		CloseHandle(hMenu);
+	}
 }
 
 public int TopGangs_GangInfo_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -2333,7 +2424,7 @@ void ShowGangPerks(int client)
 	Format(TempFormat, sizeof(TempFormat), "Health ( T ) [ %i / %i ] Bonus: +%i [ %i per level ]", ClientHealthPerkT[client], GANG_HEALTHMAX, ClientHealthPerkT[client] * GANG_HEALTHINCREASE, GANG_HEALTHINCREASE);
 	AddMenuItem(hMenu, "", TempFormat, ITEMDRAW_DISABLED);
 
-	Format(TempFormat, sizeof(TempFormat), "Cooldown [ %i / %i ] Bonus: +%.1f%% [ %.1f%% per level ]", ClientCooldownPerk[client], GANG_COOLDOWNMAX, ClientCooldownPerk[client] * GANG_COOLDOWNINCREASE, GANG_COOLDOWNINCREASE);
+	Format(TempFormat, sizeof(TempFormat), "Regen [ %i / %i ] Bonus: +%.1f%% [ %.1f%% per level ]", ClientRegenPerk[client], GANG_REGENMAX, ClientRegenPerk[client] * GANG_REGENINCREASE, GANG_REGENINCREASE);
 	AddMenuItem(hMenu, "", TempFormat, ITEMDRAW_DISABLED);
 
 	Format(TempFormat, sizeof(TempFormat), "Nade Chance ( T ) [ %i / %i ] Bonus: %.3f%% [ %.3f per level ]", ClientNadePerkT[client], GANG_NADEMAX, ClientNadePerkT[client] * GANG_NADEINCREASE, GANG_NADEINCREASE);
@@ -2653,9 +2744,9 @@ void ShowUpgradeMenu(int client)
 	Format(TempFormat, sizeof(TempFormat), "Health ( T ) [ %i / %i ] Cost: %i", ClientHealthPerkT[client], GANG_HEALTHMAX, upgradecost);
 	AddMenuItem(hMenu, strUpgradeCost, TempFormat, ClientGangHonor[client] >= upgradecost ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 
-	upgradecost = GetUpgradeCost(ClientCooldownPerk[client], GANG_COOLDOWNCOST);
+	upgradecost = GetUpgradeCost(ClientRegenPerk[client], GANG_REGENCOST);
 	IntToString(upgradecost, strUpgradeCost, sizeof(strUpgradeCost));
-	Format(TempFormat, sizeof(TempFormat), "Cooldown [ %i / %i ] Cost: %i", ClientCooldownPerk[client], GANG_COOLDOWNMAX, upgradecost);
+	Format(TempFormat, sizeof(TempFormat), "Regen [ %i / %i ] Cost: %i", ClientRegenPerk[client], GANG_REGENMAX, upgradecost);
 	AddMenuItem(hMenu, strUpgradeCost, TempFormat, ClientGangHonor[client] >= upgradecost ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 
 	upgradecost = GetUpgradeCost(ClientNadePerkT[client], GANG_NADECOST);
@@ -2792,7 +2883,7 @@ public void SQLCB_LoadGangByClient_TryUpgrade(Handle owner, DBResultSet hndl, ch
 			SQL_FetchStringByName(hndl, "GangMOTD", ClientMotd[client], sizeof(ClientMotd[]));
 			ClientGangHonor[client]    = SQL_FetchIntByName(hndl, "GangHonor");
 			ClientHealthPerkT[client]  = SQL_FetchIntByName(hndl, "GangHealthPerkT");
-			ClientCooldownPerk[client] = SQL_FetchIntByName(hndl, "GangCooldownPerk");
+			ClientRegenPerk[client] = SQL_FetchIntByName(hndl, "GangRegenPerk");
 			ClientNadePerkT[client]    = SQL_FetchIntByName(hndl, "GangNadePerkT");
 			ClientHealthPerkCT[client] = SQL_FetchIntByName(hndl, "GangHealthPerkCT");
 			ClientGetHonorPerk[client] = SQL_FetchIntByName(hndl, "GangGetHonorPerk");
@@ -2816,7 +2907,7 @@ void TryUpgradePerk(int client, int item, int upgradecost)    // Safety accompli
 	switch (item + 1)
 	{
 		case 1: PerkToUse = ClientHealthPerkT[client], PerkMax = GANG_HEALTHMAX, PerkName = "GangHealthPerkT", PerkNick = "Health ( T )";
-		case 2: PerkToUse = ClientCooldownPerk[client], PerkMax = GANG_COOLDOWNMAX, PerkName = "GangCooldownPerk", PerkNick = "Cooldown";
+		case 2: PerkToUse = ClientRegenPerk[client], PerkMax = GANG_REGENMAX, PerkName = "GangRegenPerk", PerkNick = "Regen";
 		case 3: PerkToUse = ClientNadePerkT[client], PerkMax = GANG_NADEMAX, PerkName = "GangNadePerkT", PerkNick = "Nade Chance ( T )";
 		case 4: PerkToUse = ClientHealthPerkCT[client], PerkMax = GANG_HEALTHMAX, PerkName = "GangHealthPerkCT", PerkNick = "Health ( CT )";
 		case 5: PerkToUse = ClientGetHonorPerk[client], PerkMax = GANG_GETCREDITSMAX, PerkName = "GangGetHonorPerk", PerkNick = "Get Honor";
@@ -3712,7 +3803,7 @@ void CreateGang(int client, const char[] GangName)
 
 	Transaction transaction = SQL_CreateTransaction();
 
-	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Gangs (GangName, GangPrefix, GangPrefixMethod, GangNextWeekly, GangMOTD, GangHonor, GangHealthPerkT, GangCooldownPerk, GangNadePerkT, GangHealthPerkCT, GangGetHonorPerk, GangFFPerk, GangSizePerk, GangMinRankInvite, GangMinRankKick, GangMinRankPromote, GangMinRankUpgrade, GangMinRankMOTD) VALUES ('%s', '', 0, %i, '', 0, 0, 0, 0, 0, 0, 0, 0, %i, %i, %i, %i, %i)", GangName, GetTime() + SECONDS_IN_A_WEEK, RANK_ENFORCER, RANK_ADVISOR, RANK_MANAGER, RANK_COLEADER, RANK_MANAGER);
+	dbGangs.Format(sQuery, sizeof(sQuery), "INSERT INTO GangSystem_Gangs (GangName, GangPrefix, GangPrefixMethod, GangNextWeekly, GangMOTD, GangHonor, GangHealthPerkT, GangRegenPerk, GangNadePerkT, GangHealthPerkCT, GangGetHonorPerk, GangFFPerk, GangSizePerk, GangMinRankInvite, GangMinRankKick, GangMinRankPromote, GangMinRankUpgrade, GangMinRankMOTD) VALUES ('%s', '', 0, %i, '', 0, 0, 0, 0, 0, 0, 0, 0, %i, %i, %i, %i, %i)", GangName, GetTime() + SECONDS_IN_A_WEEK, RANK_ENFORCER, RANK_ADVISOR, RANK_MANAGER, RANK_COLEADER, RANK_MANAGER);
 	SQL_AddQuery(transaction, sQuery);
 
 	Transaction_GiveClientHonor(transaction, client, -1 * GANG_COSTCREATE);
@@ -4343,7 +4434,9 @@ public any Native_GetFFDamageDecrease(Handle plugin, int numParams)
 public any Native_GetCooldownPercent(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
-	return (ClientCooldownPerk[client] * GANG_COOLDOWNINCREASE) / 100.0;
+
+	return 0.0;
+	//return (ClientRegenPerk[client] * GANG_COOLDOWNINCREASE) / 100.0;
 }
 
 public void SQLCB_GiveGangHonor(Handle owner, DBResultSet hndl, char[] error, Handle DP)

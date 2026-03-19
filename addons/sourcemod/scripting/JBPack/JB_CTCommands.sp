@@ -135,6 +135,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_box", Command_Box, "Enables friendlyfire for the terrorists");
 	RegConsoleCmd("sm_ff", Command_Box, "Enables friendlyfire for the terrorists");
 	RegConsoleCmd("sm_fd", Command_FD, "Turns on glow on a player");
+	RegConsoleCmd("sm_dice", Command_Dice, "Roll a dice");
 	RegConsoleCmd("sm_ck", Command_CK, "Turns on CK for the rest of the vote CT");
 	//RegConsoleCmd("sm_sort", Command_Sort, "Randomly sorts every T.");
 
@@ -720,10 +721,11 @@ public void OnButtonRelease(int client, int button, float holdTime)
 	// Releasing with a second hold = delete marker.
 	if (holdTime < 0.2)
 	{
-		CreateMarker(client);
-
-		if (GetArraySize(aMarkers) == 1)
+		// We don't wait post CreateMarker and check for size of 1 because it'll spam if "jbpack_max_markers" is set to 1
+		if (GetArraySize(aMarkers) == 0)
 			UC_PrintToChat(client, "Hint: Hold +attack2 for a second to clear all marks.");
+
+		CreateMarker(client);
 	}
 	else if (holdTime >= 1.0)
 	{
@@ -988,6 +990,42 @@ public Action Event_PlayerDeath(Handle hEvent, const char[] Name, bool dontBroad
 	}
 
 	return Plugin_Continue;
+}
+
+public Action Command_Dice(int client, int args)
+{
+	if ((GetClientTeam(client) != CS_TEAM_CT || !IsPlayerAlive(client)) && !CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC))
+	{
+		UC_ReplyToCommand(client, "You don't have access to this command");
+
+		return Plugin_Handled;
+	}
+
+	int result = GetRandomInt(0, 5);
+
+	char resultNames[6][4] = { "⚀", "⚁", "⚂", "⚃", "⚄", "⚅" };
+	char Title[64];
+
+	char TempFormat[128];
+
+	if (client != 0)
+	{
+		int Team = GetClientTeam(client);
+		
+		if (Team == CS_TEAM_CT)
+			Title = "Guard";
+
+		else if (CheckCommandAccess(client, "sm_open_override", ADMFLAG_SLAY, false))
+			Title = "Admin";
+	}
+	else
+		Title = "Admin";
+
+	FormatEx(TempFormat, sizeof(TempFormat), "%s %N rolled a dice: ", Title, client);
+
+	PrintCenterTextAll("<font color='#FFFFFF'>%s</font><span class='fontSize-xxxl full-width text-align-center padding-left'>%s</span>", TempFormat, resultNames[result]);
+
+	return Plugin_Handled;
 }
 
 public Action Command_FD(int client, int args)

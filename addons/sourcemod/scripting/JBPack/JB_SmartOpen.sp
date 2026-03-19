@@ -546,7 +546,7 @@ public Action Command_Open(int client, int args)
 	if (client != 0)
 	{
 		int Team = GetClientTeam(client);
-
+		
 		if (Team == CS_TEAM_CT)
 			Title = "Guard";
 
